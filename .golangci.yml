@@ -30,7 +30,7 @@ linters-settings:
     list-type: whitelist
     include-go-root: false
     packages:
-      - 0xacab.org/jstuczyn/CoconutGo
+      - github.com/nymtech/nym
       - github.com/jstuczyn/amcl
       - github.com/tendermint/tendermint
       - github.com/tendermint/iavl
