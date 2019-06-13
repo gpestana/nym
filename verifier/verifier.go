@@ -19,6 +19,7 @@ package verifier
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -26,6 +27,7 @@ import (
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/gogo/protobuf/proto"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"github.com/nymtech/nym/common/comm/commands"
 	monitor "github.com/nymtech/nym/common/tendermintmonitor"
@@ -164,44 +166,34 @@ func (v *Verifier) worker() {
 
 			zetaBytes := tx.Tags[0].Key[plen+ethcommon.AddressLength:]
 
-			materials := &coconut.TumblerBlindVerifyMaterials{}
-			if err := materials.UnmarshalBinary(tx.Tags[0].Value); err != nil {
+			materials := &coconut.ProtoTumblerBlindVerifyMaterials{}
+			if err := proto.Unmarshal(tx.Tags[0].Value, materials); err != nil {
 				v.log.Warningf("Failed to unmarshal materials from provider %v", address)
 				continue
 			}
 
-			v.log.Noticef("Received materials. Address: %v, zeta: %v", address, zetaBytes)
+			v.log.Debugf("Received materials. Address: %v, zeta: %v", address, zetaBytes)
 
-			// blindSignMaterials := &coconut.ProtoBlindSignMaterials{}
+			cmd := &commands.CredentialVerificationRequest{
+				CryptoMaterials: materials,
+				BoundAddress:    address[:],
+			}
 
-			// err := proto.Unmarshal(tx.Tags[0].Value, blindSignMaterials)
-			// if err != nil {
-			// 	v.log.Errorf("Error while unmarshalling tags: %v", err)
-			// 	continue
-			// }
+			resCh := make(chan *commands.Response, 1)
+			cmdReq := commands.NewCommandRequest(cmd, resCh)
 
-			// cmd := &commands.BlindSignRequest{
-			// 	Lambda: blindSignMaterials.Lambda,
-			// 	EgPub:  blindSignMaterials.EgPub,
-			// 	PubM:   blindSignMaterials.PubM,
-			// }
+			cmdReq.WithContext(context.TODO())
 
-			// // just reuse existing processing pipeline
-			// resCh := make(chan *commands.Response, 1)
-			// cmdReq := commands.NewCommandRequest(cmd, resCh)
+			v.cmdChIn <- cmdReq
 
-			// v.incomingCh <- cmdReq
-			// res := <-resCh
+			// TODO: we can't be blocking on those as it defeats the purpose of using the workers.
+			res := <-resCh
 
-			// if res == nil || res.Data == nil {
-			// 	v.log.Errorf("Failed to sign request at index: %v on height %v", i, height)
-			// }
-			// v.log.Infof("Signed tx %v on height %v", i, height)
+			wasValid := res.Data.(bool)
+			v.log.Debugf("Was the credential valid: %v", wasValid)
 
-			// issuedCred := res.Data.(utils.IssuedSignature)
+			// this won't happen here
 
-			// v.store.StoreIssuedSignature(height, blindSignMaterials.EgPub.Gamma, issuedCred)
-			// v.log.Infof("Stored sig for tx %v on height %v", i, height)
 		}
 		v.monitor.FinalizeHeight(height)
 		nextBlock.Unlock()

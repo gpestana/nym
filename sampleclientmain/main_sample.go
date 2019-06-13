@@ -24,13 +24,13 @@ import (
 	"os/signal"
 	"syscall"
 
+	ethcommon "github.com/ethereum/go-ethereum/common"
+	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	cclient "github.com/nymtech/nym/client"
 	"github.com/nymtech/nym/client/config"
 	"github.com/nymtech/nym/crypto/bpgroup"
 	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
 	"github.com/nymtech/nym/nym/token"
-	ethcommon "github.com/ethereum/go-ethereum/common"
-	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 )
 
 const onlyRunBasic = false
@@ -91,7 +91,7 @@ func main() {
 		os.Exit(-1)
 	}
 
-	transferToPipe(cc)
+	// transferToPipe(cc)
 	nymFlow(cc)
 	return
 

@@ -20,6 +20,7 @@ package commandhandler
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
 	"fmt"
 	"reflect"
 
@@ -588,5 +589,65 @@ func SpendCredentialRequestHandler(ctx context.Context, reqData HandlerData) *co
 	// the response data in future might be provider dependent, to include say some authorization token
 	response.ErrorStatus = commands.StatusCode_OK
 	response.Data = true
+	return response
+}
+
+type CredentialVerifierData struct {
+	Avk        *coconut.VerificationKey
+	PrivateKey *ecdsa.PrivateKey
+	NymClient  *nymclient.Client // in theory it should be safe to use the same instance for multiple requests
+}
+
+type CredentialVerificationRequestHandlerData struct {
+	Cmd              *commands.CredentialVerificationRequest
+	Worker           *coconutworker.CoconutWorker
+	Logger           *logging.Logger
+	VerificationData CredentialVerifierData
+}
+
+func (handlerData *CredentialVerificationRequestHandlerData) Command() commands.Command {
+	return handlerData.Cmd
+}
+
+func (handlerData *CredentialVerificationRequestHandlerData) CoconutWorker() *coconutworker.CoconutWorker {
+	return handlerData.Worker
+}
+
+func (handlerData *CredentialVerificationRequestHandlerData) Log() *logging.Logger {
+	return handlerData.Logger
+}
+
+func (handlerData *CredentialVerificationRequestHandlerData) Data() interface{} {
+	return handlerData.VerificationData
+}
+
+// TODO: This handler doesn't really fit in here...
+func CredentialVerificationRequestHandler(ctx context.Context, reqData HandlerData) *commands.Response {
+	req := reqData.Command().(*commands.CredentialVerificationRequest)
+	log := reqData.Log()
+	response := DefaultResponse()
+	verificationData := reqData.Data().(CredentialVerifierData)
+	response.Data = false // TODO: do we even need to return anything?
+
+	log.Debug("CredentialVerificationRequestHandler")
+	cryptoMaterials := &coconut.TumblerBlindVerifyMaterials{}
+	if err := cryptoMaterials.FromProto(req.CryptoMaterials); err != nil {
+		errMsg := "Could not recover crypto materials."
+		setErrorResponse(log, response, errMsg, commands.StatusCode_INVALID_ARGUMENTS)
+		return response
+	}
+
+	isValid := reqData.CoconutWorker().BlindVerifyTumblerWrapper(verificationData.Avk,
+		cryptoMaterials.Sig(),
+		cryptoMaterials.Theta(),
+		cryptoMaterials.PubM(),
+		req.BoundAddress,
+	)
+
+	// TODO: send notification to the chain here
+	// just temporarily return isValid flag to the upper level
+	response.Data = isValid
+
+	_ = isValid
 	return response
 }

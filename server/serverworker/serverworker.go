@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"reflect"
 
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/nymtech/nym/common/comm/commands"
 	"github.com/nymtech/nym/crypto/coconut/concurrency/coconutworker"
 	"github.com/nymtech/nym/crypto/coconut/concurrency/jobpacket"
@@ -33,7 +34,6 @@ import (
 	"github.com/nymtech/nym/server/storage"
 	nymclient "github.com/nymtech/nym/tendermint/client"
 	"github.com/nymtech/nym/worker"
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"gopkg.in/op/go-logging.v1"
 )
 
@@ -144,12 +144,26 @@ func (sw *ServerWorker) RegisterAsVerifier(avk *coconut.VerificationKey, private
 		sw.log.Error("Invalid verification key provided")
 		return errors.New("invalid verification key provided")
 	}
+
 	sw.WithEcdsaKey(privateKey)
 	sw.VerificationWorker = VerificationWorker{
 		avk: avk,
 	}
 
-	// TODO: handlers
+	sw.RegisterHandler(&commands.CredentialVerificationRequest{},
+		commandhandler.CredentialVerificationRequestHandler,
+		func(cmd commands.Command) commandhandler.HandlerData {
+			return &commandhandler.CredentialVerificationRequestHandlerData{
+				Cmd:    cmd.(*commands.CredentialVerificationRequest),
+				Worker: sw.CoconutWorker,
+				Logger: sw.log,
+				VerificationData: commandhandler.CredentialVerifierData{
+					Avk:        sw.avk,
+					PrivateKey: privateKey,
+					NymClient:  sw.nymClient,
+				},
+			}
+		})
 
 	return nil
 }

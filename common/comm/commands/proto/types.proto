@@ -174,3 +174,11 @@ message LookUpBlockCredentialsResponse {
     repeated credentialPair credentials = 1;
     Status status = 2;
 }
+
+// This is internal to credential verifier and is never sent on the wire, however, it is required to be of type
+// command.Command so that it could be used by serverworker commandhandler thus simplifying processing.
+// In theory plain ProtoTumblerBlindVerifyMaterials could have been used, but I think it would have been too confusing.
+message CredentialVerificationRequest {
+    coconut.ProtoTumblerBlindVerifyMaterials cryptoMaterials = 1;
+    bytes boundAddress = 2;
+}
