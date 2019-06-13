@@ -69,10 +69,3 @@ message ProtoBlindSignMaterials {
     elgamal.ProtoPublicKey egPub = 2;
     repeated bytes pubM = 3;
 }
-
-// encapsulates everything required by verifiers to verify credentials
-message ProtoBlindVerifyMaterials {
-    ProtoSignature sig = 1;
-    ProtoTheta theta = 2;
-    repeated bytes pubM = 3;
-}

@@ -31,21 +31,16 @@ message AccountTransferRequest {
     bytes Sig = 5; 
 }
 
-
 message DepositCoconutCredentialRequest {
-    // The actual credential
-    coconut.ProtoSignature Sig = 1;
-    // The public attributes in credential. Note that pubM[0] = BIG(value)
-    repeated bytes PubM = 2;
-    // Crypto materials to verify the credential + required NIZK
-    coconut.ProtoThetaTumbler Theta = 3;
+    // Includes the actual credential, any public attributes 
+    // and theta (that include, among other things, NIZK proofs required to verify the credential)
+    coconut.ProtoTumblerBlindVerifyMaterials CryptoMaterials = 1;
     // Value of the credential. While it is included in a BIG form in CryptoMaterials, it's easier to operate on it
     // when it's an int. We can't send it as an uint64, as milagro requires a normal int argument to construct a BIG num. 
-    int64 Value = 4;
+    int64 Value = 2;
     // Address of the service provider to which the proof is bound and whose account balance will be increased
-    bytes ProviderAddress = 5;
+    bytes ProviderAddress = 3;
 }
-
 
 message TransferToPipeAccountNotification {
     // Used to identify the particular watcher and to verify signature

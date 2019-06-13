@@ -19,13 +19,13 @@ package nymapplication
 import (
 	"fmt"
 
+	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/golang/protobuf/proto"
 	"github.com/nymtech/nym/constants"
 	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
 	"github.com/nymtech/nym/tendermint/nymabci/code"
 	tmconst "github.com/nymtech/nym/tendermint/nymabci/constants"
 	"github.com/nymtech/nym/tendermint/nymabci/transaction"
-	ethcommon "github.com/ethereum/go-ethereum/common"
-	"github.com/golang/protobuf/proto"
 	"github.com/tendermint/tendermint/abci/types"
 	cmn "github.com/tendermint/tendermint/libs/common"
 )
@@ -186,10 +186,10 @@ func (app *NymApplication) handleDepositCredential(reqb []byte) types.ResponseDe
 	// if it's not the case, we can't trust anything that is happening anyway so we can only panic
 	cred := &coconut.Signature{}
 	theta := &coconut.ThetaTumbler{}
-	pubM, err := coconut.BigSliceFromByteSlices(req.PubM)
+	_, err := coconut.BigSliceFromByteSlices(req.CryptoMaterials.PubM)
 	mustNilErr(err)
-	mustNilErr(cred.FromProto(req.Sig))
-	mustNilErr(theta.FromProto(req.Theta))
+	mustNilErr(cred.FromProto(req.CryptoMaterials.Sig))
+	mustNilErr(theta.FromProto(req.CryptoMaterials.Theta))
 
 	address := ethcommon.BytesToAddress(req.ProviderAddress)
 
@@ -203,30 +203,26 @@ func (app *NymApplication) handleDepositCredential(reqb []byte) types.ResponseDe
 		}
 		app.log.Debug(fmt.Sprintf("Created new account for %v", address.Hex()))
 	}
-	//
-	// Once verification is moved to separate entity, the below will be used
-	//
-	// protoSigB, err := proto.Marshal(req.Sig)
-	// if err != nil {
-	// 	app.log.Error("Failed to marshal the received credential")
-	// 	return types.ResponseDeliverTx{Code: code.INVALID_TX_PARAMS}
-	// }
-	// protoThetaB, err := proto.Marshal(req.Theta)
-	// if err != nil {
-	// 	app.log.Error("Failed to marshal the received crypto materials")
-	// 	return types.ResponseDeliverTx{Code: code.INVALID_TX_PARAMS}
-	// }
-	// key := make([]byte, ethcommon.AddressLength + len(protoSigB) + len(tmconst.RedeemTokensRequestKeyPrefix))
-	// i := copy(key, tmconst.RedeemTokensRequestKeyPrefix)
-	// i += copy(key[i:], address)
-	// copy(key[i:], protoSigB)
-	// return types.ResponseDeliverTx{
-	// 	Code: code.OK,
-	// 	Tags: []cmn.KVPair{
-	// 		// [ Prefix || Provider || credential --- required crypto materials ]
-	// 		{Key: key, Value: protoThetaB},
-	// 	},
-	// }
+
+	cryptoMaterialsBytes, err := proto.Marshal(req.CryptoMaterials)
+	if err != nil {
+		return types.ResponseDeliverTx{Code: code.INVALID_TX_PARAMS}
+	}
+
+	key := make([]byte, ethcommon.AddressLength+len(req.CryptoMaterials.Theta.Zeta)+len(tmconst.RedeemTokensRequestKeyPrefix))
+	i := copy(key, tmconst.RedeemTokensRequestKeyPrefix)
+	i += copy(key[i:], address[:])
+	copy(key[i:], req.CryptoMaterials.Theta.Zeta)
+	return types.ResponseDeliverTx{
+		Code: code.OK,
+		Tags: []cmn.KVPair{
+			// while it is not crucial we have unique keys here, verifiers will need to be able to
+			// send a transaction back "confirming" status of this data and this will require an unique key field.
+			// So we might as well use the same system already
+			// [ Prefix || Provider || Zeta(g^s) --- required crypto materials ]
+			{Key: key, Value: cryptoMaterialsBytes},
+		},
+	}
 
 	// everything below this line will be moved to separate entity (in a way) it will be replaced by the commneted
 	// code above
@@ -237,35 +233,35 @@ func (app *NymApplication) handleDepositCredential(reqb []byte) types.ResponseDe
 	//
 	// TODO: credential and proof verification will be moved to another 'verifier' entity
 	// but for test sake, let's just leave them here for a time being.
-	avk, err := app.retrieveAggregateVerificationKey()
-	if err != nil {
-		app.log.Error("Failed to retrieve verification key")
-		return types.ResponseDeliverTx{Code: code.UNKNOWN}
-	}
+	// avk, err := app.retrieveAggregateVerificationKey()
+	// if err != nil {
+	// 	app.log.Error("Failed to retrieve verification key")
+	// 	return types.ResponseDeliverTx{Code: code.UNKNOWN}
+	// }
 
-	// NOTE: TODO:
-	// if credentials were to be verified during delivertx rather than by separate entity, there's no
-	// point in generating those params every deliverTx. Just store them in state and generate them every time
-	// server restarts (or they are nil)
-	params := app.getSimpleCoconutParams()
-	if params == nil {
-		app.log.Error("Failed to generate coconut params")
-		return types.ResponseDeliverTx{Code: code.UNKNOWN}
-	}
-	// verify the credential
-	isValid := coconut.BlindVerifyTumbler(params, avk, cred, theta, pubM, address[:])
+	// // NOTE: TODO:
+	// // if credentials were to be verified during delivertx rather than by separate entity, there's no
+	// // point in generating those params every deliverTx. Just store them in state and generate them every time
+	// // server restarts (or they are nil)
+	// params := app.getSimpleCoconutParams()
+	// if params == nil {
+	// 	app.log.Error("Failed to generate coconut params")
+	// 	return types.ResponseDeliverTx{Code: code.UNKNOWN}
+	// }
+	// // verify the credential
+	// isValid := coconut.BlindVerifyTumbler(params, avk, cred, theta, pubM, address[:])
 
-	if isValid {
-		app.log.Debug("The received credential was valid")
-		if err := app.increaseBalanceBy(address[:], uint64(req.Value)); err != nil {
-			app.log.Error("failed to increase provider's balance? Critical failure")
-			panic(err)
-		}
-		// store the used credential
-		app.storeSpentZeta(req.Theta.Zeta)
-		return types.ResponseDeliverTx{Code: code.OK}
-	}
+	// if isValid {
+	// 	app.log.Debug("The received credential was valid")
+	// 	if err := app.increaseBalanceBy(address[:], uint64(req.Value)); err != nil {
+	// 		app.log.Error("failed to increase provider's balance? Critical failure")
+	// 		panic(err)
+	// 	}
+	// 	// store the used credential
+	// 	app.storeSpentZeta(req.CryptoMaterials.Theta.Zeta)
+	// 	return types.ResponseDeliverTx{Code: code.OK}
+	// }
 
-	app.log.Debug("The received credential was invalid")
-	return types.ResponseDeliverTx{Code: code.INVALID_CREDENTIAL}
+	// app.log.Debug("The received credential was invalid")
+	// return types.ResponseDeliverTx{Code: code.INVALID_CREDENTIAL}
 }

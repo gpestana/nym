@@ -22,14 +22,14 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"github.com/nymtech/nym/common/utils"
-	"github.com/nymtech/nym/constants"
-	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
-	tmconst "github.com/nymtech/nym/tendermint/nymabci/constants"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	proto "github.com/golang/protobuf/proto"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
+	"github.com/nymtech/nym/common/utils"
+	"github.com/nymtech/nym/constants"
+	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
+	tmconst "github.com/nymtech/nym/tendermint/nymabci/constants"
 )
 
 const (
@@ -147,10 +147,14 @@ func CreateNewDepositCoconutCredentialRequest(
 	address ethcommon.Address,
 ) ([]byte, error) {
 
+	cryptoMaterials := &coconut.ProtoTumblerBlindVerifyMaterials{
+		Sig:   protoSig,
+		PubM:  pubMb,
+		Theta: protoThetaTumbler,
+	}
+
 	req := &DepositCoconutCredentialRequest{
-		Sig:             protoSig,
-		PubM:            pubMb,
-		Theta:           protoThetaTumbler,
+		CryptoMaterials: cryptoMaterials,
 		Value:           value,
 		ProviderAddress: address[:],
 	}

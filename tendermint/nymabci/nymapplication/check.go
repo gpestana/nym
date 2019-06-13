@@ -20,16 +20,16 @@ import (
 	"bytes"
 	"encoding/binary"
 
+	ethcommon "github.com/ethereum/go-ethereum/common"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/golang/protobuf/proto"
+	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"github.com/nymtech/nym/constants"
 	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
 	"github.com/nymtech/nym/nym/token"
 	"github.com/nymtech/nym/tendermint/nymabci/code"
 	tmconst "github.com/nymtech/nym/tendermint/nymabci/constants"
 	"github.com/nymtech/nym/tendermint/nymabci/transaction"
-	ethcommon "github.com/ethereum/go-ethereum/common"
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/golang/protobuf/proto"
-	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 )
 
 // implementation will be IP-specific
@@ -223,22 +223,22 @@ func (app *NymApplication) checkDepositCoconutCredentialTx(tx []byte) uint32 {
 
 	// check for double spending -
 	// if credential was already spent, there is no point in any further checks
-	if app.checkIfZetaIsSpent(req.Theta.Zeta) {
+	if app.checkIfZetaIsSpent(req.CryptoMaterials.Theta.Zeta) {
 		return code.DOUBLE_SPENDING_ATTEMPT
 	}
 
 	// Just check if data is formed correctly, i.e. it can be unmarshalled
 	cred := &coconut.Signature{}
-	if err := cred.FromProto(req.Sig); err != nil {
+	if err := cred.FromProto(req.CryptoMaterials.Sig); err != nil {
 		return code.INVALID_TX_PARAMS
 	}
 
 	theta := &coconut.ThetaTumbler{}
-	if err := theta.FromProto(req.Theta); err != nil {
+	if err := theta.FromProto(req.CryptoMaterials.Theta); err != nil {
 		return code.INVALID_TX_PARAMS
 	}
 
-	if _, err := coconut.BigSliceFromByteSlices(req.PubM); err != nil {
+	if _, err := coconut.BigSliceFromByteSlices(req.CryptoMaterials.PubM); err != nil {
 		return code.INVALID_TX_PARAMS
 	}
 
