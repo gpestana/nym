@@ -23,11 +23,7 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/nymtech/nym/tendermint/nymabci/code"
-	"github.com/nymtech/nym/tendermint/nymabci/transaction"
-
-	"github.com/nymtech/nym/tendermint/nymabci/query"
-
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/nymtech/nym/common/comm/commands"
 	"github.com/nymtech/nym/crypto/coconut/concurrency/coconutworker"
 	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
@@ -35,7 +31,9 @@ import (
 	"github.com/nymtech/nym/server/issuer/utils"
 	"github.com/nymtech/nym/server/storage"
 	nymclient "github.com/nymtech/nym/tendermint/client"
-	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/nymtech/nym/tendermint/nymabci/code"
+	"github.com/nymtech/nym/tendermint/nymabci/query"
+	"github.com/nymtech/nym/tendermint/nymabci/transaction"
 	"gopkg.in/op/go-logging.v1"
 )
 
@@ -567,11 +565,21 @@ func SpendCredentialRequestHandler(ctx context.Context, reqData HandlerData) *co
 		return response
 	}
 
-	log.Debugf("Received response from the blockchain. Return code: %v; Additional Data: %v",
-		code.ToString(blockchainResponse.DeliverTx.Code), string(blockchainResponse.DeliverTx.Data))
+	log.Debugf("Received response from the blockchain.\n Return Deliver code: %v; Additional Deliver Data: %v\n"+
+		"Return Check code: %v; Additional Check Data: %v",
+		code.ToString(blockchainResponse.DeliverTx.Code), string(blockchainResponse.DeliverTx.Data),
+		code.ToString(blockchainResponse.CheckTx.Code), string(blockchainResponse.CheckTx.Data),
+	)
+
+	if blockchainResponse.CheckTx.Code != code.OK {
+		errMsg := fmt.Sprintf("The transaction failed to be included on the blockchain (checkTx). Errorcode: %v - %v",
+			blockchainResponse.CheckTx.Code, code.ToString(blockchainResponse.CheckTx.Code))
+		setErrorResponse(log, response, errMsg, commands.StatusCode_INVALID_TRANSACTION)
+		return response
+	}
 
 	if blockchainResponse.DeliverTx.Code != code.OK {
-		errMsg := fmt.Sprintf("The transaction failed to be included on the blockchain. Errorcode: %v - %v",
+		errMsg := fmt.Sprintf("The transaction failed to be included on the blockchain (deliverTx). Errorcode: %v - %v",
 			blockchainResponse.DeliverTx.Code, code.ToString(blockchainResponse.DeliverTx.Code))
 		setErrorResponse(log, response, errMsg, commands.StatusCode_INVALID_TRANSACTION)
 		return response
