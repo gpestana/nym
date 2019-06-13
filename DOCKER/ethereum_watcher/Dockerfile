@@ -13,13 +13,13 @@ RUN apk update && apk add --no-cache git ca-certificates tzdata build-base && up
 # Create appuser
 RUN adduser -D -g '' appuser
 
-WORKDIR $GOPATH/src/0xacab.org/jstuczyn/CoconutGo/
+WORKDIR $GOPATH/src/github.com/nymtech/nym/
 COPY . .
 
 # Fetch dependencies if we decide to remove the vendor directory at some point
 # RUN go get -d -v
 
-WORKDIR $GOPATH/src/0xacab.org/jstuczyn/CoconutGo/daemon/eth-watcher/
+WORKDIR $GOPATH/src/github.com/nymtech/nym/daemon/eth-watcher/
 
 # Build the binary
 # for production: removes debug, etc. 

@@ -20,11 +20,11 @@ package cryptoworker
 import (
 	"fmt"
 
-	"0xacab.org/jstuczyn/CoconutGo/crypto/coconut/concurrency/coconutworker"
-	"0xacab.org/jstuczyn/CoconutGo/crypto/coconut/concurrency/jobqueue"
-	"0xacab.org/jstuczyn/CoconutGo/crypto/coconut/concurrency/jobworker"
-	coconut "0xacab.org/jstuczyn/CoconutGo/crypto/coconut/scheme"
-	"0xacab.org/jstuczyn/CoconutGo/logger"
+	"github.com/nymtech/nym/crypto/coconut/concurrency/coconutworker"
+	"github.com/nymtech/nym/crypto/coconut/concurrency/jobqueue"
+	"github.com/nymtech/nym/crypto/coconut/concurrency/jobworker"
+	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
+	"github.com/nymtech/nym/logger"
 	"gopkg.in/op/go-logging.v1"
 )
 

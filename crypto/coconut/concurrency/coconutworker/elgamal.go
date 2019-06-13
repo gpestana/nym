@@ -18,7 +18,7 @@
 package coconutworker
 
 import (
-	"0xacab.org/jstuczyn/CoconutGo/crypto/elgamal"
+	"github.com/nymtech/nym/crypto/elgamal"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 )
 

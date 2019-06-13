@@ -19,9 +19,9 @@ import (
 	"sync"
 	"testing"
 
-	. "0xacab.org/jstuczyn/CoconutGo/crypto/coconut/scheme"
-	coconut "0xacab.org/jstuczyn/CoconutGo/crypto/coconut/scheme"
-	. "0xacab.org/jstuczyn/CoconutGo/crypto/testutils"
+	. "github.com/nymtech/nym/crypto/coconut/scheme"
+	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
+	. "github.com/nymtech/nym/crypto/testutils"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"github.com/stretchr/testify/assert"
 )

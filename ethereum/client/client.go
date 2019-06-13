@@ -26,8 +26,8 @@ import (
 	"fmt"
 	"math/big"
 
-	token "0xacab.org/jstuczyn/CoconutGo/ethereum/token"
-	"0xacab.org/jstuczyn/CoconutGo/logger"
+	token "github.com/nymtech/nym/ethereum/token"
+	"github.com/nymtech/nym/logger"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"

@@ -22,8 +22,8 @@ package client
 import (
 	"testing"
 
-	"0xacab.org/jstuczyn/CoconutGo/common/comm/commands"
-	"0xacab.org/jstuczyn/CoconutGo/logger"
+	"github.com/nymtech/nym/common/comm/commands"
+	"github.com/nymtech/nym/logger"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"github.com/stretchr/testify/assert"
 )

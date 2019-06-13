@@ -172,7 +172,7 @@
 * Introduced ServerMetadata struct used in ServerRequests/Responses + associated changes
 * Renamed crypto/coconut/concurrency/coconutworker/coconut_worker.go Worker to CoconutWorker + associated changes
 * Renamed client/cryptoworker/cryptoworker.go Worker to CryptoWorker + associated changes
-* Refactored /home/jedrzej/go/src/0xacab.org/jstuczyn/CoconutGo/server/cryptoworker/cryptoworker.go + associated changes
+* Refactored /home/jedrzej/go/src/github.com/nymtech/nym/server/cryptoworker/cryptoworker.go + associated changes
 
 ## v0.0.2
 

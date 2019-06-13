@@ -18,10 +18,10 @@ package coconut_test
 import (
 	"testing"
 
-	"0xacab.org/jstuczyn/CoconutGo/constants"
-	coconut "0xacab.org/jstuczyn/CoconutGo/crypto/coconut/scheme"
-	"0xacab.org/jstuczyn/CoconutGo/crypto/coconut/utils"
-	"0xacab.org/jstuczyn/CoconutGo/crypto/elgamal"
+	"github.com/nymtech/nym/constants"
+	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
+	"github.com/nymtech/nym/crypto/coconut/utils"
+	"github.com/nymtech/nym/crypto/elgamal"
 	"github.com/jstuczyn/amcl/version3/go/amcl"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"github.com/stretchr/testify/assert"

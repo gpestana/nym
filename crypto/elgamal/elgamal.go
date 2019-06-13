@@ -21,9 +21,9 @@ package elgamal
 import (
 	"errors"
 
-	cmnutils "0xacab.org/jstuczyn/CoconutGo/common/utils"
-	"0xacab.org/jstuczyn/CoconutGo/constants"
-	"0xacab.org/jstuczyn/CoconutGo/crypto/bpgroup"
+	cmnutils "github.com/nymtech/nym/common/utils"
+	"github.com/nymtech/nym/constants"
+	"github.com/nymtech/nym/crypto/bpgroup"
 	proto "github.com/golang/protobuf/proto"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 )

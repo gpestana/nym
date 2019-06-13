@@ -24,9 +24,9 @@ import (
 	"sync"
 	"testing"
 
-	"0xacab.org/jstuczyn/CoconutGo/logger"
-	"0xacab.org/jstuczyn/CoconutGo/tendermint/nymabci/query"
-	"0xacab.org/jstuczyn/CoconutGo/tendermint/nymnode/testnode"
+	"github.com/nymtech/nym/logger"
+	"github.com/nymtech/nym/tendermint/nymabci/query"
+	"github.com/nymtech/nym/tendermint/nymnode/testnode"
 	"github.com/stretchr/testify/assert"
 	cmn "github.com/tendermint/tendermint/libs/common"
 )

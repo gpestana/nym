@@ -4,8 +4,8 @@
 package commands
 
 import (
-	scheme "0xacab.org/jstuczyn/CoconutGo/crypto/coconut/scheme"
-	elgamal "0xacab.org/jstuczyn/CoconutGo/crypto/elgamal"
+	scheme "github.com/nymtech/nym/crypto/coconut/scheme"
+	elgamal "github.com/nymtech/nym/crypto/elgamal"
 	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"
 	math "math"

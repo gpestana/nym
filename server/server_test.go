@@ -27,8 +27,8 @@ package server
 // 	"testing"
 // 	"time"
 
-// 	"0xacab.org/jstuczyn/CoconutGo/server/config"
-// 	"0xacab.org/jstuczyn/CoconutGo/tendermint/nymnode/testnode"
+// 	"github.com/nymtech/nym/server/config"
+// 	"github.com/nymtech/nym/tendermint/nymnode/testnode"
 // 	"github.com/stretchr/testify/assert"
 // 	cmn "github.com/tendermint/tendermint/libs/common"
 // )

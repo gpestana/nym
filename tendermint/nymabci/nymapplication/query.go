@@ -19,8 +19,8 @@ package nymapplication
 import (
 	"fmt"
 
-	"0xacab.org/jstuczyn/CoconutGo/tendermint/nymabci/code"
-	tmconst "0xacab.org/jstuczyn/CoconutGo/tendermint/nymabci/constants"
+	"github.com/nymtech/nym/tendermint/nymabci/code"
+	tmconst "github.com/nymtech/nym/tendermint/nymabci/constants"
 	"github.com/tendermint/tendermint/abci/types"
 )
 

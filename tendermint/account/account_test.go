@@ -18,8 +18,8 @@ package account_test
 // import (
 // 	"testing"
 
-// 	"0xacab.org/jstuczyn/CoconutGo/common/utils"
-// 	"0xacab.org/jstuczyn/CoconutGo/tendermint/account"
+// 	"github.com/nymtech/nym/common/utils"
+// 	"github.com/nymtech/nym/tendermint/account"
 // 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 // 	"github.com/stretchr/testify/assert"
 // )

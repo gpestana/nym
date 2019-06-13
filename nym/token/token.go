@@ -20,8 +20,8 @@ package token
 import (
 	"fmt"
 
-	coconut "0xacab.org/jstuczyn/CoconutGo/crypto/coconut/scheme"
-	"0xacab.org/jstuczyn/CoconutGo/crypto/elgamal"
+	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
+	"github.com/nymtech/nym/crypto/elgamal"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 )
 

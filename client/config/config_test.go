@@ -19,7 +19,7 @@ package config_test
 import (
 	"testing"
 
-	"0xacab.org/jstuczyn/CoconutGo/client/config"
+	"github.com/nymtech/nym/client/config"
 	"github.com/stretchr/testify/assert"
 )
 

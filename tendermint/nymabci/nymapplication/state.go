@@ -22,8 +22,8 @@ import (
 	"errors"
 	"fmt"
 
-	coconut "0xacab.org/jstuczyn/CoconutGo/crypto/coconut/scheme"
-	tmconst "0xacab.org/jstuczyn/CoconutGo/tendermint/nymabci/constants"
+	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
+	tmconst "github.com/nymtech/nym/tendermint/nymabci/constants"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"github.com/tendermint/iavl"

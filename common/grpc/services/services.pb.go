@@ -4,7 +4,7 @@
 package services
 
 import (
-	commands "0xacab.org/jstuczyn/CoconutGo/common/comm/commands"
+	commands "github.com/nymtech/nym/common/comm/commands"
 	context "context"
 	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"

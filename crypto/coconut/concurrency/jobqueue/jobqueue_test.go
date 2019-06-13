@@ -23,7 +23,7 @@ package jobqueue
 import (
 	"testing"
 
-	"0xacab.org/jstuczyn/CoconutGo/crypto/coconut/concurrency/jobpacket"
+	"github.com/nymtech/nym/crypto/coconut/concurrency/jobpacket"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -24,11 +24,11 @@ import (
 	"os/signal"
 	"syscall"
 
-	cclient "0xacab.org/jstuczyn/CoconutGo/client"
-	"0xacab.org/jstuczyn/CoconutGo/client/config"
-	"0xacab.org/jstuczyn/CoconutGo/crypto/bpgroup"
-	coconut "0xacab.org/jstuczyn/CoconutGo/crypto/coconut/scheme"
-	"0xacab.org/jstuczyn/CoconutGo/nym/token"
+	cclient "github.com/nymtech/nym/client"
+	"github.com/nymtech/nym/client/config"
+	"github.com/nymtech/nym/crypto/bpgroup"
+	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
+	"github.com/nymtech/nym/nym/token"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 )

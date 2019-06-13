@@ -25,7 +25,7 @@ import (
 	"sync"
 	"time"
 
-	"0xacab.org/jstuczyn/CoconutGo/logger"
+	"github.com/nymtech/nym/logger"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	tmclient "github.com/tendermint/tendermint/rpc/client"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"

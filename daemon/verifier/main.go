@@ -21,9 +21,9 @@ import (
 	"fmt"
 	"os"
 
-	"0xacab.org/jstuczyn/CoconutGo/daemon"
-	"0xacab.org/jstuczyn/CoconutGo/verifier"
-	"0xacab.org/jstuczyn/CoconutGo/verifier/config"
+	"github.com/nymtech/nym/daemon"
+	"github.com/nymtech/nym/verifier"
+	"github.com/nymtech/nym/verifier/config"
 )
 
 func main() {

@@ -20,7 +20,7 @@ import (
 	"strings"
 	"testing"
 
-	"0xacab.org/jstuczyn/CoconutGo/server/config"
+	"github.com/nymtech/nym/server/config"
 	"github.com/stretchr/testify/assert"
 )
 

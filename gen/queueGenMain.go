@@ -30,7 +30,7 @@ type queueGen struct {
 	Type           string // full type that is being put on queue, ex. *jobpacket.JobPacket
 	TypeName       string // name of the type being put on queue, ex. JobPacket
 	TypeImportPath string // import path to the struct put on queue, ex.
-	// 0xacab.org/jstuczyn/CoconutGo/crypto/coconut/concurrency/jobpacket
+	// github.com/nymtech/nym/crypto/coconut/concurrency/jobpacket
 }
 
 func getOutputFileName() string {
@@ -50,7 +50,7 @@ func main() {
 	typeImportPath := flag.String(
 		"typeImportPath",
 		"",
-		"import path to the struct put on queue, ex. 0xacab.org/jstuczyn/CoconutGo/crypto/coconut/concurrency/jobpacket")
+		"import path to the struct put on queue, ex. github.com/nymtech/nym/crypto/coconut/concurrency/jobpacket")
 
 	flag.Parse()
 

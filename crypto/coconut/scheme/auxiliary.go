@@ -21,9 +21,9 @@ import (
 	"errors"
 	"strings"
 
-	cmnutils "0xacab.org/jstuczyn/CoconutGo/common/utils"
-	"0xacab.org/jstuczyn/CoconutGo/constants"
-	"0xacab.org/jstuczyn/CoconutGo/crypto/coconut/utils"
+	cmnutils "github.com/nymtech/nym/common/utils"
+	"github.com/nymtech/nym/constants"
+	"github.com/nymtech/nym/crypto/coconut/utils"
 	"github.com/jstuczyn/amcl/version3/go/amcl"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 )

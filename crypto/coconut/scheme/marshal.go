@@ -21,9 +21,9 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"0xacab.org/jstuczyn/CoconutGo/constants"
-	"0xacab.org/jstuczyn/CoconutGo/crypto/bpgroup"
-	"0xacab.org/jstuczyn/CoconutGo/crypto/elgamal"
+	"github.com/nymtech/nym/constants"
+	"github.com/nymtech/nym/crypto/bpgroup"
+	"github.com/nymtech/nym/crypto/elgamal"
 	proto "github.com/golang/protobuf/proto"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 )

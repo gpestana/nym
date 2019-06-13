@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"os"
 
-	"0xacab.org/jstuczyn/CoconutGo/tendermint/nymabci/nymapplication"
+	"github.com/nymtech/nym/tendermint/nymabci/nymapplication"
 	"github.com/tendermint/tendermint/abci/server"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/tendermint/tendermint/libs/log"

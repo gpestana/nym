@@ -23,18 +23,18 @@ import (
 	"fmt"
 	"reflect"
 
-	"0xacab.org/jstuczyn/CoconutGo/tendermint/nymabci/code"
-	"0xacab.org/jstuczyn/CoconutGo/tendermint/nymabci/transaction"
+	"github.com/nymtech/nym/tendermint/nymabci/code"
+	"github.com/nymtech/nym/tendermint/nymabci/transaction"
 
-	"0xacab.org/jstuczyn/CoconutGo/tendermint/nymabci/query"
+	"github.com/nymtech/nym/tendermint/nymabci/query"
 
-	"0xacab.org/jstuczyn/CoconutGo/common/comm/commands"
-	"0xacab.org/jstuczyn/CoconutGo/crypto/coconut/concurrency/coconutworker"
-	coconut "0xacab.org/jstuczyn/CoconutGo/crypto/coconut/scheme"
-	"0xacab.org/jstuczyn/CoconutGo/crypto/elgamal"
-	"0xacab.org/jstuczyn/CoconutGo/server/issuer/utils"
-	"0xacab.org/jstuczyn/CoconutGo/server/storage"
-	nymclient "0xacab.org/jstuczyn/CoconutGo/tendermint/client"
+	"github.com/nymtech/nym/common/comm/commands"
+	"github.com/nymtech/nym/crypto/coconut/concurrency/coconutworker"
+	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
+	"github.com/nymtech/nym/crypto/elgamal"
+	"github.com/nymtech/nym/server/issuer/utils"
+	"github.com/nymtech/nym/server/storage"
+	nymclient "github.com/nymtech/nym/tendermint/client"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"gopkg.in/op/go-logging.v1"
 )

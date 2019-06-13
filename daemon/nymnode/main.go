@@ -22,8 +22,8 @@ import (
 	"os"
 	"time"
 
-	"0xacab.org/jstuczyn/CoconutGo/daemon"
-	"0xacab.org/jstuczyn/CoconutGo/tendermint/nymnode"
+	"github.com/nymtech/nym/daemon"
+	"github.com/nymtech/nym/tendermint/nymnode"
 )
 
 func main() {

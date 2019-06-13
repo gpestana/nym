@@ -2,7 +2,7 @@ syntax = "proto3";
 import "crypto/coconut/scheme/proto/types.proto";
 
 package coconut;
-option go_package = "0xacab.org/jstuczyn/CoconutGo/crypto/coconut/scheme";
+option go_package = "github.com/nymtech/nym/crypto/coconut/scheme";
 
 message ProtoThetaTumbler {
     coconut.ProtoTheta theta = 1;

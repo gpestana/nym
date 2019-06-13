@@ -4,7 +4,7 @@
 package transaction
 
 import (
-	scheme "0xacab.org/jstuczyn/CoconutGo/crypto/coconut/scheme"
+	scheme "github.com/nymtech/nym/crypto/coconut/scheme"
 	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"
 	math "math"

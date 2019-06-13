@@ -4,7 +4,7 @@ import "crypto/coconut/scheme/proto/tumblertypes.proto";
 // import "crypto/elgamal/proto/types.proto";
 
 package transaction;
-option go_package = "0xacab.org/jstuczyn/CoconutGo/tendermint/nymabci/transaction";
+option go_package = "github.com/nymtech/nym/tendermint/nymabci/transaction";
 
 message NewAccountRequest {
     // Public Key of the user used to derive account address and validate signature

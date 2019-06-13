@@ -21,9 +21,9 @@ import (
 	"fmt"
 	"os"
 
-	"0xacab.org/jstuczyn/CoconutGo/daemon"
-	"0xacab.org/jstuczyn/CoconutGo/ethereum/watcher"
-	"0xacab.org/jstuczyn/CoconutGo/ethereum/watcher/config"
+	"github.com/nymtech/nym/daemon"
+	"github.com/nymtech/nym/ethereum/watcher"
+	"github.com/nymtech/nym/ethereum/watcher/config"
 )
 
 func main() {

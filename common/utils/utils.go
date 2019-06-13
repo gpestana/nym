@@ -27,7 +27,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"0xacab.org/jstuczyn/CoconutGo/constants"
+	"github.com/nymtech/nym/constants"
 )
 
 // GenerateRandomBytes return slice of bytes of specified size of cryptographically secure random numbers.

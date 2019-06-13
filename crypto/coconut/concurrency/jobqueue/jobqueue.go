@@ -1,4 +1,4 @@
-//go:generate go run $GOPATH/src/0xacab.org/jstuczyn/CoconutGo/gen/queueGenMain.go --name=JobQueue --type=*jobpacket.JobPacket --typeName=JobPacket --typeImportPath=0xacab.org/jstuczyn/CoconutGo/crypto/coconut/concurrency/jobpacket
+//go:generate go run $GOPATH/src/github.com/nymtech/nym/gen/queueGenMain.go --name=JobQueue --type=*jobpacket.JobPacket --typeName=JobPacket --typeImportPath=github.com/nymtech/nym/crypto/coconut/concurrency/jobpacket
 
 // jobqueue.go - Entry point for go generate to create a job queue.
 // Copyright (C) 2019  Jedrzej Stuczynski.

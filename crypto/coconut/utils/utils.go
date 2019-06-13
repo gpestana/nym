@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"strings"
 
-	"0xacab.org/jstuczyn/CoconutGo/constants"
+	"github.com/nymtech/nym/constants"
 	"github.com/jstuczyn/amcl/version3/go/amcl"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 )

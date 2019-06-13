@@ -18,8 +18,8 @@
 package bpgroup
 
 import (
-	"0xacab.org/jstuczyn/CoconutGo/common/utils"
-	"0xacab.org/jstuczyn/CoconutGo/constants"
+	"github.com/nymtech/nym/common/utils"
+	"github.com/nymtech/nym/constants"
 	"github.com/jstuczyn/amcl/version3/go/amcl"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 )

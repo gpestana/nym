@@ -12,13 +12,13 @@ RUN apk update && apk add --no-cache git ca-certificates tzdata && update-ca-cer
 # Create appuser
 RUN adduser -D -g '' appuser
 
-WORKDIR $GOPATH/src/0xacab.org/jstuczyn/CoconutGo/
+WORKDIR $GOPATH/src/github.com/nymtech/nym/
 COPY . .
 
 # Fetch dependencies if we decide to remove the vendor directory at some point
 # RUN go get -d -v
 
-WORKDIR $GOPATH/src/0xacab.org/jstuczyn/CoconutGo/tendermint/nymabci/
+WORKDIR $GOPATH/src/github.com/nymtech/nym/tendermint/nymabci/
 
 
 # Build the binary

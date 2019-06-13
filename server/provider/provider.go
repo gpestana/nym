@@ -22,11 +22,11 @@ import (
 	"fmt"
 	"sync"
 
-	"0xacab.org/jstuczyn/CoconutGo/server"
+	"github.com/nymtech/nym/server"
 
-	coconut "0xacab.org/jstuczyn/CoconutGo/crypto/coconut/scheme"
-	"0xacab.org/jstuczyn/CoconutGo/logger"
-	"0xacab.org/jstuczyn/CoconutGo/server/config"
+	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
+	"github.com/nymtech/nym/logger"
+	"github.com/nymtech/nym/server/config"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"gopkg.in/op/go-logging.v1"

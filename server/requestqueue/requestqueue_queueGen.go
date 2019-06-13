@@ -28,7 +28,7 @@ package requestqueue
 import (
 	"fmt"
 
-	"0xacab.org/jstuczyn/CoconutGo/common/comm/commands"
+	"github.com/nymtech/nym/common/comm/commands"
 	"github.com/Workiva/go-datastructures/queue"
 )
 

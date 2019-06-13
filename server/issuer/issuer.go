@@ -22,12 +22,12 @@ import (
 	"fmt"
 	"sync"
 
-	monitor "0xacab.org/jstuczyn/CoconutGo/common/tendermintmonitor"
-	coconut "0xacab.org/jstuczyn/CoconutGo/crypto/coconut/scheme"
-	"0xacab.org/jstuczyn/CoconutGo/logger"
-	"0xacab.org/jstuczyn/CoconutGo/server"
-	"0xacab.org/jstuczyn/CoconutGo/server/config"
-	processor "0xacab.org/jstuczyn/CoconutGo/server/issuer/tendermintprocessor"
+	monitor "github.com/nymtech/nym/common/tendermintmonitor"
+	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
+	"github.com/nymtech/nym/logger"
+	"github.com/nymtech/nym/server"
+	"github.com/nymtech/nym/server/config"
+	processor "github.com/nymtech/nym/server/issuer/tendermintprocessor"
 	"gopkg.in/op/go-logging.v1"
 )
 

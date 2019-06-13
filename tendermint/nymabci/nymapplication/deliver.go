@@ -19,11 +19,11 @@ package nymapplication
 import (
 	"fmt"
 
-	"0xacab.org/jstuczyn/CoconutGo/constants"
-	coconut "0xacab.org/jstuczyn/CoconutGo/crypto/coconut/scheme"
-	"0xacab.org/jstuczyn/CoconutGo/tendermint/nymabci/code"
-	tmconst "0xacab.org/jstuczyn/CoconutGo/tendermint/nymabci/constants"
-	"0xacab.org/jstuczyn/CoconutGo/tendermint/nymabci/transaction"
+	"github.com/nymtech/nym/constants"
+	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
+	"github.com/nymtech/nym/tendermint/nymabci/code"
+	tmconst "github.com/nymtech/nym/tendermint/nymabci/constants"
+	"github.com/nymtech/nym/tendermint/nymabci/transaction"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/golang/protobuf/proto"
 	"github.com/tendermint/tendermint/abci/types"

@@ -21,9 +21,9 @@ import (
 	"context"
 	"reflect"
 
-	"0xacab.org/jstuczyn/CoconutGo/common/comm/commands"
-	coconut "0xacab.org/jstuczyn/CoconutGo/crypto/coconut/scheme"
-	"0xacab.org/jstuczyn/CoconutGo/server/issuer/utils"
+	"github.com/nymtech/nym/common/comm/commands"
+	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
+	"github.com/nymtech/nym/server/issuer/utils"
 	"github.com/golang/protobuf/proto"
 )
 

@@ -18,7 +18,7 @@ package coconut_test
 import (
 	"testing"
 
-	. "0xacab.org/jstuczyn/CoconutGo/crypto/testutils"
+	. "github.com/nymtech/nym/crypto/testutils"
 )
 
 func TestSchemeTumblerProof(t *testing.T) {

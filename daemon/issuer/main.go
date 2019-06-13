@@ -21,9 +21,9 @@ import (
 	"fmt"
 	"os"
 
-	"0xacab.org/jstuczyn/CoconutGo/daemon"
-	"0xacab.org/jstuczyn/CoconutGo/server/config"
-	"0xacab.org/jstuczyn/CoconutGo/server/issuer"
+	"github.com/nymtech/nym/daemon"
+	"github.com/nymtech/nym/server/config"
+	"github.com/nymtech/nym/server/issuer"
 )
 
 func main() {

@@ -20,9 +20,9 @@ import (
 	"bytes"
 	"testing"
 
-	"0xacab.org/jstuczyn/CoconutGo/common/utils"
-	"0xacab.org/jstuczyn/CoconutGo/constants"
-	"0xacab.org/jstuczyn/CoconutGo/crypto/bpgroup"
+	"github.com/nymtech/nym/common/utils"
+	"github.com/nymtech/nym/constants"
+	"github.com/nymtech/nym/crypto/bpgroup"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"github.com/stretchr/testify/assert"
 )

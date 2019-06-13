@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 
-	"0xacab.org/jstuczyn/CoconutGo/ethereum/client"
-	"0xacab.org/jstuczyn/CoconutGo/logger"
+	"github.com/nymtech/nym/ethereum/client"
+	"github.com/nymtech/nym/logger"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 )

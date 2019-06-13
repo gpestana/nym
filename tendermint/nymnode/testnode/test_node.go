@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"0xacab.org/jstuczyn/CoconutGo/tendermint/nymabci/nymapplication"
+	"github.com/nymtech/nym/tendermint/nymabci/nymapplication"
 	tmConfig "github.com/tendermint/tendermint/config"
 	cmn "github.com/tendermint/tendermint/libs/common"
 	"github.com/tendermint/tendermint/libs/log"

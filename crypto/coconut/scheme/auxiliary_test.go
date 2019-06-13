@@ -18,8 +18,8 @@ package coconut_test
 import (
 	"testing"
 
-	"0xacab.org/jstuczyn/CoconutGo/crypto/bpgroup"
-	coconut "0xacab.org/jstuczyn/CoconutGo/crypto/coconut/scheme"
+	"github.com/nymtech/nym/crypto/bpgroup"
+	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"github.com/stretchr/testify/assert"
 )

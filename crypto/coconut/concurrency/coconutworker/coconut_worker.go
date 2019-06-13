@@ -21,10 +21,10 @@ package coconutworker
 import (
 	"sync"
 
-	"0xacab.org/jstuczyn/CoconutGo/crypto/coconut/concurrency/jobpacket"
-	coconut "0xacab.org/jstuczyn/CoconutGo/crypto/coconut/scheme"
-	"0xacab.org/jstuczyn/CoconutGo/crypto/elgamal"
-	"0xacab.org/jstuczyn/CoconutGo/nym/token"
+	"github.com/nymtech/nym/crypto/coconut/concurrency/jobpacket"
+	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
+	"github.com/nymtech/nym/crypto/elgamal"
+	"github.com/nymtech/nym/nym/token"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 )
 

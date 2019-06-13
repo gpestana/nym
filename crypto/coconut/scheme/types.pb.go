@@ -4,7 +4,7 @@
 package coconut
 
 import (
-	elgamal "0xacab.org/jstuczyn/CoconutGo/crypto/elgamal"
+	elgamal "github.com/nymtech/nym/crypto/elgamal"
 	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"
 	math "math"
