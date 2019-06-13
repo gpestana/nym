@@ -22,7 +22,6 @@ import (
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/golang/protobuf/proto"
 	"github.com/nymtech/nym/constants"
-	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
 	"github.com/nymtech/nym/tendermint/nymabci/code"
 	tmconst "github.com/nymtech/nym/tendermint/nymabci/constants"
 	"github.com/nymtech/nym/tendermint/nymabci/transaction"
@@ -182,15 +181,6 @@ func (app *NymApplication) handleDepositCredential(reqb []byte) types.ResponseDe
 		return types.ResponseDeliverTx{Code: checkResult}
 	}
 
-	// the errors were checked at checkDepositCoconutCredentialTx call, so they can't by anything else but nil
-	// if it's not the case, we can't trust anything that is happening anyway so we can only panic
-	cred := &coconut.Signature{}
-	theta := &coconut.ThetaTumbler{}
-	_, err := coconut.BigSliceFromByteSlices(req.CryptoMaterials.PubM)
-	mustNilErr(err)
-	mustNilErr(cred.FromProto(req.CryptoMaterials.Sig))
-	mustNilErr(theta.FromProto(req.CryptoMaterials.Theta))
-
 	address := ethcommon.BytesToAddress(req.ProviderAddress)
 
 	if !app.checkIfAccountExists(address[:]) {
@@ -208,6 +198,8 @@ func (app *NymApplication) handleDepositCredential(reqb []byte) types.ResponseDe
 	if err != nil {
 		return types.ResponseDeliverTx{Code: code.INVALID_TX_PARAMS}
 	}
+
+	app.log.Debug(fmt.Sprintf("Deposit request from address %v, zeta %v", req.ProviderAddress, req.CryptoMaterials.Theta.Zeta))
 
 	key := make([]byte, ethcommon.AddressLength+len(req.CryptoMaterials.Theta.Zeta)+len(tmconst.RedeemTokensRequestKeyPrefix))
 	i := copy(key, tmconst.RedeemTokensRequestKeyPrefix)

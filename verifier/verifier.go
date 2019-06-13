@@ -24,6 +24,9 @@ import (
 	"sync"
 	"time"
 
+	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"github.com/nymtech/nym/common/comm/commands"
 	monitor "github.com/nymtech/nym/common/tendermintmonitor"
 	"github.com/nymtech/nym/crypto/coconut/concurrency/jobqueue"
@@ -38,8 +41,6 @@ import (
 	tmconst "github.com/nymtech/nym/tendermint/nymabci/constants"
 	"github.com/nymtech/nym/verifier/config"
 	"github.com/nymtech/nym/worker"
-	"github.com/ethereum/go-ethereum/crypto"
-	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"gopkg.in/op/go-logging.v1"
 )
 
@@ -154,6 +155,22 @@ func (v *Verifier) worker() {
 				v.log.Infof("Tx %v at height %v is not a redeem tokens request", i, height)
 				continue
 			}
+
+			// remember that the key field is: [ Prefix || Address || Zeta ]
+			// and all of them have constants lengths
+			plen := len(tmconst.RedeemTokensRequestKeyPrefix)
+			addressBytes := tx.Tags[0].Key[plen : plen+ethcommon.AddressLength]
+			address := ethcommon.BytesToAddress(addressBytes)
+
+			zetaBytes := tx.Tags[0].Key[plen+ethcommon.AddressLength:]
+
+			materials := &coconut.TumblerBlindVerifyMaterials{}
+			if err := materials.UnmarshalBinary(tx.Tags[0].Value); err != nil {
+				v.log.Warningf("Failed to unmarshal materials from provider %v", address)
+				continue
+			}
+
+			v.log.Noticef("Received materials. Address: %v, zeta: %v", address, zetaBytes)
 
 			// blindSignMaterials := &coconut.ProtoBlindSignMaterials{}
 

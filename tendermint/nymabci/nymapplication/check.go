@@ -227,18 +227,9 @@ func (app *NymApplication) checkDepositCoconutCredentialTx(tx []byte) uint32 {
 		return code.DOUBLE_SPENDING_ATTEMPT
 	}
 
-	// Just check if data is formed correctly, i.e. it can be unmarshalled
-	cred := &coconut.Signature{}
-	if err := cred.FromProto(req.CryptoMaterials.Sig); err != nil {
-		return code.INVALID_TX_PARAMS
-	}
-
-	theta := &coconut.ThetaTumbler{}
-	if err := theta.FromProto(req.CryptoMaterials.Theta); err != nil {
-		return code.INVALID_TX_PARAMS
-	}
-
-	if _, err := coconut.BigSliceFromByteSlices(req.CryptoMaterials.PubM); err != nil {
+	// check if the data can be unmarshalled
+	verifyMaterials := &coconut.TumblerBlindVerifyMaterials{}
+	if err := verifyMaterials.FromProto(req.CryptoMaterials); err != nil {
 		return code.INVALID_TX_PARAMS
 	}
 

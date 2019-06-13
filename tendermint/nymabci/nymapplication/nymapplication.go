@@ -26,12 +26,12 @@ import (
 	"math/rand"
 	"time"
 
+	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
 	"github.com/nymtech/nym/tendermint/nymabci/code"
 	tmconst "github.com/nymtech/nym/tendermint/nymabci/constants"
 	"github.com/nymtech/nym/tendermint/nymabci/query"
 	"github.com/nymtech/nym/tendermint/nymabci/transaction"
-	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"github.com/tendermint/iavl"
 	"github.com/tendermint/tendermint/abci/types"
 	cmn "github.com/tendermint/tendermint/libs/common"
@@ -226,7 +226,7 @@ func (app *NymApplication) CheckTx(tx []byte) types.ResponseCheckTx {
 
 		checkCode := app.checkDepositCoconutCredentialTx(tx[1:])
 		if checkCode != code.OK {
-			app.log.Info(fmt.Sprintf("checkTx for TxTransferBetweenAccounts failed with code: %v - %v",
+			app.log.Info(fmt.Sprintf("checkTx for TxDepositCoconutCredential failed with code: %v - %v",
 				checkCode, code.ToString(checkCode)))
 		}
 		return types.ResponseCheckTx{Code: checkCode}
