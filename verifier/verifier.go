@@ -152,6 +152,9 @@ func (v *Verifier) worker() {
 		// but better safe than sorry
 		nextBlock.Lock()
 
+		// to batch all requests for given block
+		blockResults := make([]chan *commands.Response, 0, len(nextBlock.Txs))
+
 		for i, tx := range nextBlock.Txs {
 			if tx.Code != code.OK || len(tx.Tags) == 0 ||
 				!bytes.HasPrefix(tx.Tags[0].Key, tmconst.RedeemTokensRequestKeyPrefix) {
@@ -185,20 +188,25 @@ func (v *Verifier) worker() {
 
 			resCh := make(chan *commands.Response, 1)
 			cmdReq := commands.NewCommandRequest(cmd, resCh)
-
-			cmdReq.WithContext(context.TODO())
-
+			cmdReq.WithContext(context.TODO()) // TODO:
 			v.cmdChIn <- cmdReq
 
-			// TODO: we can't be blocking on those as it defeats the purpose of using the workers.
-			res := <-resCh
-
-			wasRequestSuccessful := res.Data.(bool)
-			v.log.Debugf("Was the request successful: %v", wasRequestSuccessful)
-
-			// this won't happen here
-
+			// we don't want to read results immediately because blocking on this would defeat
+			// the purpose of using the workers
+			// res := <-resCh
+			blockResults = append(blockResults, resCh)
 		}
+
+		// now read all the channel results (although technically we don't really need
+		// to do that as what we read is only request status - whether it was successful)
+		for _, resCh := range blockResults {
+			if resCh != nil {
+				res := <-resCh
+				wasRequestSuccessful := res.Data.(bool)
+				v.log.Debugf("Was the request successful: %v", wasRequestSuccessful)
+			}
+		}
+
 		v.monitor.FinalizeHeight(height)
 		nextBlock.Unlock()
 	}
