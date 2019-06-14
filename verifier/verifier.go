@@ -20,6 +20,7 @@ package verifier
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"sync"
@@ -27,7 +28,7 @@ import (
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/gogo/protobuf/proto"
+	"github.com/golang/protobuf/proto"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"github.com/nymtech/nym/common/comm/commands"
 	monitor "github.com/nymtech/nym/common/tendermintmonitor"
@@ -158,13 +159,15 @@ func (v *Verifier) worker() {
 				continue
 			}
 
-			// remember that the key field is: [ Prefix || Address || Zeta ]
-			// and all of them have constants lengths
+			// remember that the key field is: [ Prefix || Address || uint64(value) || zeta ]
+			// and all of them have constants lengths (TODO: zeta can be compressed/uncompressed, need to fix that)
 			plen := len(tmconst.RedeemTokensRequestKeyPrefix)
-			addressBytes := tx.Tags[0].Key[plen : plen+ethcommon.AddressLength]
-			address := ethcommon.BytesToAddress(addressBytes)
+			alen := ethcommon.AddressLength
 
-			zetaBytes := tx.Tags[0].Key[plen+ethcommon.AddressLength:]
+			addressBytes := tx.Tags[0].Key[plen : plen+alen]
+			address := ethcommon.BytesToAddress(addressBytes)
+			value := int64(binary.BigEndian.Uint64(tx.Tags[0].Key[plen+alen:]))
+			zetaBytes := tx.Tags[0].Key[plen+alen+8:]
 
 			materials := &coconut.ProtoTumblerBlindVerifyMaterials{}
 			if err := proto.Unmarshal(tx.Tags[0].Value, materials); err != nil {
@@ -172,11 +175,12 @@ func (v *Verifier) worker() {
 				continue
 			}
 
-			v.log.Debugf("Received materials. Address: %v, zeta: %v", address, zetaBytes)
+			v.log.Debugf("Received materials. Address: %v, zeta: %v, value: %v", address, zetaBytes, value)
 
 			cmd := &commands.CredentialVerificationRequest{
 				CryptoMaterials: materials,
 				BoundAddress:    address[:],
+				Value:           value,
 			}
 
 			resCh := make(chan *commands.Response, 1)

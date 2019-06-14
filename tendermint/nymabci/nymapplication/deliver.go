@@ -17,6 +17,7 @@
 package nymapplication
 
 import (
+	"encoding/binary"
 	"fmt"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
@@ -201,9 +202,11 @@ func (app *NymApplication) handleDepositCredential(reqb []byte) types.ResponseDe
 
 	app.log.Debug(fmt.Sprintf("Deposit request from address %v, zeta %v", req.ProviderAddress, req.CryptoMaterials.Theta.Zeta))
 
-	key := make([]byte, ethcommon.AddressLength+len(req.CryptoMaterials.Theta.Zeta)+len(tmconst.RedeemTokensRequestKeyPrefix))
+	key := make([]byte, ethcommon.AddressLength+len(req.CryptoMaterials.Theta.Zeta)+len(tmconst.RedeemTokensRequestKeyPrefix)+8)
 	i := copy(key, tmconst.RedeemTokensRequestKeyPrefix)
 	i += copy(key[i:], address[:])
+	binary.BigEndian.PutUint64(key[i:], uint64(req.Value))
+	i += 8
 	copy(key[i:], req.CryptoMaterials.Theta.Zeta)
 	return types.ResponseDeliverTx{
 		Code: code.OK,
@@ -211,7 +214,7 @@ func (app *NymApplication) handleDepositCredential(reqb []byte) types.ResponseDe
 			// while it is not crucial we have unique keys here, verifiers will need to be able to
 			// send a transaction back "confirming" status of this data and this will require an unique key field.
 			// So we might as well use the same system already
-			// [ Prefix || Provider || Zeta(g^s) --- required crypto materials ]
+			// [ Prefix || Provider || uint64(value) || Zeta(g^s) --- required crypto materials ]
 			{Key: key, Value: cryptoMaterialsBytes},
 		},
 	}

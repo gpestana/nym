@@ -25,6 +25,7 @@ import (
 	"reflect"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
+	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"github.com/nymtech/nym/common/comm/commands"
 	"github.com/nymtech/nym/crypto/coconut/concurrency/coconutworker"
 	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
@@ -633,6 +634,13 @@ func CredentialVerificationRequestHandler(ctx context.Context, reqData HandlerDa
 	cryptoMaterials := &coconut.TumblerBlindVerifyMaterials{}
 	if err := cryptoMaterials.FromProto(req.CryptoMaterials); err != nil {
 		errMsg := "Could not recover crypto materials."
+		setErrorResponse(log, response, errMsg, commands.StatusCode_INVALID_ARGUMENTS)
+		return response
+	}
+
+	// make sure the actual value sent matches what is encoded
+	if Curve.Comp(cryptoMaterials.PubM()[0], Curve.NewBIGint(int(req.Value))) != 0 {
+		errMsg := "Values does not match up."
 		setErrorResponse(log, response, errMsg, commands.StatusCode_INVALID_ARGUMENTS)
 		return response
 	}
