@@ -17,6 +17,7 @@
 package nymapplication
 
 import (
+	"encoding/base64"
 	"encoding/binary"
 	"fmt"
 
@@ -202,6 +203,8 @@ func (app *NymApplication) handleDepositCredential(reqb []byte) types.ResponseDe
 
 	app.log.Debug(fmt.Sprintf("Deposit request from address %v, zeta %v", req.ProviderAddress, req.CryptoMaterials.Theta.Zeta))
 
+	app.setZetaStatus(req.CryptoMaterials.Theta.Zeta, tmconst.ZetaStatusBeingVerified)
+
 	key := make([]byte, ethcommon.AddressLength+len(req.CryptoMaterials.Theta.Zeta)+len(tmconst.RedeemTokensRequestKeyPrefix)+8)
 	i := copy(key, tmconst.RedeemTokensRequestKeyPrefix)
 	i += copy(key[i:], address[:])
@@ -259,4 +262,66 @@ func (app *NymApplication) handleDepositCredential(reqb []byte) types.ResponseDe
 
 	// app.log.Debug("The received credential was invalid")
 	// return types.ResponseDeliverTx{Code: code.INVALID_CREDENTIAL}
+}
+
+func (app *NymApplication) handleCredentialVerificationNotification(reqb []byte) types.ResponseDeliverTx {
+	req := &transaction.CredentialVerificationNotification{}
+
+	if err := proto.Unmarshal(reqb, req); err != nil {
+		return types.ResponseDeliverTx{Code: code.INVALID_TX_PARAMS}
+	}
+
+	if checkResult := app.checkCredentialVerificationNotification(reqb); checkResult != code.OK {
+		app.log.Info("handleCredentialVerificationNotification failed checkTx")
+		return types.ResponseDeliverTx{Code: checkResult}
+	}
+
+	// 'accept' the notification
+	newCount := app.storeVerifierNotification(req.VerifierPublicKey, req.Zeta, req.Value)
+	zetaB64 := base64.StdEncoding.EncodeToString(req.Zeta)
+
+	app.log.Debug(fmt.Sprintf("Reached %v notifications out of required %v for zeta %v (value %v)",
+		newCount,
+		app.state.verifierThreshold,
+		zetaB64,
+		req.Value,
+	))
+
+	// commit the transaction if threshold is reached
+	if newCount == app.state.verifierThreshold {
+		app.log.Debug(fmt.Sprintf("Reached required threshold of %v for %v (value %v)",
+			app.state.verifierThreshold,
+			zetaB64,
+			req.Value,
+		))
+
+		// check if account exists
+		currentBalance, err := app.retrieveAccountBalance(req.ProviderAddress)
+		// It should already exist since the provider had to send a request
+		// before to actually request the deposit to happen, but double check it now anyway
+		if err != nil && createAccountOnDepositIfDoesntExist {
+			didSucceed := app.createNewAccountOp(ethcommon.BytesToAddress(req.ProviderAddress))
+			if !didSucceed {
+				app.log.Info(fmt.Sprintf("Failed to create new account for the provider with address %v",
+					ethcommon.BytesToAddress(req.ProviderAddress).Hex()))
+				return types.ResponseDeliverTx{Code: code.UNKNOWN}
+			}
+		} else if err != nil {
+			app.log.Info("Provider's account does not exist and system is not set to create new ones")
+			return types.ResponseDeliverTx{Code: code.ACCOUNT_DOES_NOT_EXIST}
+		}
+
+		app.setAccountBalance(req.ProviderAddress, currentBalance+uint64(req.Value))
+		// mark zeta as 'fully' spent
+		// TODO: perhaps do some mark and sweep later on for all credentials set as being verified for a long time
+		// and invalidate them?
+		app.log.Info(fmt.Sprintf("Marking zeta %v as spent and provider's %v balance was increased by %v",
+			zetaB64,
+			ethcommon.BytesToAddress(req.ProviderAddress).Hex(),
+			req.Value,
+		))
+		app.setZetaStatus(req.Zeta, tmconst.ZetaStatusSpent)
+	}
+
+	return types.ResponseDeliverTx{Code: code.OK}
 }

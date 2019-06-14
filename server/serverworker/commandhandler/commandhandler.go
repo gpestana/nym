@@ -587,6 +587,8 @@ func SpendCredentialRequestHandler(ctx context.Context, reqData HandlerData) *co
 		return response
 	}
 
+	// TODO: wait here for consensus on credential status
+
 	// the response data in future might be provider dependent, to include say some authorization token
 	response.ErrorStatus = commands.StatusCode_OK
 	response.Data = true

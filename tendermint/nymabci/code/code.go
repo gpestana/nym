@@ -76,6 +76,9 @@ const (
 	INVALID_VALUE uint32 = 22
 	// CREDENTIAL_VERIFIER_DOES_NOT_EXIST represents error when trying to verify signature signed by an unknown verifier
 	CREDENTIAL_VERIFIER_DOES_NOT_EXIST uint32 = 23
+	// INVALID_ZETA_STATUS represents error when trying to register verification notification while zeta was either
+	// already spent or not requested to be deposited
+	INVALID_ZETA_STATUS uint32 = 24
 	// COULD_NOT_TRANSFER represents a generic error for failing to transfer funds between accounts.
 	COULD_NOT_TRANSFER uint32 = 100 // todo: replace occurrences with more specific errors
 )
@@ -134,6 +137,8 @@ func ToString(code uint32) string {
 		return "Invalid Value"
 	case CREDENTIAL_VERIFIER_DOES_NOT_EXIST:
 		return "Credential Verifier Does Not Exist"
+	case INVALID_ZETA_STATUS:
+		return "Invalid Zeta Status"
 	default:
 		return "Unknown Error Code"
 	}

@@ -204,6 +204,42 @@ services:
       localnet:
         ipv4_address: 192.167.13.2
 
+  verifier1:
+    # below two are for debug purposes only
+    stdin_open: true
+    tty: true
+    container_name: verifier1
+    image: "nym/verifier"
+    command: "-f /verifier/config.toml"
+    volumes:
+      - ./build/verifiers/verifier1:/verifier:Z
+    depends_on:
+      - node0
+      - node1
+      - node2
+      - node3
+    networks:
+      localnet:
+        ipv4_address: 192.167.14.1
+
+  verifier2:
+    # below two are for debug purposes only
+    stdin_open: true
+    tty: true
+    container_name: verifier2
+    image: "nym/verifier"
+    command: "-f /verifier/config.toml"
+    volumes:
+      - ./build/verifiers/verifier2:/verifier:Z
+    depends_on:
+      - node0
+      - node1
+      - node2
+      - node3
+    networks:
+      localnet:
+        ipv4_address: 192.167.14.2
+
 networks:
   localnet:
     driver: bridge

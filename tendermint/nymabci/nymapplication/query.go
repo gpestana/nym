@@ -32,14 +32,20 @@ func (app *NymApplication) checkAccountBalanceQuery(req types.RequestQuery) type
 	return types.ResponseQuery{Code: code.OK, Key: req.Data, Value: balanceToBytes(val)}
 }
 
+// DEPRECATED: Use queryCheckZetaStatus instead
 func (app *NymApplication) checkZeta(req types.RequestQuery) types.ResponseQuery {
-	isSpent := app.checkIfZetaIsSpent(req.Data)
+	isSpent := app.checkZetaStatus(req.Data) == tmconst.ZetaStatusSpent
 	app.log.Debug(fmt.Sprintf("Zeta %v is spent: %v", req.Data, isSpent))
 	isSpentB := []byte{0}
 	if isSpent {
 		isSpentB = []byte{1}
 	}
 	return types.ResponseQuery{Code: code.OK, Key: req.Data, Value: isSpentB}
+}
+
+func (app *NymApplication) queryCheckZetaStatus(req types.RequestQuery) types.ResponseQuery {
+	status := app.checkZetaStatus(req.Data)
+	return types.ResponseQuery{Code: code.OK, Key: req.Data, Value: status.DbEntry()}
 }
 
 //nolint: unparam

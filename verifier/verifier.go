@@ -193,8 +193,8 @@ func (v *Verifier) worker() {
 			// TODO: we can't be blocking on those as it defeats the purpose of using the workers.
 			res := <-resCh
 
-			wasValid := res.Data.(bool)
-			v.log.Debugf("Was the credential valid: %v", wasValid)
+			wasRequestSuccessful := res.Data.(bool)
+			v.log.Debugf("Was the request successful: %v", wasRequestSuccessful)
 
 			// this won't happen here
 

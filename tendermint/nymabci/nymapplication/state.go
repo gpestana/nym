@@ -17,6 +17,7 @@
 package nymapplication
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/binary"
 	"errors"
@@ -249,13 +250,96 @@ func (app *NymApplication) updatePipeTransferNotificationCount(txHash []byte, co
 	app.state.db.Set(key, countb)
 }
 
-func (app *NymApplication) storeSpentZeta(zeta []byte) {
-	key := prefixKey(tmconst.SpentZetaPrefix, zeta)
-	// TODO: the recurring problem of what value it should be set to.
-	app.state.db.Set(key, tmconst.SpentZetaPrefix)
+func (app *NymApplication) setZetaStatus(zeta []byte, status tmconst.ZetaStatus) {
+	key := prefixKey(tmconst.ZetaStatusPrefix, zeta)
+	app.state.db.Set(key, status.DbEntry())
 }
 
-func (app *NymApplication) checkIfZetaIsSpent(zeta []byte) bool {
-	key := prefixKey(tmconst.SpentZetaPrefix, zeta)
+func (app *NymApplication) checkIfZetaIsUnspent(zeta []byte) bool {
+	key := prefixKey(tmconst.ZetaStatusPrefix, zeta)
+	_, status := app.state.db.Get(key)
+	if status == nil {
+		return true
+	}
+	return bytes.Equal(status, tmconst.ZetaStatusSpent.DbEntry())
+}
+
+func (app *NymApplication) checkZetaStatus(zeta []byte) tmconst.ZetaStatus {
+	key := prefixKey(tmconst.ZetaStatusPrefix, zeta)
+	_, status := app.state.db.Get(key)
+	if status == nil {
+		return tmconst.ZetaStatusUnspent
+	}
+	if bytes.Equal(status, tmconst.ZetaStatusBeingVerified.DbEntry()) {
+		return tmconst.ZetaStatusBeingVerified
+	}
+	if bytes.Equal(status, tmconst.ZetaStatusSpent.DbEntry()) {
+		return tmconst.ZetaStatusSpent
+	}
+	// should never happen, but if unsure, always assume it's already spent and gone
+	return tmconst.ZetaStatusSpent
+}
+
+// returns new number of notifications received for this transaction
+// TODO: rethink if we need to include value in the key field or even at all here, because in principle
+// there can be no other credential of different value with the same zeta
+func (app *NymApplication) storeVerifierNotification(verifierKey, zeta []byte, value int64) uint32 {
+	key := make([]byte, len(verifierKey)+len(zeta)+8)
+	i := copy(key, verifierKey)
+	i += copy(key[i:], zeta)
+	binary.BigEndian.PutUint64(key[i:], uint64(value))
+
+	// [PREFIX || VERIFIER || uint64(VALUE) || ZETA ]
+	key = prefixKey(tmconst.CredentialVerifierNotificationPrefix, key)
+
+	// again, does the value matter here? we could just set an empty array to save on space
+	// first store that given verifier sent the notification
+	app.state.db.Set(key, tmconst.CredentialVerifierNotificationPrefix)
+
+	// then update the global count
+	newCount := app.getCredentialVerificationCount(zeta, value) + 1
+	app.updateCredentialVerificationNotificationCount(zeta, value, newCount)
+	return newCount
+}
+
+// checks if this verifier has already sent notification regarding this credential
+func (app *NymApplication) checkVerifierNotification(verifierKey, zeta []byte, value int64) bool {
+	key := make([]byte, len(verifierKey)+len(zeta)+8)
+	i := copy(key, verifierKey)
+	i += copy(key[i:], zeta)
+	binary.BigEndian.PutUint64(key[i:], uint64(value))
+
+	// [PREFIX || VERIFIER || uint64(VALUE) || ZETA ]
+	key = prefixKey(tmconst.CredentialVerifierNotificationPrefix, key)
+
 	return app.state.db.Has(key)
+}
+
+func (app *NymApplication) getCredentialVerificationCount(zeta []byte, value int64) uint32 {
+	key := make([]byte, len(zeta)+8)
+	i := copy(key, zeta)
+	binary.BigEndian.PutUint64(key[i:], uint64(value))
+
+	// [PREFIX || uint64(VALUE) || ZETA ]
+	key = prefixKey(tmconst.CredentialVerificationNotificationCountKeyPrefix, key)
+
+	_, val := app.state.db.Get(key)
+	if val == nil {
+		return 0
+	}
+	return binary.BigEndian.Uint32(val)
+}
+
+func (app *NymApplication) updateCredentialVerificationNotificationCount(zeta []byte, value int64, count uint32) {
+	key := make([]byte, len(zeta)+8)
+	i := copy(key, zeta)
+	binary.BigEndian.PutUint64(key[i:], uint64(value))
+
+	// [PREFIX || uint64(VALUE) || ZETA ]
+	key = prefixKey(tmconst.CredentialVerificationNotificationCountKeyPrefix, key)
+
+	countb := make([]byte, 4)
+	binary.BigEndian.PutUint32(countb, count)
+
+	app.state.db.Set(key, countb)
 }
