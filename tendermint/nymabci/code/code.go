@@ -49,16 +49,16 @@ const (
 	// is not known by the abci
 	ISSUING_AUTHORITY_DOES_NOT_EXIST uint32 = 11
 	// MALFORMED_ADDRESS represents error due to address being malformed (incorrect length, incorrect prefix, etc)
-	MALFORMED_ADDRESS = 12
+	MALFORMED_ADDRESS uint32 = 12
 	// DOUBLE_SPENDING_ATTEMPT represents error due to trying to spend credential with the same sequence number
-	DOUBLE_SPENDING_ATTEMPT = 13
+	DOUBLE_SPENDING_ATTEMPT uint32 = 13
 	// SELF_TRANSFER represents error when trying to send funds from account X back to account X
-	SELF_TRANSFER = 14
+	SELF_TRANSFER uint32 = 14
 	// REPLAY_ATTACK_ATTEMPT represents error due to trying to transfer tokens
 	// to the pipe account with repeating same nonce.
-	REPLAY_ATTACK_ATTEMPT = 15
+	REPLAY_ATTACK_ATTEMPT uint32 = 15
 	// UNDEFINED_TX represents error due to using tx prefix for an undefined tx.
-	UNDEFINED_TX = 16
+	UNDEFINED_TX uint32 = 16
 	// ETHEREUM_WATCHER_DOES_NOT_EXIST represents error when trying to verify signature signed by an unknown watcher
 	ETHEREUM_WATCHER_DOES_NOT_EXIST uint32 = 17
 	// ALREADY_CONFIRMED represents error when some entity, like the watcher,
@@ -66,14 +66,16 @@ const (
 	ALREADY_CONFIRMED uint32 = 18
 	// MALFORMED_PUBLIC_KEY represents error when some entity presents a malformed public key, for example by having
 	// invalid length or structure (or can't be unmarshalled)
-	MALFORMED_PUBLIC_KEY = 19
+	MALFORMED_PUBLIC_KEY uint32 = 19
 	// ALREADY_COMMITTED represents error when watcher wants to notify about transaction
 	// while a threshold number of watchers already sent their notifications
-	ALREADY_COMMITTED = 20
+	ALREADY_COMMITTED uint32 = 20
 	// INVALID_PIPE_ACCOUNT represents error due to using different than specified address of the pipe account
-	INVALID_PIPE_ACCOUNT = 21
+	INVALID_PIPE_ACCOUNT uint32 = 21
 	// INVALID_VALUE represents error due to credential request (or possibly transfer) having an invalid value
-	INVALID_VALUE = 22
+	INVALID_VALUE uint32 = 22
+	// CREDENTIAL_VERIFIER_DOES_NOT_EXIST represents error when trying to verify signature signed by an unknown verifier
+	CREDENTIAL_VERIFIER_DOES_NOT_EXIST uint32 = 23
 	// COULD_NOT_TRANSFER represents a generic error for failing to transfer funds between accounts.
 	COULD_NOT_TRANSFER uint32 = 100 // todo: replace occurrences with more specific errors
 )
@@ -130,6 +132,8 @@ func ToString(code uint32) string {
 		return "Invalid Pipe Account"
 	case INVALID_VALUE:
 		return "Invalid Value"
+	case CREDENTIAL_VERIFIER_DOES_NOT_EXIST:
+		return "Credential Verifier Does Not Exist"
 	default:
 		return "Unknown Error Code"
 	}
