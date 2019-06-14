@@ -652,10 +652,35 @@ func CredentialVerificationRequestHandler(ctx context.Context, reqData HandlerDa
 		req.BoundAddress,
 	)
 
-	// TODO: send notification to the chain here
-	// just temporarily return isValid flag to the upper level
-	response.Data = isValid
+	tx, err := transaction.CreateNewCredentialVerificationNotification(verificationData.PrivateKey,
+		ethcommon.BytesToAddress(req.BoundAddress),
+		req.Value,
+		req.CryptoMaterials.Theta.Zeta,
+		isValid,
+	)
+	if err != nil {
+		errMsg := fmt.Sprintf("Failed to create notification transaction: %v", err)
+		setErrorResponse(log, response, errMsg, commands.StatusCode_PROCESSING_ERROR)
+		return response
+	}
 
-	_ = isValid
+	res, err := verificationData.NymClient.Broadcast(tx)
+	if err != nil {
+		errMsg := fmt.Sprintf("Failed to send notification transaction: %v", err)
+		setErrorResponse(log, response, errMsg, commands.StatusCode_PROCESSING_ERROR)
+		return response
+	}
+
+	log.Infof("Received tendermint Response.\nCheckCode: %v, Check additional data: %v\nDeliverCode: %v Deliver Aditional data: %v",
+		code.ToString(res.CheckTx.Code),
+		string(res.CheckTx.Data),
+		code.ToString(res.DeliverTx.Code),
+		string(res.DeliverTx.Data),
+	)
+
+	if res.CheckTx.Code == code.OK && res.DeliverTx.Code == code.OK {
+		response.Data = true // our notification was accepted
+	}
+
 	return response
 }
