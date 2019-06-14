@@ -283,7 +283,7 @@ func (app *NymApplication) checkZetaStatus(zeta []byte) tmconst.ZetaStatus {
 // returns new number of notifications received for this transaction
 // TODO: rethink if we need to include value in the key field or even at all here, because in principle
 // there can be no other credential of different value with the same zeta
-func (app *NymApplication) storeVerifierNotification(verifierKey, zeta []byte, value int64) uint32 {
+func (app *NymApplication) storeVerifierNotification(verifierKey, zeta []byte, value int64, valid bool) uint32 {
 	key := make([]byte, len(verifierKey)+len(zeta)+8)
 	i := copy(key, verifierKey)
 	i += copy(key[i:], zeta)
@@ -296,10 +296,14 @@ func (app *NymApplication) storeVerifierNotification(verifierKey, zeta []byte, v
 	// first store that given verifier sent the notification
 	app.state.db.Set(key, tmconst.CredentialVerifierNotificationPrefix)
 
-	// then update the global count
-	newCount := app.getCredentialVerificationCount(zeta, value) + 1
-	app.updateCredentialVerificationNotificationCount(zeta, value, newCount)
-	return newCount
+	// then update the global count, but only if credential is valid
+	currentCount := app.getCredentialVerificationCount(zeta, value)
+	if valid {
+		newCount := currentCount + 1
+		app.updateCredentialVerificationNotificationCount(zeta, value, newCount)
+		return newCount
+	}
+	return currentCount
 }
 
 // checks if this verifier has already sent notification regarding this credential

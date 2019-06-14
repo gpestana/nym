@@ -277,7 +277,7 @@ func (app *NymApplication) handleCredentialVerificationNotification(reqb []byte)
 	}
 
 	// 'accept' the notification
-	newCount := app.storeVerifierNotification(req.VerifierPublicKey, req.Zeta, req.Value)
+	newCount := app.storeVerifierNotification(req.VerifierPublicKey, req.Zeta, req.Value, req.CredentialValidity)
 	zetaB64 := base64.StdEncoding.EncodeToString(req.Zeta)
 
 	app.log.Debug(fmt.Sprintf("Reached %v notifications out of required %v for zeta %v (value %v)",
