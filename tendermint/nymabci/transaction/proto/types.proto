@@ -78,6 +78,21 @@ message CredentialRequest {
     bytes Sig = 6;
 }
 
+message CredentialVerificationNotification {
+    // Used to identify the particular verifier and to verify signature
+    bytes VerifierPublicKey = 1;
+    // Address of the provider who sent the original request
+    bytes ProviderAddress = 2;
+    // Value of the credential
+    int64 Value = 3;
+    // Zeta associated with the credential to unique identify it
+    bytes Zeta = 4;
+    // Was the credential valid or not
+    bool CredentialValidity = 5;    
+    // Signature on the entire message done with the verifier's key.
+    bytes Sig = 6;
+}
+
 
 // message AddIssuerRequest {
 //     // ID of the new issuer

@@ -49,6 +49,9 @@ const (
 	// TxCredentialRequest is byte prefix for transaction indicating client wanting to convert some of its tokens
 	// into a credential
 	TxCredentialRequest byte = 0xa2
+	// TxCredentialVerificationNotification is byte prefix for transaction notifying tendermint nodes about
+	// validity (or lack of therein) of a credential some service provider wanted to deposit.
+	TxCredentialVerificationNotification byte = 0xa3
 	// TxAdvanceBlock is byte prefix for transaction to store entire tx block in db to advance the blocks.
 	TxAdvanceBlock byte = 0xff // entirely for debug purposes
 )
@@ -253,4 +256,40 @@ func CreateCredentialRequest(privateKey *ecdsa.PrivateKey,
 		Sig:                sig,
 	}
 	return marshalRequest(req, TxCredentialRequest)
+}
+
+func CreateNewCredentialVerificationNotification(privateKey *ecdsa.PrivateKey,
+	providerAddress ethcommon.Address,
+	value int64,
+	zeta []byte,
+	wasValid bool,
+) ([]byte, error) {
+
+	publicKey := privateKey.Public().(*ecdsa.PublicKey)
+	publicKeyBytes := ethcrypto.FromECDSAPub(publicKey)
+
+	msg := make([]byte, len(publicKeyBytes)+ethcommon.AddressLength+8+len(zeta)+1)
+	i := copy(msg, publicKeyBytes)
+	i += copy(msg[i:], providerAddress[:])
+	binary.BigEndian.PutUint64(msg[i:], uint64(value))
+	i += 8
+	if wasValid {
+		msg[i] = 1
+	}
+	// by default it's 0
+
+	sig, err := ethcrypto.Sign(tmconst.HashFunction(msg), privateKey)
+	if err != nil {
+		return nil, err
+	}
+
+	req := &CredentialVerificationNotification{
+		VerifierPublicKey:  publicKeyBytes,
+		ProviderAddress:    providerAddress[:],
+		Value:              value,
+		Zeta:               zeta,
+		CredentialValidity: wasValid,
+		Sig:                sig,
+	}
+	return marshalRequest(req, TxCredentialVerificationNotification)
 }
