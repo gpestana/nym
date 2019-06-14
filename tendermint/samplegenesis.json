@@ -43,10 +43,11 @@
   "app_state":{  
     "systemProperties":{  
       "watcherThreshold":2,
+      "verifierThreshold":2,
       "pipeAccount":"0xd6A548f60FB6F98fB29e6226DE1405c20DbbCF52",
       "coconutProperties":{  
         "q":5,
-        "threshold":2
+        "threshold":3
       }
     },
     "accounts":[  
@@ -87,6 +88,14 @@
       },
       {  
         "pub_key":"BNNqH8evAM/w97DYVWhS4g9W3Qf68l5nGCCqXopTq8iYV+hGd4ISwPm8z4uomRkWD9VLySt3ggBvlqQLSSJw0Lc="
+      }
+    ],
+    "verifiers":[  
+      {  
+        "pub_key":"BH3yFGQi/qSbqolZHLy0bObXEUHNrC6Y++Wz7yQUPOJU5yooal6ZGP5sM7WHILt6cA39o5879r4FHzuiw4ydz5g="
+      },
+      {  
+        "pub_key":"BANigUwYucmc9ZA7UCH9zttrApF75jV87vzMNEk2ewhsDTsjdXZhFkjGE8qkA7rs7WaU4VtXmxJBqCsGNa7/Nec="
       }
     ]
   }

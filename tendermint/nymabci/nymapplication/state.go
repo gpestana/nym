@@ -22,10 +22,10 @@ import (
 	"errors"
 	"fmt"
 
-	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
-	tmconst "github.com/nymtech/nym/tendermint/nymabci/constants"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
+	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
+	tmconst "github.com/nymtech/nym/tendermint/nymabci/constants"
 	"github.com/tendermint/iavl"
 )
 
@@ -39,8 +39,9 @@ var (
 type State struct {
 	db *iavl.MutableTree // hash and height (version) are obtained from the tree methods
 
-	watcherThreshold uint32
-	pipeAccount      ethcommon.Address
+	watcherThreshold  uint32
+	verifierThreshold uint32
+	pipeAccount       ethcommon.Address
 }
 
 func (app *NymApplication) storeWatcherThreshold() {
@@ -56,6 +57,22 @@ func (app *NymApplication) loadWatcherThreshold() error {
 	}
 	app.state.watcherThreshold = binary.BigEndian.Uint32(val)
 	app.log.Info(fmt.Sprintf("Loaded watcher threshold: %v", app.state.watcherThreshold))
+	return nil
+}
+
+func (app *NymApplication) storeVerifierThreshold() {
+	thrb := make([]byte, 4)
+	binary.BigEndian.PutUint32(thrb, app.state.verifierThreshold)
+	app.state.db.Set(tmconst.VerifierThresholdKey, thrb)
+}
+
+func (app *NymApplication) loadVerifierThreshold() error {
+	_, val := app.state.db.Get(tmconst.VerifierThresholdKey)
+	if val == nil {
+		return ErrKeyDoesNotExist
+	}
+	app.state.verifierThreshold = binary.BigEndian.Uint32(val)
+	app.log.Info(fmt.Sprintf("Loaded verifier threshold: %v", app.state.verifierThreshold))
 	return nil
 }
 
@@ -164,6 +181,19 @@ func (app *NymApplication) checkWatcherKey(publicKey []byte) bool {
 	return app.state.db.Has(dbEntry)
 }
 
+func (app *NymApplication) storeVerifierKey(verifier Verifier) {
+	pubB64 := base64.StdEncoding.EncodeToString(verifier.PublicKey)
+	app.log.Debug(fmt.Sprintf("Adding to the trusted set verifier with public key: %v", pubB64))
+	dbEntry := prefixKey(tmconst.CredentialVerifierKeyPrefix, verifier.PublicKey)
+	// TODO: do we even need to set any meaningful value here?
+	app.state.db.Set(dbEntry, tmconst.CredentialVerifierKeyPrefix)
+}
+
+func (app *NymApplication) checkVerifierKey(publicKey []byte) bool {
+	dbEntry := prefixKey(tmconst.CredentialVerifierKeyPrefix, publicKey)
+	return app.state.db.Has(dbEntry)
+}
+
 // checks if given (random) nonce was already seen before for the particular address
 func (app *NymApplication) checkNonce(nonce, address []byte) bool {
 	if len(nonce) != tmconst.NonceLength || len(address) != ethcommon.AddressLength {
@@ -190,8 +220,8 @@ func (app *NymApplication) storeWatcherNotification(watcherKey, txHash []byte) u
 	// now increase notification count for this transaction
 	app.state.db.Set(key, tmconst.EthereumWatcherNotificationPrefix)
 	// and update total count
-	newCount := app.getNotificationCount(txHash) + 1
-	app.updateNotificationCount(txHash, newCount)
+	newCount := app.getPipeTransferNotificationCount(txHash) + 1
+	app.updatePipeTransferNotificationCount(txHash, newCount)
 	return newCount
 }
 
@@ -201,7 +231,7 @@ func (app *NymApplication) checkWatcherNotification(watcherKey, txHash []byte) b
 	return app.state.db.Has(key)
 }
 
-func (app *NymApplication) getNotificationCount(txHash []byte) uint32 {
+func (app *NymApplication) getPipeTransferNotificationCount(txHash []byte) uint32 {
 	key := prefixKey(tmconst.PipeAccountTransferNotificationCountKeyPrefix, txHash)
 
 	_, val := app.state.db.Get(key)
@@ -211,7 +241,7 @@ func (app *NymApplication) getNotificationCount(txHash []byte) uint32 {
 	return binary.BigEndian.Uint32(val)
 }
 
-func (app *NymApplication) updateNotificationCount(txHash []byte, count uint32) {
+func (app *NymApplication) updatePipeTransferNotificationCount(txHash []byte, count uint32) {
 	key := prefixKey(tmconst.PipeAccountTransferNotificationCountKeyPrefix, txHash)
 	countb := make([]byte, 4)
 	binary.BigEndian.PutUint32(countb, count)

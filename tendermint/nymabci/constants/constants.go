@@ -50,6 +50,9 @@ var (
 	// EthereumWatcherKeyPrefix represents the prefix for storing public keys of trusted watchers.
 	EthereumWatcherKeyPrefix = []byte("EthereumWatcher")
 
+	// CredentialVerifierKeyPrefix represents the prefix for storing public keys of trusted verifiers.
+	CredentialVerifierKeyPrefix = []byte("CredentialVerifier")
+
 	// AccountsPrefix represents prefix for each account in the database to indicate amount of associated tokens.
 	AccountsPrefix = []byte("account")
 
@@ -78,6 +81,9 @@ var (
 
 	// WatcherThresholdKey represents key under which watcher threshold as initially set in genesis state is stored.
 	WatcherThresholdKey = []byte("WatcherThreshold")
+
+	// VerifierThresholdKey represents key under which verifier threshold as initially set in genesis state is stored.
+	VerifierThresholdKey = []byte("VerifierThreshold")
 
 	// PipeContractKey represents key under which address of the pipe account
 	// as initially set in genesis state is stored.

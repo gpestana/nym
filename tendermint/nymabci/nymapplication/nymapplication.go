@@ -101,6 +101,9 @@ func NewNymApplication(dbType, dbDir string, logger log.Logger) *NymApplication 
 		if err := app.loadWatcherThreshold(); err != nil {
 			panic(fmt.Errorf("expected to have watcher threshold stored: %v", err))
 		}
+		if err := app.loadVerifierThreshold(); err != nil {
+			panic(fmt.Errorf("expected to have verifier threshold stored: %v", err))
+		}
 		if err := app.loadPipeAccountAddress(); err != nil {
 			panic(fmt.Errorf("expected to have pipe account address stored: %v", err))
 		}
@@ -169,6 +172,9 @@ func (app *NymApplication) DeliverTx(tx []byte) types.ResponseDeliverTx {
 		// removes given amount of tokens from user's account and writes crypto material to the chain
 		app.log.Info("Credential request")
 		return app.handleCredentialRequest(tx[1:])
+	case transaction.TxCredentialVerificationNotification:
+		app.log.Info("Credential verification notification")
+		return app.handleCredentialVerificationNotification(tx[1:])
 	case transaction.TxAdvanceBlock:
 		// purely for debug purposes to populate the state and advance the blocks
 		if !tmconst.DebugMode {
@@ -241,6 +247,14 @@ func (app *NymApplication) CheckTx(tx []byte) types.ResponseCheckTx {
 				checkCode, code.ToString(checkCode)))
 		}
 		return types.ResponseCheckTx{Code: checkCode}
+	case transaction.TxCredentialVerificationNotification:
+		app.log.Debug("CheckTx for TxCredentialVerificationNotification")
+		checkCode := app.checkCredentialVerificationNotification(tx[1:])
+		if checkCode != code.OK {
+			app.log.Info(fmt.Sprintf("checkTx for TxCredentialVerificationNotification failed with code: %v - %v",
+				checkCode, code.ToString(checkCode)))
+		}
+		return types.ResponseCheckTx{Code: checkCode}
 	default:
 		app.log.Error("Unknown Tx")
 		return types.ResponseCheckTx{Code: code.INVALID_TX_PARAMS}
@@ -288,6 +302,7 @@ func (app *NymApplication) Query(req types.RequestQuery) types.ResponseQuery {
 
 // InitChain initialises blockchain with validators and other info from TendermintCore.
 // It also populates genesis appstate with information from the genesis block.
+// TODO: clean up the method
 func (app *NymApplication) InitChain(req types.RequestInitChain) types.ResponseInitChain {
 	genesisState := &GenesisAppState{}
 	if err := json.Unmarshal(req.AppStateBytes, genesisState); err != nil {
@@ -304,25 +319,41 @@ func (app *NymApplication) InitChain(req types.RequestInitChain) types.ResponseI
 
 	numWatchers := len(genesisState.EthereumWatchers)
 	watcherThreshold := genesisState.SystemProperties.WatcherThreshold
-	// In future do not terminate here as it will be possible (TODO: actually implement it) to add IAs in txs
+	// In future do not terminate here as it will be possible (TODO: actually implement it) to add watchers in txs
 	if watcherThreshold > numWatchers {
 		app.log.Error(fmt.Sprintf("Only %v watchers declared in the genesis block out of minimum %v",
 			numWatchers, watcherThreshold))
-		panic("Insufficient number of issuers declared in the genesis block")
+		panic("Insufficient number of watchers declared in the genesis block")
+	}
+
+	numVerifiers := len(genesisState.CredentialVerifiers)
+	verifierThreshold := genesisState.SystemProperties.VerifierThreshold
+	// In future do not terminate here as it will be possible (TODO: actually implement it) to add verifiers in txs
+	if verifierThreshold > numVerifiers {
+		app.log.Error(fmt.Sprintf("Only %v verifiers declared in the genesis block out of minimum %v",
+			numVerifiers, verifierThreshold))
+		panic("Insufficient number of verifiers declared in the genesis block")
 	}
 
 	app.state.watcherThreshold = uint32(watcherThreshold)
-	app.storeWatcherThreshold()
+	app.state.verifierThreshold = uint32(verifierThreshold)
 	app.state.pipeAccount = genesisState.SystemProperties.PipeAccount
+	app.storeWatcherThreshold()
+	app.storeVerifierThreshold()
 	app.storePipeAccountAddress()
 
-	app.log.Info(fmt.Sprintf("Setting watcher threshold to %v and pipe contract address to %v",
-		watcherThreshold, app.state.pipeAccount.Hex()))
+	app.log.Info(fmt.Sprintf("Setting watcher threshold to %v, verifier threshold to %v and pipe contract address to %v",
+		watcherThreshold, verifierThreshold, app.state.pipeAccount.Hex()))
 
 	for _, watcher := range genesisState.EthereumWatchers {
 		app.storeWatcherKey(watcher)
 	}
 	app.log.Info("Stored watcher keys in the DB")
+
+	for _, verifier := range genesisState.CredentialVerifiers {
+		app.storeVerifierKey(verifier)
+	}
+	app.log.Info("Stored verifier keys in the DB")
 
 	// import vk of IAs
 	numIAs := len(genesisState.Issuers)
