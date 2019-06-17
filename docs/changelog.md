@@ -1,5 +1,10 @@
 # CoconutGo Changelog
 
+## 0.9.1
+
+* Sample client cleanup + description of what is actually happening
+* Made Client's WaitForBalanceIncrease() function public and used in the demo code
+
 ## 0.9.0
 
 * Credential verifier entity - they monitor the tendermint chain for any deposit requests and verify the written credentials (and cryptographic materials)
