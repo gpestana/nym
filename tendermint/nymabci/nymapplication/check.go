@@ -20,16 +20,16 @@ import (
 	"bytes"
 	"encoding/binary"
 
+	ethcommon "github.com/ethereum/go-ethereum/common"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/golang/protobuf/proto"
+	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"github.com/nymtech/nym/constants"
 	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
 	"github.com/nymtech/nym/nym/token"
 	"github.com/nymtech/nym/tendermint/nymabci/code"
 	tmconst "github.com/nymtech/nym/tendermint/nymabci/constants"
 	"github.com/nymtech/nym/tendermint/nymabci/transaction"
-	ethcommon "github.com/ethereum/go-ethereum/common"
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/golang/protobuf/proto"
-	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 )
 
 // implementation will be IP-specific
@@ -149,7 +149,7 @@ func (app *NymApplication) checkTransferToPipeAccountNotificationTx(tx []byte) u
 	}
 
 	// first check if the threshold was alredy reached and transaction was committed
-	if app.getNotificationCount(req.TxHash) == app.state.watcherThreshold {
+	if app.getPipeTransferNotificationCount(req.TxHash) == app.state.watcherThreshold {
 		app.log.Info("Already reached required threshold")
 		return code.ALREADY_COMMITTED
 	}
@@ -222,23 +222,14 @@ func (app *NymApplication) checkDepositCoconutCredentialTx(tx []byte) uint32 {
 	}
 
 	// check for double spending -
-	// if credential was already spent, there is no point in any further checks
-	if app.checkIfZetaIsSpent(req.Theta.Zeta) {
+	// if credential was already spent or is already being verified, there is no point in any further checks
+	if !app.checkIfZetaIsUnspent(req.CryptoMaterials.Theta.Zeta) {
 		return code.DOUBLE_SPENDING_ATTEMPT
 	}
 
-	// Just check if data is formed correctly, i.e. it can be unmarshalled
-	cred := &coconut.Signature{}
-	if err := cred.FromProto(req.Sig); err != nil {
-		return code.INVALID_TX_PARAMS
-	}
-
-	theta := &coconut.ThetaTumbler{}
-	if err := theta.FromProto(req.Theta); err != nil {
-		return code.INVALID_TX_PARAMS
-	}
-
-	if _, err := coconut.BigSliceFromByteSlices(req.PubM); err != nil {
+	// check if the data can be unmarshalled
+	verifyMaterials := &coconut.TumblerBlindVerifyMaterials{}
+	if err := verifyMaterials.FromProto(req.CryptoMaterials); err != nil {
 		return code.INVALID_TX_PARAMS
 	}
 
@@ -302,6 +293,69 @@ func (app *NymApplication) checkCredentialRequestTx(tx []byte) uint32 {
 	if !bytes.Equal(recAddr[:], req.ClientAddress) {
 		app.log.Info("Failed to verify signature on request")
 		return code.INVALID_SIGNATURE
+	}
+
+	return code.OK
+}
+
+func (app *NymApplication) checkCredentialVerificationNotification(tx []byte) uint32 {
+	req := &transaction.CredentialVerificationNotification{}
+
+	if err := proto.Unmarshal(tx, req); err != nil {
+		app.log.Info("Failed to unmarshal request")
+		return code.INVALID_TX_PARAMS
+	}
+
+	// first check if the threshold was alredy reached and transaction was committed
+	if app.getCredentialVerificationCount(req.Zeta, req.Value) == app.state.verifierThreshold {
+		app.log.Info("Already reached required threshold")
+		return code.ALREADY_COMMITTED
+	}
+
+	// check if the verifier can be trusted
+	if !app.checkVerifierKey(req.VerifierPublicKey) {
+		app.log.Info("This verifier is not in the trusted set")
+		return code.CREDENTIAL_VERIFIER_DOES_NOT_EXIST
+	}
+
+	// check if provider address is correctly formed
+	if len(req.ProviderAddress) != ethcommon.AddressLength {
+		app.log.Info("Provider's address is malformed")
+		return code.MALFORMED_ADDRESS
+	}
+
+	// check if zeta status is "being verified". This implies it wasn't spent before and that it was already requested
+	// to be deposited
+	if !bytes.Equal(app.checkZetaStatus(req.Zeta), tmconst.ZetaStatusBeingVerified.DbEntry()) {
+		app.log.Info("Invalid zeta status")
+		return code.INVALID_ZETA_STATUS
+	}
+
+	// check signature
+	msg := make([]byte, len(req.VerifierPublicKey)+ethcommon.AddressLength+8+len(req.Zeta)+1)
+	i := copy(msg, req.VerifierPublicKey)
+	i += copy(msg[i:], req.ProviderAddress[:])
+	binary.BigEndian.PutUint64(msg[i:], uint64(req.Value))
+	i += 8
+	if req.CredentialValidity {
+		msg[i] = 1
+	}
+
+	sig := req.Sig
+	// last byte is a recoveryID which we don't care about
+	if len(sig) > 64 {
+		sig = sig[:64]
+	}
+
+	if !ethcrypto.VerifySignature(req.VerifierPublicKey, tmconst.HashFunction(msg), sig) {
+		app.log.Info("The signature on message is invalid")
+		return code.INVALID_SIGNATURE
+	}
+
+	// check if this tx was not already confirmed by this watcher
+	if app.checkVerifierNotification(req.VerifierPublicKey, req.Zeta, req.Value) {
+		app.log.Info("This watcher already sent this notification before")
+		return code.ALREADY_CONFIRMED
 	}
 
 	return code.OK

@@ -37,8 +37,13 @@ const (
 
 // nolint: gochecknoglobals
 var (
+	// DEPRECATED: replaced by Zeta Status
 	// SpentZetaPrefix represents prefix for each zeta in the database to indicate it has been spent.
 	SpentZetaPrefix = []byte("SpentZeta")
+
+	// ZetaStatusPrefix represents prefix for each zeta in the database to indicate its status
+	// (spent, being verified, unspent)
+	ZetaStatusPrefix = []byte("ZetaStatus")
 
 	// AggregateVkKey represents the database entry for the aggregate verification key of the threshold number
 	// of issuing authorities of the system. It is used for credential verification.
@@ -49,6 +54,9 @@ var (
 
 	// EthereumWatcherKeyPrefix represents the prefix for storing public keys of trusted watchers.
 	EthereumWatcherKeyPrefix = []byte("EthereumWatcher")
+
+	// CredentialVerifierKeyPrefix represents the prefix for storing public keys of trusted verifiers.
+	CredentialVerifierKeyPrefix = []byte("CredentialVerifier")
 
 	// AccountsPrefix represents prefix for each account in the database to indicate amount of associated tokens.
 	AccountsPrefix = []byte("account")
@@ -72,12 +80,23 @@ var (
 	// to indicate given watcher has already notified about particular transfer.
 	EthereumWatcherNotificationPrefix = []byte("HOLDTRANSFNOTIF")
 
+	// CredentialVerifierNotificationPrefix represents prefix for database entry
+	// to indicate given verifier has already notified about particular credential status.
+	CredentialVerifierNotificationPrefix = []byte("CREDVERIFNOTIF")
+
 	// PipeAccountTransferNotificationCountKeyPrefix represents prefix for the key for number of watchers
 	// confirming given transfer
 	PipeAccountTransferNotificationCountKeyPrefix = []byte("COUNT HODLTRANSFNOTIF")
 
+	// CredentialVerificationNotificationCountKeyPrefix represents prefix for the key for number of verifiers
+	// verifying given credential
+	CredentialVerificationNotificationCountKeyPrefix = []byte("COUNT CREDVERIFNOTIF")
+
 	// WatcherThresholdKey represents key under which watcher threshold as initially set in genesis state is stored.
 	WatcherThresholdKey = []byte("WatcherThreshold")
+
+	// VerifierThresholdKey represents key under which verifier threshold as initially set in genesis state is stored.
+	VerifierThresholdKey = []byte("VerifierThreshold")
 
 	// PipeContractKey represents key under which address of the pipe account
 	// as initially set in genesis state is stored.
@@ -89,3 +108,20 @@ var (
 	// ErrNotInDebug indicates error thrown when trying to access functionalities only available in debug mode
 	ErrNotInDebug = errors.New("could not proceed with request. App is not in debug mode")
 )
+
+type ZetaStatus byte
+
+const (
+	// Given Zeta can have 3 states:
+	// Unspent - when it was never sent to the chain before
+	// Being Verified - SP sent deposit request but verifiers have not reached consensus on credential validity yet
+	// Spent - SP has already been credited for credential value
+	// Unspent status is never explicitly written to the database, it's being implied from lack of any entry
+	ZetaStatusUnspent       ZetaStatus = 0
+	ZetaStatusSpent         ZetaStatus = 1
+	ZetaStatusBeingVerified ZetaStatus = 2
+)
+
+func (status ZetaStatus) DbEntry() []byte {
+	return []byte{byte(status)}
+}

@@ -22,18 +22,12 @@ import (
 	"fmt"
 	"math/rand"
 
+	ethcommon "github.com/ethereum/go-ethereum/common"
+	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
 	"github.com/nymtech/nym/tendermint/nymabci/code"
 	tmconst "github.com/nymtech/nym/tendermint/nymabci/constants"
-	ethcommon "github.com/ethereum/go-ethereum/common"
-	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 )
-
-func mustNilErr(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
 
 func balanceToBytes(balance uint64) []byte {
 	b := make([]byte, 8)

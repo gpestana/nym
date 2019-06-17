@@ -30,6 +30,7 @@ type CoconutProperties struct {
 
 type SystemProperties struct {
 	WatcherThreshold  int               `json:"watcherThreshold"`
+	VerifierThreshold int               `json:"verifierThreshold"`
 	PipeAccount       ethcommon.Address `json:"pipeAccount"`
 	CoconutProperties CoconutProperties `json:"coconutProperties"`
 }
@@ -47,6 +48,11 @@ type Watcher struct {
 	PublicKey []byte `json:"pub_key"`
 }
 
+type Verifier struct {
+	// Public key associated with given verifier. Used to authenticate any notifications they send to the chain.
+	PublicKey []byte `json:"pub_key"`
+}
+
 type GenesisAccount struct {
 	Address ethcommon.Address `json:"address"`
 	Balance uint64            `json:"balance"`
@@ -56,18 +62,9 @@ type GenesisAccount struct {
 // and applying appropriate changes to the state upon InitChain.
 // Currently it includes list of genesis accounts and Coconut properties required for credential validation.
 type GenesisAppState struct {
-	SystemProperties SystemProperties `json:"systemProperties"`
-	Accounts         []GenesisAccount `json:"accounts"`
-	Issuers          []Issuer         `json:"issuingAuthorities"`
-	EthereumWatchers []Watcher        `json:"ethereumWatchers"`
-
-	// CoconutProperties struct {
-	// 	MaxAttrs           int `json:"q"`
-	// 	Threshold          int `json:"threshold"`
-	// 	IssuingAuthorities []struct {
-	// 		ID        uint32 `json:"id"`
-	// 		Vk        []byte `json:"vk"`
-	// 		PublicKey []byte `json:"pub_key"`
-	// 	} `json:"issuingAuthorities"`
-	// } `json:"coconutProperties"`
+	SystemProperties    SystemProperties `json:"systemProperties"`
+	Accounts            []GenesisAccount `json:"accounts"`
+	Issuers             []Issuer         `json:"issuingAuthorities"`
+	EthereumWatchers    []Watcher        `json:"ethereumWatchers"`
+	CredentialVerifiers []Verifier       `json:"verifiers"`
 }

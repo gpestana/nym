@@ -1,5 +1,13 @@
 # CoconutGo Changelog
 
+## 0.9.0
+
+* Credential verifier entity - they monitor the tendermint chain for any deposit requests and verify the written credentials (and cryptographic materials)
+* Tendermint nodes waiting for threshold number of verifiers to validate the credential before increasing provider's balance
+* Move of repository to github.com and related import path changes
+* Moved tendermint monitor code to make it useable by different entities (issuer and verifier)
+* Minor changes and fixes
+
 ## 0.8.2
 
 * Restored provider's ability to redeem received credentials

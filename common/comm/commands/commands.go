@@ -21,13 +21,13 @@ import (
 	"context"
 	"errors"
 
+	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/golang/protobuf/proto"
+	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"github.com/nymtech/nym/common/comm/packet"
 	"github.com/nymtech/nym/constants"
 	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
 	"github.com/nymtech/nym/crypto/elgamal"
-	ethcommon "github.com/ethereum/go-ethereum/common"
-	"github.com/golang/protobuf/proto"
-	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 )
 
 const (
@@ -55,6 +55,11 @@ const (
 
 	// LookUpBlockCredentialsID is commandID for looking up all credentials issued at particular block height.
 	LookUpBlockCredentialsID CommandID = 131
+
+	// CredentialVerificationID is a commandID for an internal command of a verifier to verify credential
+	// and notify tendermint chain of the result.
+	// It is internal to the verifiers, however, it is defined here for the consistency sake.
+	CredentialVerificationID CommandID = 132
 
 	// DefaultResponseErrorStatusCode defines default value for the error status code of a server response.
 	DefaultResponseErrorStatusCode = StatusCode_UNKNOWN
@@ -98,6 +103,8 @@ func CommandToMarshalledPacket(cmd Command) ([]byte, error) {
 		cmdID = LookUpCredentialID
 	case *LookUpBlockCredentialsRequest:
 		cmdID = LookUpBlockCredentialsID
+	case *CredentialVerificationRequest:
+		cmdID = CredentialVerificationID
 	default:
 		return nil, errors.New("unknown Command")
 	}
@@ -135,6 +142,8 @@ func FromBytes(b []byte) (Command, error) {
 		cmd = &LookUpCredentialRequest{}
 	case LookUpBlockCredentialsID:
 		cmd = &LookUpBlockCredentialsRequest{}
+	case CredentialVerificationID:
+		cmd = &CredentialVerificationRequest{}
 	default:
 		return nil, errors.New("unknown CommandID")
 	}

@@ -17,6 +17,7 @@
 package nymapplication
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/nymtech/nym/tendermint/nymabci/code"
@@ -32,14 +33,21 @@ func (app *NymApplication) checkAccountBalanceQuery(req types.RequestQuery) type
 	return types.ResponseQuery{Code: code.OK, Key: req.Data, Value: balanceToBytes(val)}
 }
 
+// DEPRECATED: Use queryCheckZetaStatus instead
 func (app *NymApplication) checkZeta(req types.RequestQuery) types.ResponseQuery {
-	isSpent := app.checkIfZetaIsSpent(req.Data)
+	isSpent := bytes.HasPrefix(app.checkZetaStatus(req.Data), tmconst.ZetaStatusSpent.DbEntry())
 	app.log.Debug(fmt.Sprintf("Zeta %v is spent: %v", req.Data, isSpent))
 	isSpentB := []byte{0}
 	if isSpent {
 		isSpentB = []byte{1}
 	}
 	return types.ResponseQuery{Code: code.OK, Key: req.Data, Value: isSpentB}
+}
+
+func (app *NymApplication) queryCheckZetaStatus(req types.RequestQuery) types.ResponseQuery {
+	status := app.checkZetaStatus(req.Data)
+	app.log.Debug(fmt.Sprintf("Zeta %v status: %v", status))
+	return types.ResponseQuery{Code: code.OK, Key: req.Data, Value: status}
 }
 
 //nolint: unparam

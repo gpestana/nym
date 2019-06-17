@@ -22,14 +22,14 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"github.com/nymtech/nym/common/utils"
-	"github.com/nymtech/nym/constants"
-	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
-	tmconst "github.com/nymtech/nym/tendermint/nymabci/constants"
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	proto "github.com/golang/protobuf/proto"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
+	"github.com/nymtech/nym/common/utils"
+	"github.com/nymtech/nym/constants"
+	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
+	tmconst "github.com/nymtech/nym/tendermint/nymabci/constants"
 )
 
 const (
@@ -49,6 +49,9 @@ const (
 	// TxCredentialRequest is byte prefix for transaction indicating client wanting to convert some of its tokens
 	// into a credential
 	TxCredentialRequest byte = 0xa2
+	// TxCredentialVerificationNotification is byte prefix for transaction notifying tendermint nodes about
+	// validity (or lack of therein) of a credential some service provider wanted to deposit.
+	TxCredentialVerificationNotification byte = 0xa3
 	// TxAdvanceBlock is byte prefix for transaction to store entire tx block in db to advance the blocks.
 	TxAdvanceBlock byte = 0xff // entirely for debug purposes
 )
@@ -147,10 +150,14 @@ func CreateNewDepositCoconutCredentialRequest(
 	address ethcommon.Address,
 ) ([]byte, error) {
 
+	cryptoMaterials := &coconut.ProtoTumblerBlindVerifyMaterials{
+		Sig:   protoSig,
+		PubM:  pubMb,
+		Theta: protoThetaTumbler,
+	}
+
 	req := &DepositCoconutCredentialRequest{
-		Sig:             protoSig,
-		PubM:            pubMb,
-		Theta:           protoThetaTumbler,
+		CryptoMaterials: cryptoMaterials,
 		Value:           value,
 		ProviderAddress: address[:],
 	}
@@ -249,4 +256,40 @@ func CreateCredentialRequest(privateKey *ecdsa.PrivateKey,
 		Sig:                sig,
 	}
 	return marshalRequest(req, TxCredentialRequest)
+}
+
+func CreateNewCredentialVerificationNotification(privateKey *ecdsa.PrivateKey,
+	providerAddress ethcommon.Address,
+	value int64,
+	zeta []byte,
+	wasValid bool,
+) ([]byte, error) {
+
+	publicKey := privateKey.Public().(*ecdsa.PublicKey)
+	publicKeyBytes := ethcrypto.FromECDSAPub(publicKey)
+
+	msg := make([]byte, len(publicKeyBytes)+ethcommon.AddressLength+8+len(zeta)+1)
+	i := copy(msg, publicKeyBytes)
+	i += copy(msg[i:], providerAddress[:])
+	binary.BigEndian.PutUint64(msg[i:], uint64(value))
+	i += 8
+	if wasValid {
+		msg[i] = 1
+	}
+	// by default it's 0
+
+	sig, err := ethcrypto.Sign(tmconst.HashFunction(msg), privateKey)
+	if err != nil {
+		return nil, err
+	}
+
+	req := &CredentialVerificationNotification{
+		VerifierPublicKey:  publicKeyBytes,
+		ProviderAddress:    providerAddress[:],
+		Value:              value,
+		Zeta:               zeta,
+		CredentialValidity: wasValid,
+		Sig:                sig,
+	}
+	return marshalRequest(req, TxCredentialVerificationNotification)
 }

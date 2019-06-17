@@ -19,11 +19,17 @@ package verifier
 
 import (
 	"bytes"
+	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"sync"
 	"time"
 
+	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/golang/protobuf/proto"
+	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"github.com/nymtech/nym/common/comm/commands"
 	monitor "github.com/nymtech/nym/common/tendermintmonitor"
 	"github.com/nymtech/nym/crypto/coconut/concurrency/jobqueue"
@@ -38,8 +44,6 @@ import (
 	tmconst "github.com/nymtech/nym/tendermint/nymabci/constants"
 	"github.com/nymtech/nym/verifier/config"
 	"github.com/nymtech/nym/worker"
-	"github.com/ethereum/go-ethereum/crypto"
-	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"gopkg.in/op/go-logging.v1"
 )
 
@@ -148,6 +152,9 @@ func (v *Verifier) worker() {
 		// but better safe than sorry
 		nextBlock.Lock()
 
+		// to batch all requests for given block
+		blockResults := make([]chan *commands.Response, 0, len(nextBlock.Txs))
+
 		for i, tx := range nextBlock.Txs {
 			if tx.Code != code.OK || len(tx.Tags) == 0 ||
 				!bytes.HasPrefix(tx.Tags[0].Key, tmconst.RedeemTokensRequestKeyPrefix) {
@@ -155,37 +162,51 @@ func (v *Verifier) worker() {
 				continue
 			}
 
-			// blindSignMaterials := &coconut.ProtoBlindSignMaterials{}
+			// remember that the key field is: [ Prefix || Address || uint64(value) || zeta ]
+			// and all of them have constants lengths (TODO: zeta can be compressed/uncompressed, need to fix that)
+			plen := len(tmconst.RedeemTokensRequestKeyPrefix)
+			alen := ethcommon.AddressLength
 
-			// err := proto.Unmarshal(tx.Tags[0].Value, blindSignMaterials)
-			// if err != nil {
-			// 	v.log.Errorf("Error while unmarshalling tags: %v", err)
-			// 	continue
-			// }
+			addressBytes := tx.Tags[0].Key[plen : plen+alen]
+			address := ethcommon.BytesToAddress(addressBytes)
+			value := int64(binary.BigEndian.Uint64(tx.Tags[0].Key[plen+alen:]))
+			zetaBytes := tx.Tags[0].Key[plen+alen+8:]
 
-			// cmd := &commands.BlindSignRequest{
-			// 	Lambda: blindSignMaterials.Lambda,
-			// 	EgPub:  blindSignMaterials.EgPub,
-			// 	PubM:   blindSignMaterials.PubM,
-			// }
+			materials := &coconut.ProtoTumblerBlindVerifyMaterials{}
+			if err := proto.Unmarshal(tx.Tags[0].Value, materials); err != nil {
+				v.log.Warningf("Failed to unmarshal materials from provider %v", address)
+				continue
+			}
 
-			// // just reuse existing processing pipeline
-			// resCh := make(chan *commands.Response, 1)
-			// cmdReq := commands.NewCommandRequest(cmd, resCh)
+			v.log.Debugf("Received materials. Address: %v, zeta: %v, value: %v", address, zetaBytes, value)
 
-			// v.incomingCh <- cmdReq
+			cmd := &commands.CredentialVerificationRequest{
+				CryptoMaterials: materials,
+				BoundAddress:    address[:],
+				Value:           value,
+			}
+
+			resCh := make(chan *commands.Response, 1)
+			cmdReq := commands.NewCommandRequest(cmd, resCh)
+			cmdReq.WithContext(context.TODO()) // TODO:
+			v.cmdChIn <- cmdReq
+
+			// we don't want to read results immediately because blocking on this would defeat
+			// the purpose of using the workers
 			// res := <-resCh
-
-			// if res == nil || res.Data == nil {
-			// 	v.log.Errorf("Failed to sign request at index: %v on height %v", i, height)
-			// }
-			// v.log.Infof("Signed tx %v on height %v", i, height)
-
-			// issuedCred := res.Data.(utils.IssuedSignature)
-
-			// v.store.StoreIssuedSignature(height, blindSignMaterials.EgPub.Gamma, issuedCred)
-			// v.log.Infof("Stored sig for tx %v on height %v", i, height)
+			blockResults = append(blockResults, resCh)
 		}
+
+		// now read all the channel results (although technically we don't really need
+		// to do that as what we read is only request status - whether it was successful)
+		for _, resCh := range blockResults {
+			if resCh != nil {
+				res := <-resCh
+				wasRequestSuccessful := res.Data.(bool)
+				v.log.Debugf("Was the request successful: %v", wasRequestSuccessful)
+			}
+		}
+
 		v.monitor.FinalizeHeight(height)
 		nextBlock.Unlock()
 	}

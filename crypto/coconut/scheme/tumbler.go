@@ -21,11 +21,11 @@ import (
 	"errors"
 	fmt "fmt"
 
-	"github.com/nymtech/nym/constants"
-	"github.com/nymtech/nym/crypto/coconut/utils"
 	proto "github.com/golang/protobuf/proto"
 	"github.com/jstuczyn/amcl/version3/go/amcl"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
+	"github.com/nymtech/nym/constants"
+	"github.com/nymtech/nym/crypto/coconut/utils"
 )
 
 // TumblerProof is a special case of VerifierProof that is bound to some address
@@ -148,6 +148,103 @@ func NewThetaTumbler(theta *Theta, zeta *Curve.ECP) *ThetaTumbler {
 		Theta: theta,
 		zeta:  zeta,
 	}
+}
+
+type TumblerBlindVerifyMaterials struct {
+	sig   *Signature
+	theta *ThetaTumbler
+	pubM  []*Curve.BIG
+}
+
+// Sig returns the actual credential that is going to be verified.
+func (mats *TumblerBlindVerifyMaterials) Sig() *Signature {
+	return mats.sig
+}
+
+// Theta returns the cryptographic materials generated during ShowBlindSignature required for blind verification.
+func (mats *TumblerBlindVerifyMaterials) Theta() *ThetaTumbler {
+	return mats.theta
+}
+
+// PubM returns all public attributes  encoded in the credential.
+func (mats *TumblerBlindVerifyMaterials) PubM() []*Curve.BIG {
+	return mats.pubM
+}
+
+// MarshalBinary is an implementation of a method on the
+// BinaryMarshaler interface defined in https://golang.org/pkg/encoding/
+func (mats *TumblerBlindVerifyMaterials) MarshalBinary() ([]byte, error) {
+	protoTumblerBlindVerifyMaterials, err := mats.ToProto()
+	if err != nil {
+		return nil, err
+	}
+	return proto.Marshal(protoTumblerBlindVerifyMaterials)
+}
+
+// UnmarshalBinary is an implementation of a method on the
+// BinaryUnmarshaler interface defined in https://golang.org/pkg/encoding/
+func (mats *TumblerBlindVerifyMaterials) UnmarshalBinary(data []byte) error {
+	protoTumblerBlindVerifyMaterials := &ProtoTumblerBlindVerifyMaterials{}
+	if err := proto.Unmarshal(data, protoTumblerBlindVerifyMaterials); err != nil {
+		return err
+	}
+	return mats.FromProto(protoTumblerBlindVerifyMaterials)
+}
+
+// ToProto creates a protobuf representation of the object.
+func (mats *TumblerBlindVerifyMaterials) ToProto() (*ProtoTumblerBlindVerifyMaterials, error) {
+	if mats == nil || !mats.sig.Validate() || !ValidateBigSlice(mats.pubM) || mats.theta == nil {
+		return nil, errors.New("the blind sign materials are malformed")
+	}
+
+	protoSig, err := mats.sig.ToProto()
+	if err != nil {
+		return nil, err
+	}
+
+	protoTheta, err := mats.theta.ToProto()
+	if err != nil {
+		return nil, err
+	}
+
+	pubMb, err := BigSliceToByteSlices(mats.pubM)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ProtoTumblerBlindVerifyMaterials{
+		Theta: protoTheta,
+		Sig:   protoSig,
+		PubM:  pubMb,
+	}, nil
+}
+
+// FromProto takes a protobuf representation of the object and
+// unmarshals its attributes.
+func (mats *TumblerBlindVerifyMaterials) FromProto(pmats *ProtoTumblerBlindVerifyMaterials) error {
+	if pmats == nil || pmats.Sig == nil || pmats.Theta == nil || pmats.PubM == nil {
+		return errors.New("invalid proto blind sign materials")
+	}
+
+	theta := &ThetaTumbler{}
+	if err := theta.FromProto(pmats.Theta); err != nil {
+		return err
+	}
+
+	sig := &Signature{}
+	if err := sig.FromProto(pmats.Sig); err != nil {
+		return err
+	}
+
+	pubM, err := BigSliceFromByteSlices(pmats.PubM)
+	if err != nil {
+		return err
+	}
+
+	mats.theta = theta
+	mats.sig = sig
+	mats.pubM = pubM
+	return nil
 }
 
 // CreateBinding creates a binding to given byte sequence by either recovering it's direct value as ECP

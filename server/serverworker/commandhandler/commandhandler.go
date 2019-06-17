@@ -20,14 +20,13 @@ package commandhandler
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
 	"fmt"
 	"reflect"
+	"time"
 
-	"github.com/nymtech/nym/tendermint/nymabci/code"
-	"github.com/nymtech/nym/tendermint/nymabci/transaction"
-
-	"github.com/nymtech/nym/tendermint/nymabci/query"
-
+	ethcommon "github.com/ethereum/go-ethereum/common"
+	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"github.com/nymtech/nym/common/comm/commands"
 	"github.com/nymtech/nym/crypto/coconut/concurrency/coconutworker"
 	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
@@ -35,7 +34,10 @@ import (
 	"github.com/nymtech/nym/server/issuer/utils"
 	"github.com/nymtech/nym/server/storage"
 	nymclient "github.com/nymtech/nym/tendermint/client"
-	ethcommon "github.com/ethereum/go-ethereum/common"
+	"github.com/nymtech/nym/tendermint/nymabci/code"
+	tmconst "github.com/nymtech/nym/tendermint/nymabci/constants"
+	"github.com/nymtech/nym/tendermint/nymabci/query"
+	"github.com/nymtech/nym/tendermint/nymabci/transaction"
 	"gopkg.in/op/go-logging.v1"
 )
 
@@ -460,6 +462,8 @@ func (handlerData *SpendCredentialRequestHandlerData) Data() interface{} {
 	return handlerData.VerificationData
 }
 
+// TODO: split this function into multiple functions since clearly this is a procedure taking multiple steps
+// even division into "spend" and "deposit" would make everything way more readable
 func SpendCredentialRequestHandler(ctx context.Context, reqData HandlerData) *commands.Response {
 	req := reqData.Command().(*commands.SpendCredentialRequest)
 	verificationData := reqData.Data().(SpendCredentialVerificationData)
@@ -567,18 +571,171 @@ func SpendCredentialRequestHandler(ctx context.Context, reqData HandlerData) *co
 		return response
 	}
 
-	log.Debugf("Received response from the blockchain. Return code: %v; Additional Data: %v",
-		code.ToString(blockchainResponse.DeliverTx.Code), string(blockchainResponse.DeliverTx.Data))
+	log.Debugf("Received response from the blockchain.\n Return Deliver code: %v; Additional Deliver Data: %v\n"+
+		"Return Check code: %v; Additional Check Data: %v",
+		code.ToString(blockchainResponse.DeliverTx.Code), string(blockchainResponse.DeliverTx.Data),
+		code.ToString(blockchainResponse.CheckTx.Code), string(blockchainResponse.CheckTx.Data),
+	)
+
+	if blockchainResponse.CheckTx.Code != code.OK {
+		errMsg := fmt.Sprintf("The transaction failed to be included on the blockchain (checkTx). Errorcode: %v - %v",
+			blockchainResponse.CheckTx.Code, code.ToString(blockchainResponse.CheckTx.Code))
+		setErrorResponse(log, response, errMsg, commands.StatusCode_INVALID_TRANSACTION)
+		return response
+	}
 
 	if blockchainResponse.DeliverTx.Code != code.OK {
-		errMsg := fmt.Sprintf("The transaction failed to be included on the blockchain. Errorcode: %v - %v",
+		errMsg := fmt.Sprintf("The transaction failed to be included on the blockchain (deliverTx). Errorcode: %v - %v",
 			blockchainResponse.DeliverTx.Code, code.ToString(blockchainResponse.DeliverTx.Code))
 		setErrorResponse(log, response, errMsg, commands.StatusCode_INVALID_TRANSACTION)
 		return response
 	}
 
+	// TODO: put value of this ticker in config
+	tickerInterval := time.Second
+	retryTicker := time.NewTicker(tickerInterval)
+	log.Info("Waiting for the credential to get verified")
+outerLoop:
+	for {
+		select {
+		case <-ctx.Done():
+			// TODO: perhaps recheck at later time?
+			errMsg := "Timed out while waiting for credential verificaton"
+			setErrorResponse(log, response, errMsg, commands.StatusCode_REQUEST_TIMEOUT)
+			return response
+		case <-retryTicker.C:
+			zetaStatusRes, err := verificationData.NymClient.Query(query.FullZetaStatus, req.Theta.Zeta)
+			if err != nil {
+				errMsg := "Failed to check status of zeta"
+				setErrorResponse(log, response, errMsg, commands.StatusCode_UNAVAILABLE)
+				return response
+			}
+			zetaStatus := zetaStatusRes.Response.Value
+			if bytes.HasPrefix(zetaStatus, tmconst.ZetaStatusUnspent.DbEntry()) {
+				log.Critical("Zeta has invalid state - unspent") // TODO: what to actually do?
+				// since the transaction to blockchain succeeded, it means our request to deposit the credential
+				// was executed and zeta by default should have status of 'being verified'
+			} else if bytes.HasPrefix(zetaStatus, tmconst.ZetaStatusBeingVerified.DbEntry()) {
+				log.Debug("We are still waiting on consensus on credential validity")
+			} else if bytes.HasPrefix(zetaStatus, tmconst.ZetaStatusSpent.DbEntry()) {
+				// BytesToAddress is cropping address from the left, so it's perfect for us to remove status prefix
+				creditedProviderAddress := ethcommon.BytesToAddress(zetaStatus)
+				// make sure this is our address
+				if bytes.Equal(creditedProviderAddress[:], verificationData.Address[:]) {
+					log.Notice("The credential was deposited to our account")
+					break outerLoop
+				} else {
+					errMsg := fmt.Sprintf("The credential was deposited to an unkown account (%v). Our address: %v",
+						creditedProviderAddress.Hex(),
+						verificationData.Address.Hex(),
+					)
+					setErrorResponse(log, response, errMsg, commands.StatusCode_UNKNOWN)
+					return response
+				}
+			} else {
+				log.Critical("Unknown state?")
+				errMsg := "Zeta is in unknown state"
+				setErrorResponse(log, response, errMsg, commands.StatusCode_UNKNOWN)
+				return response
+			}
+			log.Debugf("Waiting for %v before retrying", tickerInterval)
+		}
+	}
+
 	// the response data in future might be provider dependent, to include say some authorization token
 	response.ErrorStatus = commands.StatusCode_OK
 	response.Data = true
+	return response
+}
+
+type CredentialVerifierData struct {
+	Avk        *coconut.VerificationKey
+	PrivateKey *ecdsa.PrivateKey
+	NymClient  *nymclient.Client // in theory it should be safe to use the same instance for multiple requests
+}
+
+type CredentialVerificationRequestHandlerData struct {
+	Cmd              *commands.CredentialVerificationRequest
+	Worker           *coconutworker.CoconutWorker
+	Logger           *logging.Logger
+	VerificationData CredentialVerifierData
+}
+
+func (handlerData *CredentialVerificationRequestHandlerData) Command() commands.Command {
+	return handlerData.Cmd
+}
+
+func (handlerData *CredentialVerificationRequestHandlerData) CoconutWorker() *coconutworker.CoconutWorker {
+	return handlerData.Worker
+}
+
+func (handlerData *CredentialVerificationRequestHandlerData) Log() *logging.Logger {
+	return handlerData.Logger
+}
+
+func (handlerData *CredentialVerificationRequestHandlerData) Data() interface{} {
+	return handlerData.VerificationData
+}
+
+// TODO: This handler doesn't really fit in here...
+func CredentialVerificationRequestHandler(ctx context.Context, reqData HandlerData) *commands.Response {
+	req := reqData.Command().(*commands.CredentialVerificationRequest)
+	log := reqData.Log()
+	response := DefaultResponse()
+	verificationData := reqData.Data().(CredentialVerifierData)
+	response.Data = false // TODO: do we even need to return anything?
+
+	log.Debug("CredentialVerificationRequestHandler")
+	cryptoMaterials := &coconut.TumblerBlindVerifyMaterials{}
+	if err := cryptoMaterials.FromProto(req.CryptoMaterials); err != nil {
+		errMsg := "Could not recover crypto materials."
+		setErrorResponse(log, response, errMsg, commands.StatusCode_INVALID_ARGUMENTS)
+		return response
+	}
+
+	// make sure the actual value sent matches what is encoded
+	if Curve.Comp(cryptoMaterials.PubM()[0], Curve.NewBIGint(int(req.Value))) != 0 {
+		errMsg := "Values does not match up."
+		setErrorResponse(log, response, errMsg, commands.StatusCode_INVALID_ARGUMENTS)
+		return response
+	}
+
+	isValid := reqData.CoconutWorker().BlindVerifyTumblerWrapper(verificationData.Avk,
+		cryptoMaterials.Sig(),
+		cryptoMaterials.Theta(),
+		cryptoMaterials.PubM(),
+		req.BoundAddress,
+	)
+
+	tx, err := transaction.CreateNewCredentialVerificationNotification(verificationData.PrivateKey,
+		ethcommon.BytesToAddress(req.BoundAddress),
+		req.Value,
+		req.CryptoMaterials.Theta.Zeta,
+		isValid,
+	)
+	if err != nil {
+		errMsg := fmt.Sprintf("Failed to create notification transaction: %v", err)
+		setErrorResponse(log, response, errMsg, commands.StatusCode_PROCESSING_ERROR)
+		return response
+	}
+
+	res, err := verificationData.NymClient.Broadcast(tx)
+	if err != nil {
+		errMsg := fmt.Sprintf("Failed to send notification transaction: %v", err)
+		setErrorResponse(log, response, errMsg, commands.StatusCode_PROCESSING_ERROR)
+		return response
+	}
+
+	log.Infof("Received tendermint Response.\nCheckCode: %v, Check additional data: %v\nDeliverCode: %v Deliver Aditional data: %v",
+		code.ToString(res.CheckTx.Code),
+		string(res.CheckTx.Data),
+		code.ToString(res.DeliverTx.Code),
+		string(res.DeliverTx.Data),
+	)
+
+	if res.CheckTx.Code == code.OK && res.DeliverTx.Code == code.OK {
+		response.Data = true // our notification was accepted
+	}
+
 	return response
 }

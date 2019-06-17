@@ -8,3 +8,10 @@ message ProtoThetaTumbler {
     coconut.ProtoTheta theta = 1;
     bytes zeta = 2;
 }
+
+// encapsulates everything required by verifiers to verify credentials
+message ProtoTumblerBlindVerifyMaterials {
+    ProtoSignature sig = 1;
+    ProtoThetaTumbler theta = 2;
+    repeated bytes pubM = 3;
+}
