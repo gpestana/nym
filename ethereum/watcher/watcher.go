@@ -10,18 +10,18 @@ import (
 	"sync"
 	"time"
 
-	token "github.com/nymtech/nym/ethereum/token"
-	"github.com/nymtech/nym/ethereum/watcher/config"
-	"github.com/nymtech/nym/logger"
-	"github.com/nymtech/nym/tendermint/nymabci/code"
-	"github.com/nymtech/nym/tendermint/nymabci/transaction"
-	"github.com/nymtech/nym/worker"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	token "github.com/nymtech/nym/ethereum/token"
+	"github.com/nymtech/nym/ethereum/watcher/config"
+	"github.com/nymtech/nym/logger"
+	"github.com/nymtech/nym/tendermint/nymabci/code"
+	"github.com/nymtech/nym/tendermint/nymabci/transaction"
+	"github.com/nymtech/nym/worker"
 	tmclient "github.com/tendermint/tendermint/rpc/client"
 	"gopkg.in/op/go-logging.v1"
 )
@@ -65,7 +65,7 @@ func (w *Watcher) halt() {
 // stop etc are not working
 func (w *Watcher) worker() {
 	w.log.Noticef("Watching Ethereum blockchain at: %s", w.cfg.Watcher.EthereumNodeAddress)
-	heartbeat := time.NewTicker(1000 * time.Millisecond)
+	heartbeat := time.NewTicker(500 * time.Millisecond)
 
 	// Block on the heartbeat ticker
 	// TODO: way to ensure we dont accicdentally skip a block
