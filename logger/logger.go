@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-// Package logger provides the functionalities for logging actions of coconut server.
+// Package logger provides the functionalities for logging actions of coconut server/client.
 package logger
 
 import (
@@ -38,6 +38,8 @@ type Logger struct {
 
 func logLevelFromString(l string) (logging.Level, error) {
 	switch strings.ToUpper(l) {
+	case "CRITICAL":
+		return logging.CRITICAL, nil
 	case "ERROR":
 		return logging.ERROR, nil
 	case "WARNING":
@@ -49,7 +51,7 @@ func logLevelFromString(l string) (logging.Level, error) {
 	case "DEBUG":
 		return logging.DEBUG, nil
 	default:
-		return logging.CRITICAL, fmt.Errorf("log: invalid level: '%v'", l)
+		return logging.ERROR, logging.ErrInvalidLogLevel
 	}
 }
 
@@ -61,13 +63,13 @@ func (l *Logger) GetLogger(module string) *logging.Logger {
 }
 
 // New returns new instance of logger
-func New(f string, level string, disable bool) *Logger {
+func New(f string, level string, disable bool) (*Logger, error) {
 	// for now just constant formatting string; taken from library example
 	logFmt := logging.MustStringFormatter(fmtString)
 
 	lvl, err := logLevelFromString(level)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	var logOut io.Writer
@@ -82,8 +84,7 @@ func New(f string, level string, disable bool) *Logger {
 		flags := os.O_CREATE | os.O_APPEND | os.O_WRONLY
 		logOut, err = os.OpenFile(f, flags, fileMode)
 		if err != nil {
-			fmt.Printf("server: failed to create log file: %v", err)
-			return nil
+			return nil, fmt.Errorf("logger: failed to create log file: %v", err)
 		}
 	}
 
@@ -95,5 +96,5 @@ func New(f string, level string, disable bool) *Logger {
 
 	return &Logger{
 		backend: backend,
-	}
+	}, nil
 }

@@ -1,17 +1,54 @@
+// marshal_test.go - tests for marshalling/unmarshalling coconut structures
+// Copyright (C) 2018-2019  Jedrzej Stuczynski.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as
+// published by the Free Software Foundation, either version 3 of the
+// License, or (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package coconut_test
 
 import (
 	"testing"
 
-	"github.com/jstuczyn/CoconutGo/constants"
-	"github.com/jstuczyn/CoconutGo/crypto/elgamal"
-
-	"github.com/jstuczyn/CoconutGo/crypto/coconut/scheme"
-	"github.com/jstuczyn/CoconutGo/crypto/coconut/utils"
+	"github.com/nymtech/nym/constants"
+	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
+	"github.com/nymtech/nym/crypto/coconut/utils"
+	"github.com/nymtech/nym/crypto/elgamal"
 	"github.com/jstuczyn/amcl/version3/go/amcl"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestParamsMarshal(t *testing.T) {
+	qs := []int{1, 3, 5, 10}
+	for _, q := range qs {
+		params, err := coconut.Setup(q)
+		assert.Nil(t, err)
+		data, err := params.MarshalBinary()
+		assert.Nil(t, err)
+		recoveredParams := &coconut.Params{}
+		assert.Nil(t, recoveredParams.UnmarshalBinary(data))
+
+		assert.Zero(t, Curve.Comp(params.P(), recoveredParams.P()))
+		assert.True(t, params.G1().Equals(recoveredParams.G1()))
+		assert.True(t, params.G2().Equals(recoveredParams.G2()))
+		for i := range params.Hs() {
+			assert.True(t, params.Hs()[i].Equals(recoveredParams.Hs()[i]))
+		}
+
+		newBp := recoveredParams.G
+		someR := Curve.Randomnum(recoveredParams.P(), newBp.Rng())
+		assert.NotNil(t, someR)
+	}
+}
 
 func TestSecretKeyMarshal(t *testing.T) {
 	params, _ := coconut.Setup(4)
@@ -38,6 +75,43 @@ func TestVerificationKeyMarshal(t *testing.T) {
 	for i := range vk.Beta() {
 		assert.True(t, vk.Beta()[i].Equals(recoveredVk.Beta()[i]))
 	}
+}
+
+func TestThresholdSecretKeyMarshal(t *testing.T) {
+	params, _ := coconut.Setup(4)
+	tsks, _, err := coconut.TTPKeygen(params, 3, 5)
+	assert.Nil(t, err)
+	tsk := tsks[0]
+	data, err := tsk.MarshalBinary()
+	assert.NotEmpty(t, data)
+	assert.Nil(t, err)
+	recoveredTsk := &coconut.ThresholdSecretKey{}
+	assert.Nil(t, recoveredTsk.UnmarshalBinary(data))
+
+	assert.Zero(t, Curve.Comp(tsk.X(), recoveredTsk.X()))
+	for i := range tsk.Y() {
+		assert.Zero(t, Curve.Comp(tsk.Y()[i], recoveredTsk.Y()[i]))
+	}
+	assert.Equal(t, tsk.ID(), recoveredTsk.ID())
+}
+
+func TestThresholdVerificationKeyMarshal(t *testing.T) {
+	params, _ := coconut.Setup(4)
+	_, tvks, err := coconut.TTPKeygen(params, 3, 5)
+	assert.Nil(t, err)
+	tvk := tvks[0]
+	data, err := tvk.MarshalBinary()
+	assert.Nil(t, err)
+	recoveredTvk := &coconut.ThresholdVerificationKey{}
+	assert.Nil(t, recoveredTvk.UnmarshalBinary(data))
+	assert.True(t, tvk.G2().Equals(recoveredTvk.G2()))
+	assert.True(t, tvk.Alpha().Equals(recoveredTvk.Alpha()))
+	for i := range tvk.Beta() {
+		assert.True(t, tvk.Beta()[i].Equals(recoveredTvk.Beta()[i]))
+	}
+
+	assert.Equal(t, tvk.ID(), recoveredTvk.ID())
+
 }
 
 func TestSignatureMarshal(t *testing.T) {
@@ -130,8 +204,14 @@ func TestSignerProofMarshal(t *testing.T) {
 			ks[i] = k
 		}
 
-		signerProof, err := coconut.ConstructSignerProof(params, egPub.Gamma, encs, cm, ks, r, pubBig, privBig)
-		assert.Nil(t, err)
+		signerProof, err := coconut.ConstructSignerProof(params, egPub.Gamma(), encs, cm, ks, r, pubBig, privBig)
+		if len(test.priv) == 0 {
+			assert.Nil(t, signerProof)
+			assert.Error(t, err)
+			continue // everything beyond is undefined behaviour
+		} else {
+			assert.Nil(t, err)
+		}
 
 		data, err := signerProof.MarshalBinary()
 		assert.Nil(t, err)
@@ -149,8 +229,8 @@ func TestSignerProofMarshal(t *testing.T) {
 		}
 
 		// sanity check
-		assert.True(t, coconut.VerifySignerProof(params, egPub.Gamma, coconut.NewBlindSignMats(cm, encs, signerProof)))
-		assert.True(t, coconut.VerifySignerProof(params, egPub.Gamma, coconut.NewBlindSignMats(cm, encs, recoveredProof)))
+		assert.True(t, coconut.VerifySignerProof(params, egPub.Gamma(), coconut.NewLambda(cm, encs, signerProof)))
+		assert.True(t, coconut.VerifySignerProof(params, egPub.Gamma(), coconut.NewLambda(cm, encs, recoveredProof)))
 
 	}
 }
@@ -195,7 +275,7 @@ func TestBlindSignMatsMarshal(t *testing.T) {
 		data, err := blindSignMats.MarshalBinary()
 
 		assert.Nil(t, err)
-		recoveredBlindSignMats := &coconut.BlindSignMats{}
+		recoveredBlindSignMats := &coconut.Lambda{}
 		assert.Nil(t, recoveredBlindSignMats.UnmarshalBinary(data))
 
 		assert.True(t, blindSignMats.Cm().Equals(recoveredBlindSignMats.Cm()))
@@ -215,8 +295,8 @@ func TestBlindSignMatsMarshal(t *testing.T) {
 		}
 
 		// sanity check
-		assert.True(t, coconut.VerifySignerProof(params, egPub.Gamma, blindSignMats))
-		assert.True(t, coconut.VerifySignerProof(params, egPub.Gamma, recoveredBlindSignMats))
+		assert.True(t, coconut.VerifySignerProof(params, egPub.Gamma(), blindSignMats))
+		assert.True(t, coconut.VerifySignerProof(params, egPub.Gamma(), recoveredBlindSignMats))
 	}
 }
 
@@ -248,9 +328,9 @@ func TestVerifierProofMarshal(t *testing.T) {
 		blindSignMats, _ := coconut.PrepareBlindSign(params, gamma, pubBig, privBig)
 		blindedSignature, _ := coconut.BlindSign(params, sk, blindSignMats, gamma, pubBig)
 		sig := coconut.Unblind(params, blindedSignature, d)
-		blindShowMats, _ := coconut.ShowBlindSignature(params, vk, sig, privBig)
+		theta, _ := coconut.ShowBlindSignature(params, vk, sig, privBig)
 
-		verifierProof := blindShowMats.Proof()
+		verifierProof := theta.Proof()
 		data, err := verifierProof.MarshalBinary()
 		assert.Nil(t, err)
 		recoveredProof := &coconut.VerifierProof{}
@@ -262,13 +342,13 @@ func TestVerifierProofMarshal(t *testing.T) {
 			assert.Zero(t, Curve.Comp(verifierProof.Rm()[i], recoveredProof.Rm()[i]))
 		}
 
-		assert.True(t, coconut.VerifyVerifierProof(params, vk, sig, blindShowMats))
-		assert.True(t, coconut.VerifyVerifierProof(params, vk, sig, coconut.NewBlindShowMats(blindShowMats.Kappa(), blindShowMats.Nu(), recoveredProof)))
+		assert.True(t, coconut.VerifyVerifierProof(params, vk, sig, theta))
+		assert.True(t, coconut.VerifyVerifierProof(params, vk, sig, coconut.NewTheta(theta.Kappa(), theta.Nu(), recoveredProof)))
 
 	}
 }
 
-func TestBlindShowMatsMarshal(t *testing.T) {
+func TestThetaMarshal(t *testing.T) {
 	tests := []struct {
 		pub  []string
 		priv []string
@@ -295,24 +375,102 @@ func TestBlindShowMatsMarshal(t *testing.T) {
 		blindSignMats, _ := coconut.PrepareBlindSign(params, gamma, pubBig, privBig)
 		blindedSignature, _ := coconut.BlindSign(params, sk, blindSignMats, gamma, pubBig)
 		sig := coconut.Unblind(params, blindedSignature, d)
-		blindShowMats, _ := coconut.ShowBlindSignature(params, vk, sig, privBig)
+		theta, _ := coconut.ShowBlindSignature(params, vk, sig, privBig)
 
-		data, err := blindShowMats.MarshalBinary()
+		data, err := theta.MarshalBinary()
 		assert.Nil(t, err)
-		recoveredBlindShowMats := &coconut.BlindShowMats{}
-		assert.Nil(t, recoveredBlindShowMats.UnmarshalBinary(data))
+		recoveredtheta := &coconut.Theta{}
+		assert.Nil(t, recoveredtheta.UnmarshalBinary(data))
 
-		assert.True(t, blindShowMats.Kappa().Equals(recoveredBlindShowMats.Kappa()))
-		assert.True(t, blindShowMats.Nu().Equals(recoveredBlindShowMats.Nu()))
+		assert.True(t, theta.Kappa().Equals(recoveredtheta.Kappa()))
+		assert.True(t, theta.Nu().Equals(recoveredtheta.Nu()))
 
-		assert.Zero(t, Curve.Comp(blindShowMats.Proof().C(), recoveredBlindShowMats.Proof().C()))
-		assert.Zero(t, Curve.Comp(blindShowMats.Proof().Rt(), recoveredBlindShowMats.Proof().Rt()))
-		for i := range blindShowMats.Proof().Rm() {
-			assert.Zero(t, Curve.Comp(blindShowMats.Proof().Rm()[i], recoveredBlindShowMats.Proof().Rm()[i]))
+		assert.Zero(t, Curve.Comp(theta.Proof().C(), recoveredtheta.Proof().C()))
+		assert.Zero(t, Curve.Comp(theta.Proof().Rt(), recoveredtheta.Proof().Rt()))
+		for i := range theta.Proof().Rm() {
+			assert.Zero(t, Curve.Comp(theta.Proof().Rm()[i], recoveredtheta.Proof().Rm()[i]))
 		}
 
 		// sanity checks
-		assert.True(t, bool(coconut.BlindVerify(params, vk, sig, blindShowMats, pubBig)))
-		assert.True(t, bool(coconut.BlindVerify(params, vk, sig, recoveredBlindShowMats, pubBig)))
+		assert.True(t, coconut.BlindVerify(params, vk, sig, theta, pubBig))
+		assert.True(t, coconut.BlindVerify(params, vk, sig, recoveredtheta, pubBig))
+	}
+}
+
+func TestThetaTumblerMarshal(t *testing.T) {
+	tests := []struct {
+		pub  []string
+		priv []string
+	}{
+		{pub: []string{}, priv: []string{"Foo2"}},
+		{pub: []string{}, priv: []string{"Foo2", "Bar2", "Baz2"}},
+		{pub: []string{"Foo"}, priv: []string{"Foo2"}},
+		{pub: []string{"Foo", "Bar", "Baz"}, priv: []string{"Foo2", "Bar2", "Baz2"}},
+	}
+
+	for _, test := range tests {
+		params, _ := coconut.Setup(len(test.pub) + len(test.priv))
+		sk, vk, _ := coconut.Keygen(params)
+		pubBig := make([]*Curve.BIG, len(test.pub))
+		privBig := make([]*Curve.BIG, len(test.priv))
+		for i := range test.pub {
+			pubBig[i], _ = utils.HashStringToBig(amcl.SHA256, test.pub[i])
+		}
+		for i := range test.priv {
+			privBig[i], _ = utils.HashStringToBig(amcl.SHA256, test.priv[i])
+		}
+
+		d, gamma := elgamal.Keygen(params.G)
+		blindSignMats, _ := coconut.PrepareBlindSign(params, gamma, pubBig, privBig)
+		blindedSignature, _ := coconut.BlindSign(params, sk, blindSignMats, gamma, pubBig)
+		sig := coconut.Unblind(params, blindedSignature, d)
+
+		p, rng := params.P(), params.G.Rng()
+		r1 := Curve.Randomnum(p, rng)
+		r2 := Curve.Randomnum(p, rng)
+
+		ucecp := Curve.G1mul(params.G1(), r1)
+		cecp := Curve.G1mul(params.G1(), r2)
+
+		ucecpb := make([]byte, constants.ECPLenUC)
+		cecpb := make([]byte, constants.ECPLen)
+
+		ucecp.ToBytes(ucecpb, false)
+		cecp.ToBytes(cecpb, true)
+
+		addresses := [][]byte{
+			nil,
+			{1, 2, 3},
+			ucecpb,
+			cecpb,
+		}
+
+		for _, addr := range addresses {
+			thetaTumbler, err := coconut.ShowBlindSignatureTumbler(params, vk, sig, privBig, addr)
+			if addr == nil {
+				assert.Nil(t, thetaTumbler)
+				assert.Error(t, err)
+				continue
+			}
+
+			data, err := thetaTumbler.MarshalBinary()
+			assert.Nil(t, err)
+			recoveredtheta := &coconut.ThetaTumbler{}
+			assert.Nil(t, recoveredtheta.UnmarshalBinary(data))
+
+			assert.True(t, thetaTumbler.Kappa().Equals(recoveredtheta.Kappa()))
+			assert.True(t, thetaTumbler.Nu().Equals(recoveredtheta.Nu()))
+			assert.True(t, thetaTumbler.Zeta().Equals(recoveredtheta.Zeta()))
+
+			assert.Zero(t, Curve.Comp(thetaTumbler.Proof().C(), recoveredtheta.Proof().C()))
+			assert.Zero(t, Curve.Comp(thetaTumbler.Proof().Rt(), recoveredtheta.Proof().Rt()))
+			for i := range thetaTumbler.Proof().Rm() {
+				assert.Zero(t, Curve.Comp(thetaTumbler.Proof().Rm()[i], recoveredtheta.Proof().Rm()[i]))
+			}
+
+			// sanity checks
+			assert.True(t, coconut.BlindVerifyTumbler(params, vk, sig, thetaTumbler, pubBig, addr))
+			assert.True(t, coconut.BlindVerifyTumbler(params, vk, sig, recoveredtheta, pubBig, addr))
+		}
 	}
 }

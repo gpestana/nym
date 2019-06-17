@@ -18,56 +18,45 @@
 package coconut
 
 import (
-	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 
-	"github.com/jstuczyn/CoconutGo/constants"
-
-	"github.com/jstuczyn/CoconutGo/crypto/bpgroup"
-	"github.com/jstuczyn/CoconutGo/crypto/coconut/utils"
-	"github.com/jstuczyn/CoconutGo/crypto/elgamal"
+	"github.com/nymtech/nym/constants"
+	"github.com/nymtech/nym/crypto/bpgroup"
+	"github.com/nymtech/nym/crypto/coconut/utils"
+	"github.com/nymtech/nym/crypto/elgamal"
 	"github.com/jstuczyn/amcl/version3/go/amcl"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 )
 
-// todo: rename and restructure PolynomialPoints struct + all its uses
-// todo: comments with maths computation
-// todo: comments with python sources
-// todo: remove ShowBlindSignature and move it straight to BlindVerify?
-// todo: include gamma to blindsignmats as per paper rather than as per python implementation?
-
 var (
 	// ErrSetupParams indicates incorrect parameters provided for Setup.
-	ErrSetupParams = errors.New("Can't generate params for less than 1 attribute")
+	ErrSetupParams = errors.New("can't generate params for less than 1 attribute")
 
 	// ErrSignParams indicates inconsistent parameters provided for Sign.
-	ErrSignParams = errors.New("Invalid attributes/secret key provided")
+	ErrSignParams = errors.New("invalid attributes/secret key provided")
 
 	// ErrKeygenParams indicates incorrect parameters provided for Keygen.
-	ErrKeygenParams = errors.New("Can't generate keys for less than 1 attribute")
+	ErrKeygenParams = errors.New("can't generate keys for less than 1 attribute")
 
 	// ErrTTPKeygenParams indicates incorrect parameters provided for TTPKeygen.
-	ErrTTPKeygenParams = errors.New("Invalid set of parameters provided to keygen")
+	ErrTTPKeygenParams = errors.New("invalid set of parameters provided to keygen")
 
 	// ErrPrepareBlindSignParams indicates that number of attributes to sign is larger than q specified in Setup.
-	ErrPrepareBlindSignParams = errors.New("Too many attributes to sign")
+	ErrPrepareBlindSignParams = errors.New("too many attributes to sign")
 
 	// ErrPrepareBlindSignPrivate indicates lack of private attributes to blindly sign.
-	ErrPrepareBlindSignPrivate = errors.New("No private attributes to sign")
+	ErrPrepareBlindSignPrivate = errors.New("no private attributes to sign")
 
 	// ErrBlindSignParams indicates that number of attributes to sign is larger than q specified in Setup.
-	ErrBlindSignParams = errors.New("Too many attributes to sign")
+	ErrBlindSignParams = errors.New("too many attributes to sign")
 
 	// ErrBlindSignProof indicates that proof of corectness of ciphertext and cm was invalid
-	ErrBlindSignProof = errors.New("Failed to verify the proof")
+	ErrBlindSignProof = errors.New("failed to verify the proof")
 
 	// ErrShowBlindAttr indicates that either there were no private attributes provided
 	// or their number was larger than the verification key supports
-	ErrShowBlindAttr = errors.New("Invalid attributes provided")
+	ErrShowBlindAttr = errors.New("invalid attributes provided")
 )
 
 // Setup generates the public parameters required by the Coconut scheme.
@@ -125,7 +114,7 @@ func Keygen(params *Params) (*SecretKey, *VerificationKey, error) {
 // TTPKeygen generates a set of n Coconut keypairs [((x, y1, y2...), (g2, g2^x, g2^y1, ...)), ...],
 // such that they support threshold aggregation of t parties.
 // It is expected that this procedure is executed by a Trusted Third Party.
-func TTPKeygen(params *Params, t int, n int) ([]*SecretKey, []*VerificationKey, error) {
+func TTPKeygen(params *Params, t int, n int) ([]*ThresholdSecretKey, []*ThresholdVerificationKey, error) {
 	p, g2, hs, rng := params.p, params.g2, params.hs, params.G.Rng()
 
 	q := len(hs)
@@ -141,7 +130,7 @@ func TTPKeygen(params *Params, t int, n int) ([]*SecretKey, []*VerificationKey, 
 	}
 
 	// secret keys
-	sks := make([]*SecretKey, n)
+	tsks := make([]*ThresholdSecretKey, n)
 	// we can use any is now, rather than 1,2...,n; might be useful if we have some authorities ids?
 	for i := 1; i < n+1; i++ {
 		iBIG := Curve.NewBIGint(i)
@@ -150,21 +139,26 @@ func TTPKeygen(params *Params, t int, n int) ([]*SecretKey, []*VerificationKey, 
 		for j, wj := range w {
 			ys[j] = utils.PolyEval(wj, iBIG, p)
 		}
-		sks[i-1] = &SecretKey{x: x, y: ys}
+		tsks[i-1] = &ThresholdSecretKey{
+			SecretKey: &SecretKey{x: x, y: ys},
+			id:        int64(i),
+		}
 	}
 
 	// verification keys
-	vks := make([]*VerificationKey, n)
-	for i := range sks {
-		alpha := Curve.G2mul(g2, sks[i].x)
+	tvks := make([]*ThresholdVerificationKey, n)
+	for i := range tsks {
+		alpha := Curve.G2mul(g2, tsks[i].x)
 		beta := make([]*Curve.ECP2, q)
-		for j, yj := range sks[i].y {
+		for j, yj := range tsks[i].y {
 			beta[j] = Curve.G2mul(g2, yj)
 		}
-		vks[i] = &VerificationKey{g2: g2, alpha: alpha, beta: beta}
-
+		tvks[i] = &ThresholdVerificationKey{
+			VerificationKey: &VerificationKey{g2: g2, alpha: alpha, beta: beta},
+			id:              tsks[i].id,
+		}
 	}
-	return sks, vks, nil
+	return tsks, tvks, nil
 }
 
 // Sign creates a Coconut credential under a given secret key on a set of public attributes only.
@@ -176,7 +170,10 @@ func Sign(params *Params, sk *SecretKey, pubM []*Curve.BIG) (*Signature, error) 
 		return nil, ErrSignParams
 	}
 
-	h := getBaseFromAttributes(pubM)
+	h, err := getBaseFromAttributes(pubM)
+	if err != nil {
+		return nil, fmt.Errorf("failed to obtain G1 base: %v", err)
+	}
 
 	K := Curve.NewBIGcopy(sk.x) // K = x
 	for i := 0; i < len(pubM); i++ {
@@ -193,14 +190,14 @@ func Sign(params *Params, sk *SecretKey, pubM []*Curve.BIG) (*Signature, error) 
 // encryptions of the private attributes
 // and zero-knowledge proof asserting corectness of the above.
 // nolint: lll
-func PrepareBlindSign(params *Params, egPub *elgamal.PublicKey, pubM []*Curve.BIG, privM []*Curve.BIG) (*BlindSignMats, error) {
+func PrepareBlindSign(params *Params, egPub *elgamal.PublicKey, pubM []*Curve.BIG, privM []*Curve.BIG) (*Lambda, error) {
 	G, p, g1, hs, rng := params.G, params.p, params.g1, params.hs, params.G.Rng()
 
-	if len(privM) <= 0 {
+	if len(privM) == 0 {
 		return nil, ErrPrepareBlindSignPrivate
 	}
 	attributes := append(privM, pubM...)
-	if len(attributes) > len(hs) {
+	if len(attributes) > len(hs) || !ValidateBigSlice(privM) || !ValidateBigSlice(pubM) {
 		return nil, ErrPrepareBlindSignParams
 	}
 
@@ -233,11 +230,11 @@ func PrepareBlindSign(params *Params, egPub *elgamal.PublicKey, pubM []*Curve.BI
 		ks[i] = k
 	}
 
-	signerProof, err := ConstructSignerProof(params, egPub.Gamma, encs, cm, ks, r, pubM, privM)
+	signerProof, err := ConstructSignerProof(params, egPub.Gamma(), encs, cm, ks, r, pubM, privM)
 	if err != nil {
 		return nil, err
 	}
-	return &BlindSignMats{
+	return &Lambda{
 		cm:    cm,
 		enc:   encs,
 		proof: signerProof,
@@ -246,20 +243,20 @@ func PrepareBlindSign(params *Params, egPub *elgamal.PublicKey, pubM []*Curve.BI
 
 // BlindSign creates a blinded Coconut credential on the attributes provided to PrepareBlindSign.
 // nolint: lll
-func BlindSign(params *Params, sk *SecretKey, blindSignMats *BlindSignMats, egPub *elgamal.PublicKey, pubM []*Curve.BIG) (*BlindedSignature, error) {
-	// todo: can optimize by calculating first pubM * yj and then do single G1mul rather than two of them
+func BlindSign(params *Params, sk *SecretKey, lambda *Lambda, egPub *elgamal.PublicKey, pubM []*Curve.BIG) (*BlindedSignature, error) {
+	// todo: can optimise by calculating first pubM * yj and then do single G1mul rather than two of them
 
 	hs := params.hs
 
-	if len(blindSignMats.enc)+len(pubM) > len(hs) {
+	if len(lambda.enc)+len(pubM) > len(hs) {
 		return nil, ErrBlindSignParams
 	}
-	if !VerifySignerProof(params, egPub.Gamma, blindSignMats) {
+	if !VerifySignerProof(params, egPub.Gamma(), lambda) {
 		return nil, ErrBlindSignProof
 	}
 
 	b := make([]byte, constants.ECPLen)
-	blindSignMats.cm.ToBytes(b, true)
+	lambda.cm.ToBytes(b, true)
 
 	h, err := utils.HashBytesToG1(amcl.SHA512, b)
 	if err != nil {
@@ -272,14 +269,14 @@ func BlindSign(params *Params, sk *SecretKey, blindSignMats *BlindSignMats, egPu
 	}
 
 	t2 := Curve.NewECP()
-	for i := 0; i < len(blindSignMats.enc); i++ {
-		t2.Add(Curve.G1mul(blindSignMats.enc[i].C1(), sk.y[i]))
+	for i := 0; i < len(lambda.enc); i++ {
+		t2.Add(Curve.G1mul(lambda.enc[i].C1(), sk.y[i]))
 	}
 
 	t3 := Curve.G1mul(h, sk.x)
-	tmpSlice := make([]*Curve.ECP, len(blindSignMats.enc))
-	for i := range blindSignMats.enc {
-		tmpSlice[i] = blindSignMats.enc[i].C2()
+	tmpSlice := make([]*Curve.ECP, len(lambda.enc))
+	for i := range lambda.enc {
+		tmpSlice[i] = lambda.enc[i].C2()
 	}
 	tmpSlice = append(tmpSlice, t1...)
 
@@ -348,18 +345,15 @@ func Verify(params *Params, vk *VerificationKey, pubM []*Curve.BIG, sig *Signatu
 	return !sig.sig1.Is_infinity() && Gt1.Equals(Gt2)
 }
 
-// ShowBlindSignature builds cryptographic material required for blind verification.
-// It returns kappa and nu - group elements needed to perform verification
-// and zero-knowledge proof asserting corectness of the above.
+// ConstructKappaNu creates Kappa and Nu based on values in the signature
+// to allow for proofs with different application-specific predicates
+// by not tying it to Show protocol
 // nolint: lll
-func ShowBlindSignature(params *Params, vk *VerificationKey, sig *Signature, privM []*Curve.BIG) (*BlindShowMats, error) {
-	p, rng := params.p, params.G.Rng()
-
-	if len(privM) <= 0 || len(privM) > len(vk.beta) {
-		return nil, ErrShowBlindAttr
+func ConstructKappaNu(vk *VerificationKey, sig *Signature, privM []*Curve.BIG, t *Curve.BIG) (*Curve.ECP2, *Curve.ECP, error) {
+	if len(privM) == 0 || !vk.Validate() || len(privM) > len(vk.beta) || !sig.Validate() || !ValidateBigSlice(privM) {
+		return nil, nil, ErrShowBlindAttr
 	}
 
-	t := Curve.Randomnum(p, rng)
 	kappa := Curve.G2mul(vk.g2, t)
 	kappa.Add(vk.alpha)
 	for i := range privM {
@@ -367,9 +361,27 @@ func ShowBlindSignature(params *Params, vk *VerificationKey, sig *Signature, pri
 	}
 	nu := Curve.G1mul(sig.sig1, t)
 
-	verifierProof := ConstructVerifierProof(params, vk, sig, privM, t)
+	return kappa, nu, nil
+}
 
-	return &BlindShowMats{
+// ShowBlindSignature builds cryptographic material required for blind verification.
+// It returns kappa and nu - group elements needed to perform verification
+// and zero-knowledge proof asserting corectness of the above.
+func ShowBlindSignature(params *Params, vk *VerificationKey, sig *Signature, privM []*Curve.BIG) (*Theta, error) {
+	p, rng := params.p, params.G.Rng()
+	t := Curve.Randomnum(p, rng)
+
+	kappa, nu, err := ConstructKappaNu(vk, sig, privM, t)
+	if err != nil {
+		return nil, err
+	}
+
+	verifierProof, err := ConstructVerifierProof(params, vk, sig, privM, t)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Theta{
 		kappa: kappa,
 		nu:    nu,
 		proof: verifierProof,
@@ -378,15 +390,15 @@ func ShowBlindSignature(params *Params, vk *VerificationKey, sig *Signature, pri
 
 // BlindVerify verifies the Coconut credential on the private and optional public attributes.
 // nolint: lll
-func BlindVerify(params *Params, vk *VerificationKey, sig *Signature, showMats *BlindShowMats, pubM []*Curve.BIG) bool {
+func BlindVerify(params *Params, vk *VerificationKey, sig *Signature, theta *Theta, pubM []*Curve.BIG) bool {
 	G := params.G
 
-	privateLen := len(showMats.proof.rm)
-	if len(pubM)+privateLen > len(vk.beta) || !VerifyVerifierProof(params, vk, sig, showMats) {
+	privateLen := len(theta.proof.rm)
+	if len(pubM)+privateLen > len(vk.beta) || !VerifyVerifierProof(params, vk, sig, theta) {
 		return false
 	}
 
-	if sig == nil || sig.Sig1() == nil || sig.Sig2() == nil {
+	if !sig.Validate() {
 		return false
 	}
 
@@ -398,12 +410,12 @@ func BlindVerify(params *Params, vk *VerificationKey, sig *Signature, showMats *
 	}
 
 	t1 := Curve.NewECP2()
-	t1.Copy(showMats.kappa)
+	t1.Copy(theta.kappa)
 	t1.Add(aggr)
 
 	t2 := Curve.NewECP()
 	t2.Copy(sig.sig2)
-	t2.Add(showMats.nu)
+	t2.Add(theta.nu)
 
 	Gt1 := G.Pair(sig.sig1, t1)
 	Gt2 := G.Pair(t2, vk.g2)
@@ -411,6 +423,7 @@ func BlindVerify(params *Params, vk *VerificationKey, sig *Signature, showMats *
 	return !sig.sig1.Is_infinity() && Gt1.Equals(Gt2)
 }
 
+// FIXME: spelling
 // Randomize randomizes the Coconut credential such that it becomes indistinguishable
 // from a fresh credential on different attributes
 func Randomize(params *Params, sig *Signature) *Signature {
@@ -500,68 +513,4 @@ func AggregateSignatures(params *Params, sigs []*Signature, pp *PolynomialPoints
 		sig1: sigs[0].sig1,
 		sig2: sig2,
 	}
-}
-
-// ToPEMFile writes out the secret key to a PEM file at path f.
-func (sk *SecretKey) ToPEMFile(f string) error {
-	b, err := sk.MarshalBinary()
-	if err != nil {
-		return err
-	}
-	blk := &pem.Block{
-		Type:  constants.SecretKeyType,
-		Bytes: b,
-	}
-	return ioutil.WriteFile(f, pem.EncodeToMemory(blk), 0600)
-}
-
-// FromPEMFile reads out the secret key from a PEM file at path f.
-func (sk *SecretKey) FromPEMFile(f string) error {
-	if buf, err := ioutil.ReadFile(filepath.Clean(f)); err == nil {
-		blk, rest := pem.Decode(buf)
-		if len(rest) != 0 {
-			return fmt.Errorf("trailing garbage after PEM encoded secret key")
-		}
-		if blk.Type != constants.SecretKeyType {
-			return fmt.Errorf("invalid PEM Type: '%v'", blk.Type)
-		}
-		if sk.UnmarshalBinary(blk.Bytes) != nil {
-			return errors.New("failed to read secret key from PEM file")
-		}
-	} else if !os.IsNotExist(err) {
-		return err
-	}
-	return nil
-}
-
-// ToPEMFile writes out the verification key to a PEM file at path f.
-func (vk *VerificationKey) ToPEMFile(f string) error {
-	b, err := vk.MarshalBinary()
-	if err != nil {
-		return err
-	}
-	blk := &pem.Block{
-		Type:  constants.VerificationKeyType,
-		Bytes: b,
-	}
-	return ioutil.WriteFile(f, pem.EncodeToMemory(blk), 0600)
-}
-
-// FromPEMFile reads out the secret key from a PEM file at path f.
-func (vk *VerificationKey) FromPEMFile(f string) error {
-	if buf, err := ioutil.ReadFile(filepath.Clean(f)); err == nil {
-		blk, rest := pem.Decode(buf)
-		if len(rest) != 0 {
-			return fmt.Errorf("trailing garbage after PEM encoded secret key")
-		}
-		if blk.Type != constants.VerificationKeyType {
-			return fmt.Errorf("invalid PEM Type: '%v'", blk.Type)
-		}
-		if vk.UnmarshalBinary(blk.Bytes) != nil {
-			return errors.New("failed to read verification key from PEM file")
-		}
-	} else if !os.IsNotExist(err) {
-		return err
-	}
-	return nil
 }

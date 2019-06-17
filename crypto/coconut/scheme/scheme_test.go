@@ -16,10 +16,13 @@
 package coconut_test
 
 import (
+	"sync"
 	"testing"
 
-	. "github.com/jstuczyn/CoconutGo/crypto/coconut/scheme"
-	. "github.com/jstuczyn/CoconutGo/crypto/testutils"
+	. "github.com/nymtech/nym/crypto/coconut/scheme"
+	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
+	. "github.com/nymtech/nym/crypto/testutils"
+	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -65,9 +68,18 @@ func TestSchemeTTPKeygen(t *testing.T) {
 		q := 4
 		params, _ := Setup(q)
 
-		sks, vks, err := TTPKeygen(params, test.t, test.n)
+		tsks, tvks, err := TTPKeygen(params, test.t, test.n)
 		assert.Nil(t, err)
-		assert.Equal(t, len(sks), len(vks))
+		assert.Equal(t, len(tsks), len(tvks))
+
+		sks := make([]*coconut.SecretKey, len(tsks))
+		for i := range tsks {
+			sks[i] = tsks[i].SecretKey
+		}
+		vks := make([]*coconut.VerificationKey, len(tvks))
+		for i := range tvks {
+			vks[i] = tvks[i].VerificationKey
+		}
 
 		// first check if they work as normal keys
 		for i := range sks {
@@ -107,6 +119,99 @@ func TestSchemeBlindVerify(t *testing.T) {
 
 func TestSchemeThresholdAuthorities(t *testing.T) {
 	TestThresholdAuthorities(t, nil)
+}
+
+func BenchmarkDoubleAtePairing(b *testing.B) {
+	params, _ := coconut.Setup(1)
+	p, rng := params.P(), params.G.Rng()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		x := Curve.Randomnum(p, rng)
+		y := Curve.Randomnum(p, rng)
+
+		g11 := Curve.G1mul(params.G1(), x)
+		g21 := Curve.G2mul(params.G2(), y)
+
+		g12 := Curve.G1mul(params.G1(), y)
+		g22 := Curve.G2mul(params.G2(), x)
+
+		b.StartTimer()
+
+		Gt1 := Curve.Fexp(Curve.Ate(g21, g11))
+		Gt2 := Curve.Fexp(Curve.Ate(g22, g12))
+
+		if !Gt1.Equals(Gt2) {
+			panic("fail")
+		}
+	}
+}
+
+func BenchmarkParallelDoubleAtePairing(b *testing.B) {
+	params, _ := coconut.Setup(1)
+	p, rng := params.P(), params.G.Rng()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		x := Curve.Randomnum(p, rng)
+		y := Curve.Randomnum(p, rng)
+
+		g11 := Curve.G1mul(params.G1(), x)
+		g21 := Curve.G2mul(params.G2(), y)
+
+		g12 := Curve.G1mul(params.G1(), y)
+		g22 := Curve.G2mul(params.G2(), x)
+
+		b.StartTimer()
+
+		var wg sync.WaitGroup
+		wg.Add(2)
+
+		var Gt1 *Curve.FP12
+		var Gt2 *Curve.FP12
+
+		go func() {
+			Gt1 = Curve.Fexp(Curve.Ate(g21, g11))
+			wg.Done()
+		}()
+		go func() {
+			Gt2 = Curve.Fexp(Curve.Ate(g22, g12))
+			wg.Done()
+		}()
+		wg.Wait()
+
+		if !Gt1.Equals(Gt2) {
+			panic("fail")
+		}
+	}
+}
+
+func BenchmarkAte2Pairing(b *testing.B) {
+	params, _ := coconut.Setup(1)
+	p, rng := params.P(), params.G.Rng()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		x := Curve.Randomnum(p, rng)
+		y := Curve.Randomnum(p, rng)
+
+		g11 := Curve.G1mul(params.G1(), x)
+		g21 := Curve.G2mul(params.G2(), y)
+
+		g12 := Curve.G1mul(params.G1(), y)
+
+		xNeg := Curve.Modneg(x, p)
+		g22 := Curve.G2mul(params.G2(), xNeg)
+
+		b.StartTimer()
+
+		v := Curve.Ate2(g21, g11, g22, g12)
+		v = Curve.Fexp(v)
+
+		if !v.Isunity() {
+			panic("fail")
+		}
+	}
 }
 
 // func BenchmarkSetup(b *testing.B) {
@@ -282,7 +387,7 @@ func TestSchemeThresholdAuthorities(t *testing.T) {
 // 		sig = Unblind(params, blindSig, d)
 // 	}
 // 	// it is recommended to store results in package level variables,
-// 	// so that compiler would not try to optimize the benchmark
+// 	// so that compiler would not try to optimise the benchmark
 // 	unblindRes = sig
 // }
 
@@ -427,7 +532,7 @@ func TestSchemeThresholdAuthorities(t *testing.T) {
 // 	aSig1 := AggregateSignatures(params, signatures[1:], pp2)
 // 	aSig2 := AggregateSignatures(params, signatures[:len(signatures)-1], pp1)
 
-// 	// Randomize the credentials
+// 	// Randomise the credentials
 // 	rSig1 := Randomize(params, aSig1)
 // 	rSig2 := Randomize(params, aSig2)
 

@@ -1,0 +1,250 @@
+version: '3'
+
+services:
+  node0:
+    # below two are for debug purposes only
+    stdin_open: true
+    tty: true
+    container_name: node0
+    image: "nym/nymnode"
+    ports:
+      - "26656-26657:26656-26657"
+    environment:
+      - ID=0
+# Is this still applicable?
+      - LOG=$${LOG:-tendermint.log}
+    volumes:
+      - ./build/nodes/node0:/tendermint:Z
+    networks:
+      localnet:
+        ipv4_address: 192.167.10.2
+
+  node1:
+    # below two are for debug purposes only
+    stdin_open: true
+    tty: true
+    container_name: node1
+    image: "nym/nymnode"
+    ports:
+      - "26659-26660:26656-26657"
+    environment:
+      - ID=1
+# Is this still applicable?
+      - LOG=$${LOG:-tendermint.log}
+    volumes:
+      - ./build/nodes/node1:/tendermint:Z
+    networks:
+      localnet:
+        ipv4_address: 192.167.10.3
+
+  node2:
+    # below two are for debug purposes only
+    stdin_open: true
+    tty: true
+    container_name: node2
+    image: "nym/nymnode"
+    environment:
+      - ID=2
+# Is this still applicable?
+      - LOG=$${LOG:-tendermint.log}
+    ports:
+      - "26661-26662:26656-26657"
+    volumes:
+      - ./build/nodes/node2:/tendermint:Z
+    networks:
+      localnet:
+        ipv4_address: 192.167.10.4
+
+  node3:
+    # below two are for debug purposes only
+    stdin_open: true
+    tty: true
+    container_name: node3
+    image: "nym/nymnode"
+    environment:
+      - ID=3
+# Is this still applicable?
+      - LOG=$${LOG:-tendermint.log}
+    ports:
+      - "26663-26664:26656-26657"
+    volumes:
+      - ./build/nodes/node3:/tendermint:Z
+    networks:
+      localnet:
+        ipv4_address: 192.167.10.5
+
+  watcher1:
+    # below two are for debug purposes only
+    stdin_open: true
+    tty: true
+    container_name: watcher1
+    image: "nym/ethereum-watcher"
+    volumes:
+      - ./build/ethereum-watchers/watcher1:/ethereum-watcher:Z
+    depends_on:
+      - node0
+    networks:
+      localnet:
+        ipv4_address: 192.167.12.1 
+
+  watcher2:
+    # below two are for debug purposes only
+    stdin_open: true
+    tty: true
+    container_name: watcher2
+    image: "nym/ethereum-watcher"
+    volumes:
+      - ./build/ethereum-watchers/watcher2:/ethereum-watcher:Z
+    depends_on:
+      - node1
+    networks:
+      localnet:
+        ipv4_address: 192.167.12.2 
+
+  issuer1:
+    # below two are for debug purposes only
+    stdin_open: true
+    tty: true
+    container_name: issuer1
+    image: "nym/issuer"
+    ports:
+      - "4000:4000"
+      - "5000:5000"
+    command: "-f /issuer/config.toml"
+    volumes:
+      - ./build/issuers/issuer1:/issuer:Z
+    depends_on:
+      - node0
+      - node1
+      - node2
+      - node3
+    networks:
+      localnet:
+        ipv4_address: 192.167.11.1
+
+  issuer2:
+    # below two are for debug purposes only
+    stdin_open: true
+    tty: true
+    container_name: issuer2
+    image: "nym/issuer"
+    ports:
+      - "4001:4000"
+      - "5001:5000"
+    command: "-f /issuer/config.toml"
+    volumes:
+      - ./build/issuers/issuer2:/issuer:Z
+    depends_on:
+      - node0
+      - node1
+      - node2
+      - node3
+    networks:
+      localnet:
+        ipv4_address: 192.167.11.2
+
+  issuer3:
+    # below two are for debug purposes only
+    stdin_open: true
+    tty: true
+    container_name: issuer3
+    image: "nym/issuer"
+    ports:
+      - "4002:4000"
+      - "5002:5000"
+    command: "-f /issuer/config.toml"
+    volumes:
+      - ./build/issuers/issuer3:/issuer:Z
+    depends_on:
+      - node0
+      - node1
+      - node2
+      - node3
+    networks:
+      localnet:
+        ipv4_address: 192.167.11.3
+
+  provider1:
+    # below two are for debug purposes only
+    stdin_open: true
+    tty: true
+    container_name: provider1
+    image: "nym/provider"
+    ports:
+      - "4100:4000"
+      - "5100:5000"
+    command: "-f /provider/config.toml"
+    volumes:
+      - ./build/providers/provider1:/provider:Z
+    depends_on:
+      - issuer1
+      - issuer2
+      - issuer3
+    networks:
+      localnet:
+        ipv4_address: 192.167.13.1
+
+  provider2:
+    # below two are for debug purposes only
+    stdin_open: true
+    tty: true
+    container_name: provider2
+    image: "nym/provider"
+    ports:
+      - "4101:4000"
+      - "5101:5000"
+    command: "-f /provider/config.toml"
+    volumes:
+      - ./build/providers/provider2:/provider:Z
+    depends_on:
+      - issuer1
+      - issuer2
+      - issuer3
+    networks:
+      localnet:
+        ipv4_address: 192.167.13.2
+
+  verifier1:
+    # below two are for debug purposes only
+    stdin_open: true
+    tty: true
+    container_name: verifier1
+    image: "nym/verifier"
+    command: "-f /verifier/config.toml"
+    volumes:
+      - ./build/verifiers/verifier1:/verifier:Z
+    depends_on:
+      - node0
+      - node1
+      - node2
+      - node3
+    networks:
+      localnet:
+        ipv4_address: 192.167.14.1
+
+  verifier2:
+    # below two are for debug purposes only
+    stdin_open: true
+    tty: true
+    container_name: verifier2
+    image: "nym/verifier"
+    command: "-f /verifier/config.toml"
+    volumes:
+      - ./build/verifiers/verifier2:/verifier:Z
+    depends_on:
+      - node0
+      - node1
+      - node2
+      - node3
+    networks:
+      localnet:
+        ipv4_address: 192.167.14.2
+
+networks:
+  localnet:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+      -
+        subnet: 192.167.10.0/16

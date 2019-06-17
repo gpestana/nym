@@ -1,5 +1,5 @@
 // config.go - config for coconut server
-// Copyright (C) 2018  Jedrzej Stuczynski.
+// Copyright (C) 2018-2019  Jedrzej Stuczynski.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -17,8 +17,6 @@
 // Package config defines configuration used by coconut server.
 package config
 
-// todo: once all options are figured out, introduce validation
-
 import (
 	"errors"
 	"io/ioutil"
@@ -28,15 +26,14 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-// todo: separate config entry for provider related things?
-
 const (
 	defaultLogLevel = "NOTICE"
 
-	defaultNumCoconutWorkers = 1
+	defaultNumServerWorkers = 1
+	defaultNumProcessors    = 1
 
 	defaultConnectTimeout               = 5 * 1000  // 5 sec.
-	defaultRequestTimeout               = 1 * 1000  // 1 sec.
+	defaultRequestTimeout               = 5 * 1000  // 5 sec.
 	defaultProviderStartupTimeout       = 30 * 1000 // 30 sec.
 	defaultProviderStartupRetryInterval = 5 * 1000  // 5s.
 	defaultProviderMaxRequests          = 16
@@ -54,29 +51,29 @@ type Server struct {
 	// Identifier is the human readable identifier for the node.
 	Identifier string
 
-	// Addresses are the IP address:port combinations that the server will bind	to for incoming connections.
+	// Addresses are the IP address:port combinations that the server will bind	to for incoming TCP connections.
 	Addresses []string
 
 	// GRPCAddresses are the IP address:port combinations that the server will bind	to for incoming grpcs.
 	GRPCAddresses []string
 
-	// Will definitely be useful later, but for now, no need for that.
-	// // DataDir is the absolute path to the server's state files.
-	// DataDir string
+	// DataDir specifies path to a .db file holding relevant server-specific persistent data.
+	DataDir string
 
-	// IsProvider specifies whether the server is a provider.
-	// Currently it means it should be able to verify credentials it receives.
-	IsProvider bool
-
-	// IsIssuer specifies whether the server is a credential issuer.
-	// Currently it means it should be able to sign attributes it receives.
-	IsIssuer bool
-}
-
-type Issuer struct {
-	// MaximumAttributes specifies the maximum number of attributes the server will sign.
+	// MaximumAttributes specifies the maximum number of attributes the system supports.
 	MaximumAttributes int
 
+	// BlockchainNodeAddresses specifies addresses of a blockchain nodes
+	// to which the issuer should send all relevant requests.
+	// Note that only a single request will ever be sent, but multiple addresses are provided in case
+	// the particular node was unavailable.
+	BlockchainNodeAddresses []string
+}
+
+// Issuer is the Coconut issuing authority server configuration.
+// It is responsible for signing attributes it receives
+// and providing its public verification key upon request.
+type Issuer struct {
 	// VerificationKeyFile specifies the file containing the Coconut Verification Key.
 	VerificationKeyFile string
 
@@ -84,22 +81,27 @@ type Issuer struct {
 	SecretKeyFile string
 }
 
-// todo: change name?
 // Provider is the Coconut provider server configuration.
 // At this point it is only responsible for verifying credentials it receives.
 type Provider struct {
 	// IAAddresses are the IP address:port combinations of all Authority Servers.
-	// Required if the server is a provider.
+	// Only required if IAVerificationKeys is not specified.
 	IAAddresses []string
 
-	// IAIDs are IDs of the servers used during generation of threshold keys.
-	// If empty, it is going to be assumed that IAAddresses are ordered correctly.
-	IAIDs []int
+	// IAVerificationKeys specifies files containing Coconut Verification keys of all Issuing Authorities.
+	IAVerificationKeys []string
 
 	// Threshold defines minimum number of verification keys provider needs to obtain.
 	// Default = len(IAAddresses).
 	// 0 = no threshold
 	Threshold int
+
+	// BlockchainKeyFile specifies the file containing the Blockchain relevant keys.
+	BlockchainKeyFile string
+
+	// DisableLocalCredentialsChecks specifies whether the provider should check the credentials and proofs it receives
+	// or just send everything to the chain and wait for the verifier nodes to check it.
+	DisableLocalCredentialsChecks bool
 }
 
 // Debug is the Coconut IA server debug configuration.
@@ -107,17 +109,17 @@ type Debug struct {
 	// NumJobWorkers specifies the number of worker instances to use for jobpacket processing.
 	NumJobWorkers int
 
-	// NumCoconutWorkers specifies the number of worker instances to use for client job requests.
-	NumCoconutWorkers int
+	// NumServerWorkers specifies the number of worker instances to use for client job requests.
+	NumServerWorkers int
+
+	// NumProcessors specifies the number of processor instances attached to the blockchain monitor.
+	NumProcessors int
 
 	// ConnectTimeout specifies the maximum time a connection can take to establish a TCP/IP connection in milliseconds.
 	ConnectTimeout int
 
 	// RequestTimeout specifies the maximum time a client job request can take to process.
 	RequestTimeout int
-
-	// RegenerateKeys specifies whether to generate new Coconut keypair and overwrite existing files.
-	RegenerateKeys bool
 
 	// ProviderStartupTimeout specifies how long the provider is going to keep retrying to start up before giving up.
 	// Useful when all the servers are started at different orders.
@@ -131,14 +133,29 @@ type Debug struct {
 	// only applicable to obtain verification keys of all IAs
 	// -1 indicates no limit
 	ProviderMaxRequests int
+
+	// RegenerateKeys specifies whether to generate new Coconut keypair and overwrite existing files.
+	RegenerateKeys bool
+
+	// DisableAllBlockchainCommunication allows to disable startup of blockchain client, monitor and processor.
+	// Not to be set in production environment. Only really applicable in tests.
+	DisableAllBlockchainCommunication bool
+
+	// DisableBlockchainMonitoring allows to disable startup of blockchain monitor and processor.
+	// However, it does not disable a blockchain client so that server can still send transactions to the chain.
+	// Not to be set in production environment. Only really applicable in tests.
+	DisableBlockchainMonitoring bool
 }
 
 func (dCfg *Debug) applyDefaults() {
 	if dCfg.NumJobWorkers <= 0 {
 		dCfg.NumJobWorkers = runtime.NumCPU()
 	}
-	if dCfg.NumCoconutWorkers <= 0 {
-		dCfg.NumCoconutWorkers = defaultNumCoconutWorkers
+	if dCfg.NumServerWorkers <= 0 {
+		dCfg.NumServerWorkers = defaultNumServerWorkers
+	}
+	if dCfg.NumProcessors <= 0 {
+		dCfg.NumProcessors = defaultNumProcessors
 	}
 	if dCfg.ConnectTimeout <= 0 {
 		dCfg.ConnectTimeout = defaultConnectTimeout
@@ -178,39 +195,38 @@ type Config struct {
 	Debug    *Debug
 }
 
+// nolint: gocyclo
 func (cfg *Config) validateAndApplyDefaults() error {
 	if cfg.Server == nil {
 		return errors.New("config: No Server block was present")
 	}
-
-	if !cfg.Server.IsProvider && !cfg.Server.IsIssuer {
-		return errors.New("config: server is neither Issuer nor Provider")
+	if len(cfg.Server.Addresses) == 0 && len(cfg.Server.GRPCAddresses) == 0 {
+		return errors.New("config: No addresses to bind the server to")
 	}
-	if cfg.Server.IsProvider {
-		if cfg.Provider == nil {
-			return errors.New("config: Provider block not set when server is a Provider")
-		}
-		if len(cfg.Provider.IAIDs) <= 0 {
-			IAIDs := make([]int, len(cfg.Provider.IAAddresses))
-			for i := range cfg.Provider.IAAddresses {
-				IAIDs[i] = i + 1
-			}
-		} else if len(cfg.Provider.IAIDs) != len(cfg.Provider.IAAddresses) || len(cfg.Provider.IAAddresses) <= 0 {
+
+	if cfg.Provider != nil {
+		if len(cfg.Provider.IAAddresses) == 0 && len(cfg.Provider.IAVerificationKeys) == 0 {
 			return errors.New("config: Invalid provider - IA Servers configuration")
 		}
+		if cfg.Provider.Threshold < 0 {
+			return errors.New("config: Invalid threshold value")
+		}
 	}
 
-	if cfg.Server.IsIssuer {
-		if cfg.Issuer == nil {
-			return errors.New("config: Issuer block not set when server is an Issuer")
-		}
-		// does not care if files are empty, if so, new keys will be generated and written there
+	if cfg.Issuer != nil {
+		// does not care if files are empty, if so, new keys will be generated and written there,
+		// but explicitly needs both of them to be present
 		if cfg.Issuer.SecretKeyFile == "" || cfg.Issuer.VerificationKeyFile == "" {
 			return errors.New("config: No key files were provided")
 		}
-		if cfg.Issuer.MaximumAttributes <= 0 || cfg.Issuer.MaximumAttributes > 255 {
-			return errors.New("config: Invalid number of allowed attributes")
-		}
+	}
+
+	if cfg.Server.MaximumAttributes <= 0 || cfg.Server.MaximumAttributes > 255 {
+		return errors.New("config: Invalid number of allowed attributes")
+	}
+
+	if len(cfg.Server.DataDir) == 0 {
+		return errors.New("config: Unspecified DataDir")
 	}
 
 	if cfg.Debug == nil {
@@ -225,14 +241,11 @@ func (cfg *Config) validateAndApplyDefaults() error {
 	return nil
 }
 
-// LoadFile loads, parses and validates the provided file and returns the Config.
-func LoadFile(f string) (*Config, error) {
-	b, err := ioutil.ReadFile(filepath.Clean(f))
-	if err != nil {
-		return nil, err
-	}
+// LoadBinary loads, parses and validates the provided buffer b (as a config)
+// and returns the Config.
+func LoadBinary(b []byte) (*Config, error) {
 	cfg := new(Config)
-	_, err = toml.Decode(string(b), cfg)
+	_, err := toml.Decode(string(b), cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -241,4 +254,13 @@ func LoadFile(f string) (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+// LoadFile loads, parses and validates the provided file and returns the Config.
+func LoadFile(f string) (*Config, error) {
+	b, err := ioutil.ReadFile(filepath.Clean(f))
+	if err != nil {
+		return nil, err
+	}
+	return LoadBinary(b)
 }

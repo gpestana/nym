@@ -1,5 +1,5 @@
 // listener.go - Coconut server listener.
-// Copyright (C) 2018  Jedrzej Stuczynski.
+// Copyright (C) 2018-2019  Jedrzej Stuczynski.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -18,26 +18,26 @@
 package listener
 
 import (
+	"context"
 	"fmt"
 	"net"
+	"reflect"
 	"sync"
 	"time"
 
+	"github.com/nymtech/nym/common/comm"
+	"github.com/nymtech/nym/common/comm/commands"
+	"github.com/nymtech/nym/common/comm/packet"
+	"github.com/nymtech/nym/logger"
+	"github.com/nymtech/nym/server/config"
+	"github.com/nymtech/nym/server/listener/requesthandler"
+	"github.com/nymtech/nym/worker"
 	"github.com/golang/protobuf/proto"
-
-	"github.com/jstuczyn/CoconutGo/logger"
-	"github.com/jstuczyn/CoconutGo/server/comm/utils"
-	"github.com/jstuczyn/CoconutGo/server/commands"
-	"github.com/jstuczyn/CoconutGo/server/config"
-	"github.com/jstuczyn/CoconutGo/server/packet"
-
-	"github.com/jstuczyn/CoconutGo/worker"
 	"gopkg.in/op/go-logging.v1"
 )
 
-// todo: onnewconn in goroutine or something to not block on multiple clients
-
 // Listener represents the Coconut Server listener (listening on TCP socket, not for gRPC via HTTP2)
+// TODO: remove old fields and make more generic
 type Listener struct {
 	cfg *config.Config
 
@@ -46,25 +46,58 @@ type Listener struct {
 
 	log *logging.Logger
 
-	incomingCh chan<- interface{}
+	incomingCh chan<- *commands.CommandRequest
 	closeAllCh chan interface{}
 	closeAllWg sync.WaitGroup
 
-	l net.Listener
-
+	l  net.Listener
 	id uint64
+
+	handlers requesthandler.HandlerRegistry
+
+	// DEPRECATED
+	finalizedStartup bool
+}
+
+func (l *Listener) RegisterDefaultIssuerHandlers() {
+	l.Lock()
+	defer l.Unlock()
+	// TODO: is there a better alternative for the way handlers are registered now?
+	l.RegisterHandler(&commands.SignRequest{}, requesthandler.ResolveSignRequestHandler)
+	l.RegisterHandler(&commands.BlindSignRequest{}, requesthandler.ResolveBlindSignRequestHandler)
+	l.RegisterHandler(&commands.VerificationKeyRequest{}, requesthandler.ResolveVerificationKeyRequestHandler)
+	l.RegisterHandler(&commands.LookUpCredentialRequest{}, requesthandler.ResolveLookUpCredentialRequestHandler)
+	l.RegisterHandler(&commands.LookUpBlockCredentialsRequest{}, requesthandler.ResolveLookUpBlockCredentialsRequestHandler)
+}
+
+func (l *Listener) RegisterDefaultServiceProviderHandlers() {
+	l.Lock()
+	defer l.Unlock()
+	// TODO: is there a better alternative for the way handlers are registered now?
+	l.RegisterHandler(&commands.VerifyRequest{}, requesthandler.ResolveVerifyRequestHandler)
+	l.RegisterHandler(&commands.BlindVerifyRequest{}, requesthandler.ResolveBlindVerifyRequestHandler)
+	l.RegisterHandler(&commands.SpendCredentialRequest{}, requesthandler.ResolveSpendCredentialRequestHandler)
+}
+
+func (l *Listener) RegisterHandler(o interface{}, hf requesthandler.ResolveRequestHandlerFunc) {
+	typ := reflect.TypeOf(o)
+	if _, ok := l.handlers[typ]; ok {
+		l.log.Warningf("%v already had a registered handler. It will be overritten", typ)
+	}
+	l.log.Debugf("Registering handler for %v", typ)
+
+	l.handlers[typ] = hf
 }
 
 // Halt stops the listener and closes (if any) connections.
 func (l *Listener) Halt() {
 	l.log.Debugf("Halting listener %d\n", l.id)
-	err := l.l.Close()
-	if err != nil {
+	if err := l.l.Close(); err != nil {
 		l.log.Noticef("%v", err)
 	}
 	l.Worker.Halt()
 
-	// currently nothing is using the channels or wg anyway.
+	// currently nothing is using the channel yet anyway.
 	close(l.closeAllCh)
 	l.closeAllWg.Wait()
 }
@@ -74,8 +107,7 @@ func (l *Listener) worker() {
 	l.log.Noticef("Listening on: %v", addr)
 	defer func() {
 		l.log.Noticef("Stopping listening on: %v", addr)
-		err := l.l.Close()
-		if err != nil {
+		if err := l.l.Close(); err != nil {
 			l.log.Noticef("%v", err)
 		}
 	}()
@@ -99,13 +131,15 @@ func (l *Listener) worker() {
 
 		l.log.Debugf("Accepted new connection: %v", conn.RemoteAddr())
 
-		l.onNewConn(conn)
+		go func() {
+			// TODO: maximum number of concurrent connections
+			l.onNewConn(conn)
+		}()
 	}
 }
 
 func (l *Listener) onNewConn(conn net.Conn) {
 	l.closeAllWg.Add(1)
-	// todo deadlines etc
 	defer func() {
 		l.log.Debugf("Closing Connection to %v", conn.RemoteAddr())
 		err := conn.Close()
@@ -113,13 +147,11 @@ func (l *Listener) onNewConn(conn net.Conn) {
 			l.log.Noticef("%v", err)
 		}
 
-		// right now does not make any sense as listener does not deleage its work to anything
-		// and is inherently single threaded (in terms of connections)
 		l.closeAllWg.Done()
 	}()
 
 	l.log.Noticef("New Connection from %v", conn.RemoteAddr())
-	inPacket, err := utils.ReadPacketFromConn(conn)
+	inPacket, err := comm.ReadPacketFromConn(conn)
 	if err != nil {
 		l.log.Errorf("Failed to read received packet: %v", err)
 		return
@@ -130,23 +162,34 @@ func (l *Listener) onNewConn(conn net.Conn) {
 		l.log.Errorf("Error while parsing packet: %v", err)
 		return
 	}
+
+	if _, ok := l.handlers[reflect.TypeOf(cmd)]; !ok {
+		l.log.Warningf("There's no registered handler for %v", reflect.TypeOf(cmd))
+		// TODO: write meaningful 'error' data back to client
+		l.replyToClient(packet.NewPacket([]byte{}), conn)
+		return
+	}
 	resCh := make(chan *commands.Response, 1)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(l.cfg.Debug.RequestTimeout)*time.Millisecond)
+	defer cancel()
+
 	cmdReq := commands.NewCommandRequest(cmd, resCh)
+	cmdReq.WithContext(ctx)
 
 	l.incomingCh <- cmdReq
-	outPacket := l.resolveCommand(cmd, resCh)
+	outPacket := l.resolveCommand(ctx, cmd, resCh)
 	if outPacket != nil {
 		l.replyToClient(outPacket, conn)
 	}
 }
 
-// nolint: interfacer
+//nolint: interfacer
 func (l *Listener) replyToClient(packet *packet.Packet, conn net.Conn) {
 	l.log.Noticef("Replying back to the client (%v)", conn.RemoteAddr())
 	b, err := packet.MarshalBinary()
 	if err == nil {
-		_, err = conn.Write(b)
-		if err == nil {
+		if _, err = conn.Write(b); err == nil {
 			return
 		}
 	}
@@ -154,8 +197,9 @@ func (l *Listener) replyToClient(packet *packet.Packet, conn net.Conn) {
 	l.log.Error("Couldn't reply to the client") // conn will close regardless after this
 }
 
-func (l *Listener) resolveCommand(cmd commands.Command, resCh chan *commands.Response) *packet.Packet {
-	protoResp := utils.ResolveServerRequest(cmd, resCh, l.log, l.cfg.Debug.RequestTimeout)
+func (l *Listener) resolveCommand(ctx context.Context, cmd commands.Command, resCh chan *commands.Response) *packet.Packet {
+	protoResp := l.handlers[reflect.TypeOf(cmd)](ctx, resCh)
+	// protoResp := comm.ResolveServerRequest(cmd, resCh, l.log, l.cfg.Debug.RequestTimeout, l.finalizedStartup)
 
 	b, err := proto.Marshal(protoResp)
 	if err != nil {
@@ -166,8 +210,16 @@ func (l *Listener) resolveCommand(cmd commands.Command, resCh chan *commands.Res
 	return packet.NewPacket(b)
 }
 
+// FinalizeStartup is used when the server is a provider. It indicates it has aggregated required
+// number of verification keys and hence can verify received credentials.
+// TODO: get rid in favour of simply loading all keys on startup
+func (l *Listener) FinalizeStartup() {
+	l.finalizedStartup = true
+}
+
 // New creates a new listener.
-func New(cfg *config.Config, inCh chan<- interface{}, id uint64, l *logger.Logger, addr string) (*Listener, error) {
+func New(cfg *config.Config, inCh chan<- *commands.CommandRequest, id uint64, l *logger.Logger, addr string,
+) (*Listener, error) {
 	var err error
 
 	listener := &Listener{
@@ -176,6 +228,7 @@ func New(cfg *config.Config, inCh chan<- interface{}, id uint64, l *logger.Logge
 		closeAllCh: make(chan interface{}),
 		log:        l.GetLogger(fmt.Sprintf("Listener:%d", int(id))),
 		id:         id,
+		handlers:   make(requesthandler.HandlerRegistry),
 	}
 
 	listener.l, err = net.Listen("tcp", addr)

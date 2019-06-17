@@ -19,10 +19,10 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/jstuczyn/CoconutGo/constants"
-	"github.com/jstuczyn/CoconutGo/crypto/bpgroup"
-	"github.com/jstuczyn/CoconutGo/crypto/coconut/utils"
-	"github.com/jstuczyn/CoconutGo/crypto/elgamal"
+	"github.com/nymtech/nym/constants"
+	"github.com/nymtech/nym/crypto/bpgroup"
+	"github.com/nymtech/nym/crypto/coconut/utils"
+	"github.com/nymtech/nym/crypto/elgamal"
 	"github.com/jstuczyn/amcl/version3/go/amcl"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"github.com/stretchr/testify/assert"
@@ -83,7 +83,7 @@ func ECP2FromHex(t *testing.T, hexStr string) *Curve.ECP2 {
 // modified version with additional arguments to remove randomness
 // and allow comparison with python implementation
 // nolint: lll, misspell
-func constructVerifierProofWitn(witnesses *witnessesV, params *Params, vk *VerificationKey, sig *Signature, privM []*Curve.BIG, t *Curve.BIG) *VerifierProof {
+func constructVerifierProofWitn(witnesses *witnessesV, params *Params, vk *VerificationKey, sig *Signature, privM []*Curve.BIG, t *Curve.BIG) (*VerifierProof, error) {
 	p, g1, g2, hs := params.p, params.g1, params.g2, params.hs
 	wm := witnesses.wm
 	wt := witnesses.wt
@@ -110,7 +110,10 @@ func constructVerifierProofWitn(witnesses *witnessesV, params *Params, vk *Verif
 		i++
 	}
 
-	c := ConstructChallenge(ca)
+	c, err := ConstructChallenge(ca)
+	if err != nil {
+		return nil, err
+	}
 
 	// responses
 	rm := make([]*Curve.BIG, len(privM))
@@ -128,21 +131,24 @@ func constructVerifierProofWitn(witnesses *witnessesV, params *Params, vk *Verif
 		c:  c,
 		rm: rm,
 		rt: rt,
-	}
+	}, nil
 }
 
 // modified version with additional arguments to remove randomness
 // and allow comparison with python implementation
 // nolint: lll, misspell
-func showBlindSignatureT(t *Curve.BIG, witn *witnessesV, params *Params, vk *VerificationKey, sig *Signature, privM []*Curve.BIG) (*BlindShowMats, error) {
+func showBlindSignatureT(t *Curve.BIG, witn *witnessesV, params *Params, vk *VerificationKey, sig *Signature, privM []*Curve.BIG) (*Theta, error) {
 	kappa := Curve.G2mul(vk.g2, t)
 	kappa.Add(vk.alpha)
 	for i := range privM {
 		kappa.Add(Curve.G2mul(vk.beta[i], privM[i]))
 	}
 	nu := Curve.G1mul(sig.sig1, t)
-	verifierProof := constructVerifierProofWitn(witn, params, vk, sig, privM, t)
-	return &BlindShowMats{
+	verifierProof, err := constructVerifierProofWitn(witn, params, vk, sig, privM, t)
+	if err != nil {
+		return nil, err
+	}
+	return &Theta{
 		kappa: kappa,
 		nu:    nu,
 		proof: verifierProof,
@@ -151,7 +157,7 @@ func showBlindSignatureT(t *Curve.BIG, witn *witnessesV, params *Params, vk *Ver
 
 // modified version with additional arguments to remove randomness
 // and allow comparison with python implementation
-// nolint: lll, misspell
+// nolint: lll, misspell, unparam
 func constructSignerProofWitn(witnesses *witnessesS, params *Params, gamma *Curve.ECP, encs []*elgamal.Encryption, cm *Curve.ECP, k []*Curve.BIG, r *Curve.BIG, pubM []*Curve.BIG, privM []*Curve.BIG) (*SignerProof, error) {
 	p, g1, g2, hs := params.p, params.g1, params.g2, params.hs
 	attributes := append(privM, pubM...)
@@ -203,7 +209,10 @@ func constructSignerProofWitn(witnesses *witnessesS, params *Params, gamma *Curv
 		i++
 	}
 
-	c := ConstructChallenge(ca)
+	c, err := ConstructChallenge(ca)
+	if err != nil {
+		return nil, err
+	}
 
 	// responses
 	rr := wr.Minus(Curve.Modmul(c, r, p))
@@ -247,8 +256,8 @@ func encryptK(G *bpgroup.BpGroup, k *Curve.BIG, gamma *Curve.ECP, m *Curve.BIG, 
 
 // modified version with additional arguments to remove randomness
 // and allow comparison with python implementation
-// nolint: lll, misspell
-func prepareBlindSignR(t *testing.T, r *Curve.BIG, ks []*Curve.BIG, witn *witnessesS, params *Params, gamma *Curve.ECP, pubM []*Curve.BIG, privM []*Curve.BIG) (*BlindSignMats, error) {
+// nolint: lll, misspell, unparam
+func prepareBlindSignR(t *testing.T, r *Curve.BIG, ks []*Curve.BIG, witn *witnessesS, params *Params, gamma *Curve.ECP, pubM []*Curve.BIG, privM []*Curve.BIG) (*Lambda, error) {
 	G, g1, hs := params.G, params.g1, params.hs
 	attributes := append(privM, pubM...)
 	cm := Curve.G1mul(g1, r)
@@ -280,7 +289,7 @@ func prepareBlindSignR(t *testing.T, r *Curve.BIG, ks []*Curve.BIG, witn *witnes
 	if err != nil {
 		return nil, err
 	}
-	return &BlindSignMats{
+	return &Lambda{
 		cm:    cm,
 		enc:   encs,
 		proof: signerProof,
@@ -338,7 +347,7 @@ func TestBasicOperations(t *testing.T) {
 	if Curve.CURVE_PAIRING_TYPE != Curve.BN {
 		return
 	}
-
+	//nolint: goconst
 	xHex := "076501B5E73FA81B28FAB06EE3F6929E6AE4DB9461A49930C49EF1B28A625DD2"
 	g1MulResHex := "02096d26612159d5339748b78c53000734df70a678f4d2ce389b422b076bf5996b"
 	g2MulResHex := "13b24880cbd8053ce23d5cfc42070fff29cae3bbbecf2c5c519b6bb1574b9e3e20" +
@@ -396,7 +405,7 @@ func TestPointcheval(t *testing.T) {
 	}
 	signature := &Signature{sig1: h, sig2: PointchevalSig}
 	// ensure it actually verifies
-	assert.True(t, bool(Verify(params, vk, []*Curve.BIG{m}, signature)))
+	assert.True(t, Verify(params, vk, []*Curve.BIG{m}, signature))
 }
 
 func TestCoconut(t *testing.T) {
@@ -481,11 +490,11 @@ func TestCoconut(t *testing.T) {
 
 	// elgamal keypair
 	d := BIGFromHex(t, dHex)
-	egPriv := &elgamal.PrivateKey{D: d}
+	egPriv := elgamal.NewPrivateKey(d)
 
 	gamma := Curve.G1mul(g1, d)
 	p := BIGFromHex(t, "2523648240000001BA344D8000000007FF9F800000000010A10000000000000D")
-	egPub := &elgamal.PublicKey{P: p, G: g1, Gamma: gamma}
+	egPub := elgamal.NewPublicKey(p, g1, gamma)
 
 	r := BIGFromHex(t, rHex)
 	ks := recoverBIGSlice(t, k1Hex, k2Hex)
@@ -495,7 +504,7 @@ func TestCoconut(t *testing.T) {
 	wm := recoverBIGSlice(t, wm1Hex, wm2Hex, wm3Hex, wm4Hex)
 	witnesses := &witnessesS{wr, wk, wm}
 
-	bsm, err := prepareBlindSignR(t, r, ks, witnesses, params, gamma, pubM, privM)
+	lambda, err := prepareBlindSignR(t, r, ks, witnesses, params, gamma, pubM, privM)
 	assert.Nil(t, err)
 
 	// expected:
@@ -509,22 +518,22 @@ func TestCoconut(t *testing.T) {
 	rmSExp := recoverBIGSlice(t, rm1SHex, rm2SHex)
 	rrSExp := BIGFromHex(t, rrSHex)
 
-	assert.True(t, bsm.cm.Equals(cmExp))
-	assert.True(t, bsm.enc[0].C1().Equals(c1e1Exp))
-	assert.True(t, bsm.enc[0].C2().Equals(c2e1Exp))
-	assert.True(t, bsm.enc[1].C1().Equals(c1e2Exp))
-	assert.True(t, bsm.enc[1].C2().Equals(c2e2Exp))
+	assert.True(t, lambda.cm.Equals(cmExp))
+	assert.True(t, lambda.enc[0].C1().Equals(c1e1Exp))
+	assert.True(t, lambda.enc[0].C2().Equals(c2e1Exp))
+	assert.True(t, lambda.enc[1].C1().Equals(c1e2Exp))
+	assert.True(t, lambda.enc[1].C2().Equals(c2e2Exp))
 
-	assert.Zero(t, Curve.Comp(chSExp, bsm.proof.c))
+	assert.Zero(t, Curve.Comp(chSExp, lambda.proof.c))
 	for i := range rkSExp {
-		assert.Zero(t, Curve.Comp(rkSExp[i], bsm.proof.rk[i]))
+		assert.Zero(t, Curve.Comp(rkSExp[i], lambda.proof.rk[i]))
 	}
 	for i := range rmSExp {
-		assert.Zero(t, Curve.Comp(rmSExp[i], bsm.proof.rm[i]))
+		assert.Zero(t, Curve.Comp(rmSExp[i], lambda.proof.rm[i]))
 	}
-	assert.Zero(t, Curve.Comp(rrSExp, bsm.proof.rr))
+	assert.Zero(t, Curve.Comp(rrSExp, lambda.proof.rr))
 
-	blindedSig, err := BlindSign(params, sk, bsm, egPub, pubM)
+	blindedSig, err := BlindSign(params, sk, lambda, egPub, pubM)
 	assert.Nil(t, err)
 
 	// expected:
@@ -547,7 +556,7 @@ func TestCoconut(t *testing.T) {
 	wt := BIGFromHex(t, wtHex)
 	witnessesV := &witnessesV{wmV, wt}
 
-	bsm2, err := showBlindSignatureT(tr, witnessesV, params, vk, sig, privM)
+	theta, err := showBlindSignatureT(tr, witnessesV, params, vk, sig, privM)
 	assert.Nil(t, err)
 
 	// expected:
@@ -557,14 +566,14 @@ func TestCoconut(t *testing.T) {
 	rmVExp := recoverBIGSlice(t, rm1VHex, rm2VHex)
 	rtExp := BIGFromHex(t, rtHex)
 
-	assert.True(t, kappaExp.Equals(bsm2.kappa))
-	assert.True(t, nuExp.Equals(bsm2.nu))
-	assert.Zero(t, Curve.Comp(chVExp, bsm2.proof.c))
+	assert.True(t, kappaExp.Equals(theta.kappa))
+	assert.True(t, nuExp.Equals(theta.nu))
+	assert.Zero(t, Curve.Comp(chVExp, theta.proof.c))
 	for i := range rmVExp {
-		assert.Zero(t, Curve.Comp(rmVExp[i], bsm2.proof.rm[i]))
+		assert.Zero(t, Curve.Comp(rmVExp[i], theta.proof.rm[i]))
 	}
-	assert.Zero(t, Curve.Comp(rtExp, bsm2.proof.rt))
+	assert.Zero(t, Curve.Comp(rtExp, theta.proof.rt))
 
 	// finally for sanity checks ensure the credentials verify
-	assert.True(t, bool(BlindVerify(params, vk, sig, bsm2, pubM)))
+	assert.True(t, BlindVerify(params, vk, sig, theta, pubM))
 }

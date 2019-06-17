@@ -1,0 +1,115 @@
+syntax = "proto3";
+import "crypto/coconut/scheme/proto/types.proto";
+import "crypto/coconut/scheme/proto/tumblertypes.proto";
+// import "crypto/elgamal/proto/types.proto";
+
+package transaction;
+option go_package = "github.com/nymtech/nym/tendermint/nymabci/transaction";
+
+message NewAccountRequest {
+    // Public Key of the user used to derive account address and validate signature
+    bytes Address = 1; 
+    // represents some optional credential from an IP if required
+    bytes Credential = 2; 
+    // Signature on request to confirm its validity + asserts knowledge of private key
+    bytes Sig = 3; 
+}
+
+// DEBUG
+message AccountTransferRequest {
+    // Used to validate signature + determine source address
+    bytes SourceAddress = 1;
+    // Used to determine target address
+    bytes TargetAddress = 2; 
+    // Amount to be transferred 
+    uint64 Amount = 3; 
+    // While this function will only be available in debug and hence a nonce is really not needed,
+    // I figured I should include it anyway as it's a good practice + will need to figure out a proper
+    // nonce system anyway.
+    bytes Nonce = 4;
+    // Signature on request to confirm its validitiy
+    bytes Sig = 5; 
+}
+
+message DepositCoconutCredentialRequest {
+    // Includes the actual credential, any public attributes 
+    // and theta (that include, among other things, NIZK proofs required to verify the credential)
+    coconut.ProtoTumblerBlindVerifyMaterials CryptoMaterials = 1;
+    // Value of the credential. While it is included in a BIG form in CryptoMaterials, it's easier to operate on it
+    // when it's an int. We can't send it as an uint64, as milagro requires a normal int argument to construct a BIG num. 
+    int64 Value = 2;
+    // Address of the service provider to which the proof is bound and whose account balance will be increased
+    bytes ProviderAddress = 3;
+}
+
+message TransferToPipeAccountNotification {
+    // Used to identify the particular watcher and to verify signature
+    bytes WatcherPublicKey = 1;
+    // Ethereum address of the client
+    bytes ClientAddress = 2;
+    // While right now it's completely unrequired as there is only a single pipe account, it might be useful
+    // to have this information in the future if we decided to monitor multiple chains or have multiple pipe accounts
+    // for example on epoch changes.
+    bytes PipeAccountAddress = 3;
+    // Amount transferred by the client to the pipe account.
+    uint64 Amount = 4;
+    // Hash of the transaction in which the transfer occured. 
+    // Used to distinguish from multiple transfers the client might have done.
+    bytes TxHash = 5;
+    // Signature on the entire message done with the watcher's key.
+    bytes Sig = 6;
+}
+
+message CredentialRequest {
+    // Ethereum address of the client
+    bytes ClientAddress = 1;
+    // While right now it's completely unrequired as there is only a single pipe account, it might be useful
+    // to have this information in the future if we decided to monitor multiple chains or have multiple pipe accounts
+    // for example on epoch changes.
+    bytes PipeAccountAddress = 2;
+    // All the cryptographic materials required by issuers to perform a blind sign
+    coconut.ProtoBlindSignMaterials CryptoMaterials = 3;
+    // Value of the credential. While it is included in a BIG form in CryptoMaterials, it's easier to operate on it
+    // when it's an int. We can't send it as an uint64, as milagro requires a normal int argument to construct a BIG num. 
+    int64 Value = 4;
+    // Required to prevent replay attacks.
+    bytes Nonce = 5;
+    // Signature on entire request with client's ethereum key (so that client's address could be used to verify it)
+    bytes Sig = 6;
+}
+
+message CredentialVerificationNotification {
+    // Used to identify the particular verifier and to verify signature
+    bytes VerifierPublicKey = 1;
+    // Address of the provider who sent the original request
+    bytes ProviderAddress = 2;
+    // Value of the credential
+    int64 Value = 3;
+    // Zeta associated with the credential to unique identify it
+    bytes Zeta = 4;
+    // Was the credential valid or not
+    bool CredentialValidity = 5;    
+    // Signature on the entire message done with the verifier's key.
+    bytes Sig = 6;
+}
+
+
+// message AddIssuerRequest {
+//     // ID of the new issuer
+//     uint32 IAID = 1;
+//     // Verification key of the new issuer
+//     coconut.ProtoVerificationKey Vk = 2;
+//     // Public key of the issuer, used to authorise its requests.
+//     bytes IAPublicKey = 3;
+//     // Signature by threshold number of existing issuers, obtained externally (for now)
+//     coconut.ProtoSignature Sig = 4;
+// }
+
+// message RemoveIssuerRequest {
+//     // ID of the issuer
+//     uint32 IAID = 1;
+//     // Public key of the issuer, used to authorise its requests.
+//     bytes IAPublicKey = 2;
+//     // Signature by threshold number of existing issuers, obtained externally (for now)
+//     coconut.ProtoSignature Sig = 3;
+// }

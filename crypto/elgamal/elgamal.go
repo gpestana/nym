@@ -19,41 +19,67 @@
 package elgamal
 
 import (
-	"encoding/pem"
 	"errors"
-	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 
+	cmnutils "github.com/nymtech/nym/common/utils"
+	"github.com/nymtech/nym/constants"
+	"github.com/nymtech/nym/crypto/bpgroup"
 	proto "github.com/golang/protobuf/proto"
-	"github.com/jstuczyn/CoconutGo/constants"
-	"github.com/jstuczyn/CoconutGo/crypto/bpgroup"
-
-	// The named import is used to be able to easily update curve being used
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 )
 
-// todo: create types for public and private keys and adjust arguments accordingly (look https://godoc.org/golang.org/x/crypto/openpgp/elgamal)
-// todo: possibly alternative version of Decrypt to return actual m rather than h^m
-// todo: should decrypt take BpGroup argument for the sake of consistency or just remove it?
-
-// todo: move it somewhere else as the identical code is in coconut.auxiliary... cant reference it due to cyclic
-// make separate packet for marshalling?
 var (
-	ErrUnmarshalLength = errors.New("The byte array provided is incomplete")
+	// ErrUnmarshalLength represents an error thrown during unmarshal when the byte arrays have unexpected lengths.
+	ErrUnmarshalLength = errors.New("the byte array provided is incomplete")
 )
 
 // PublicKey represents an ElGamal public key.
 type PublicKey struct {
-	P     *Curve.BIG // this attribute is redundant as it is implied from the curve used, but is introduced for consistency sake.
-	G     *Curve.ECP // this attribute is redundant as it is implied from the curve used, but is introduced for consistency sake.
-	Gamma *Curve.ECP
+	// Both p and g are redundant as they are implied from the curve used, but are introduced for consistency sake.
+	p     *Curve.BIG
+	g     *Curve.ECP
+	gamma *Curve.ECP
+}
+
+// P returns the appropriate part of the ElGamal public key.
+func (pub *PublicKey) P() *Curve.BIG {
+	return pub.p
+}
+
+// G returns the appropriate part of the ElGamal public key.
+func (pub *PublicKey) G() *Curve.ECP {
+	return pub.g
+}
+
+// Gamma returns the appropriate part of the ElGamal public key.
+func (pub *PublicKey) Gamma() *Curve.ECP {
+	return pub.gamma
+}
+
+// NewPublicKey returns new instance of ElGamal public key with the provided arguments.
+func NewPublicKey(p *Curve.BIG, g *Curve.ECP, gamma *Curve.ECP) *PublicKey {
+	return &PublicKey{
+		p:     p,
+		g:     g,
+		gamma: gamma,
+	}
 }
 
 // PrivateKey represents an ElGamal private key.
 type PrivateKey struct {
-	D *Curve.BIG
+	d *Curve.BIG
+}
+
+// D returns the appropriate part of the ElGamal private key.
+func (pk *PrivateKey) D() *Curve.BIG {
+	return pk.d
+}
+
+// NewPrivateKey returns new instance of ElGamal private key with the provided argument.
+func NewPrivateKey(d *Curve.BIG) *PrivateKey {
+	return &PrivateKey{
+		d: d,
+	}
 }
 
 // MarshalBinary is an implementation of a method on the
@@ -78,14 +104,17 @@ func (pub *PublicKey) UnmarshalBinary(data []byte) error {
 
 // ToProto creates a protobuf representation of the object.
 func (pub *PublicKey) ToProto() (*ProtoPublicKey, error) {
+	if pub == nil || pub.p == nil || pub.g == nil || pub.gamma == nil {
+		return nil, errors.New("the elgamal public key is malformed")
+	}
 	blen := constants.BIGLen
 	eclen := constants.ECPLen
 	pb := make([]byte, blen)
 	gb := make([]byte, eclen)
 	gammab := make([]byte, eclen)
-	pub.P.ToBytes(pb)
-	pub.G.ToBytes(gb, true)
-	pub.Gamma.ToBytes(gammab, true)
+	pub.p.ToBytes(pb)
+	pub.g.ToBytes(gb, true)
+	pub.gamma.ToBytes(gammab, true)
 	return &ProtoPublicKey{
 		P:     pb,
 		G:     gb,
@@ -96,42 +125,40 @@ func (pub *PublicKey) ToProto() (*ProtoPublicKey, error) {
 // FromProto takes a protobuf representation of the object and
 // unmarshals its attributes.
 func (pub *PublicKey) FromProto(ppub *ProtoPublicKey) error {
-	pub.P = Curve.FromBytes(ppub.P)
-	pub.G = Curve.ECP_fromBytes(ppub.G)
-	pub.Gamma = Curve.ECP_fromBytes(ppub.Gamma)
+	blen := constants.BIGLen
+	eclen := constants.ECPLen
+	if ppub == nil || len(ppub.P) != blen || len(ppub.G) != eclen || len(ppub.Gamma) != eclen {
+		return errors.New("invalid proto elgamal public key")
+	}
+	pub.p = Curve.FromBytes(ppub.P)
+	pub.g = Curve.ECP_fromBytes(ppub.G)
+	pub.gamma = Curve.ECP_fromBytes(ppub.Gamma)
 	return nil
 }
 
 // ToPEMFile writes out the verification key to a PEM file at path f.
 func (pub *PublicKey) ToPEMFile(f string) error {
-	b, err := pub.MarshalBinary()
-	if err != nil {
-		return err
-	}
-	blk := &pem.Block{
-		Type:  constants.ElGamalPublicKeyType,
-		Bytes: b,
-	}
-	return ioutil.WriteFile(f, pem.EncodeToMemory(blk), 0600)
+	return cmnutils.ToPEMFile(pub, f, constants.ElGamalPublicKeyType)
 }
 
 // FromPEMFile reads out the secret key from a PEM file at path f.
 func (pub *PublicKey) FromPEMFile(f string) error {
-	if buf, err := ioutil.ReadFile(filepath.Clean(f)); err == nil {
-		blk, rest := pem.Decode(buf)
-		if len(rest) != 0 {
-			return fmt.Errorf("trailing garbage after PEM encoded secret key")
-		}
-		if blk.Type != constants.ElGamalPublicKeyType {
-			return fmt.Errorf("invalid PEM Type: '%v'", blk.Type)
-		}
-		if pub.UnmarshalBinary(blk.Bytes) != nil {
-			return errors.New("failed to read public key from PEM file")
-		}
-	} else if !os.IsNotExist(err) {
-		return err
+	return cmnutils.FromPEMFile(pub, f, constants.ElGamalPublicKeyType)
+}
+
+// Validate checks for nil elements in the key.
+func (pub *PublicKey) Validate() bool {
+	if pub == nil || pub.g == nil || pub.gamma == nil || pub.p == nil {
+		return false
 	}
-	return nil
+
+	expg := Curve.ECP_generator()
+	expp := Curve.NewBIGints(Curve.CURVE_Order)
+
+	if !pub.g.Equals(expg) || Curve.Comp(expp, pub.p) != 0 {
+		return false
+	}
+	return true
 }
 
 // MarshalBinary is an implementation of a method on the
@@ -156,22 +183,17 @@ func (pk *PrivateKey) UnmarshalBinary(data []byte) error {
 
 // ToPEMFile writes out the secret key to a PEM file at path f.
 func (pk *PrivateKey) ToPEMFile(f string) error {
-	b, err := pk.MarshalBinary()
-	if err != nil {
-		return err
-	}
-	blk := &pem.Block{
-		Type:  constants.ElGamalPrivateKeyType,
-		Bytes: b,
-	}
-	return ioutil.WriteFile(f, pem.EncodeToMemory(blk), 0600)
+	return cmnutils.ToPEMFile(pk, f, constants.ElGamalPrivateKeyType)
 }
 
 // ToProto creates a protobuf representation of the object.
 func (pk *PrivateKey) ToProto() (*ProtoPrivateKey, error) {
+	if pk == nil || pk.d == nil {
+		return nil, errors.New("the elgamal private key is malformed")
+	}
 	blen := constants.BIGLen
 	db := make([]byte, blen)
-	pk.D.ToBytes(db)
+	pk.d.ToBytes(db)
 	return &ProtoPrivateKey{
 		D: db,
 	}, nil
@@ -180,27 +202,30 @@ func (pk *PrivateKey) ToProto() (*ProtoPrivateKey, error) {
 // FromProto takes a protobuf representation of the object and
 // unmarshals its attributes.
 func (pk *PrivateKey) FromProto(ppk *ProtoPrivateKey) error {
-	pk.D = Curve.FromBytes(ppk.D)
+	blen := constants.BIGLen
+	if ppk == nil || len(ppk.D) != blen {
+		return errors.New("invalid proto elgamal private key")
+	}
+	pk.d = Curve.FromBytes(ppk.D)
 	return nil
 }
 
 // FromPEMFile reads out the secret key from a PEM file at path f.
 func (pk *PrivateKey) FromPEMFile(f string) error {
-	if buf, err := ioutil.ReadFile(filepath.Clean(f)); err == nil {
-		blk, rest := pem.Decode(buf)
-		if len(rest) != 0 {
-			return fmt.Errorf("trailing garbage after PEM encoded secret key")
-		}
-		if blk.Type != constants.ElGamalPrivateKeyType {
-			return fmt.Errorf("invalid PEM Type: '%v'", blk.Type)
-		}
-		if pk.UnmarshalBinary(blk.Bytes) != nil {
-			return errors.New("failed to read private key from PEM file")
-		}
-	} else if !os.IsNotExist(err) {
-		return err
+	return cmnutils.FromPEMFile(pk, f, constants.ElGamalPrivateKeyType)
+}
+
+// Validate checks for nil elements in the key.
+func (pk *PrivateKey) Validate() bool {
+	if pk == nil || pk.d == nil {
+		return false
 	}
-	return nil
+	return true
+}
+
+// ValidateKeyPair checks if the ElGamal keypair was correctly formed.
+func ValidateKeyPair(pk *PrivateKey, pub *PublicKey) bool {
+	return pk.Validate() && pub.Validate() && pub.gamma.Equals(Curve.G1mul(pub.g, pk.d))
 }
 
 // EncryptionResult encapsulates entire result of ElGamal encryption, including random k.
@@ -258,6 +283,9 @@ func (e *Encryption) UnmarshalBinary(data []byte) error {
 
 // ToProto creates a protobuf representation of the object.
 func (e *Encryption) ToProto() (*ProtoEncryption, error) {
+	if e == nil || e.c1 == nil || e.c2 == nil {
+		return nil, errors.New("the elgamal encryption is malformed")
+	}
 	eclen := constants.ECPLen
 	c1b := make([]byte, eclen)
 	c2b := make([]byte, eclen)
@@ -272,9 +300,21 @@ func (e *Encryption) ToProto() (*ProtoEncryption, error) {
 // FromProto takes a protobuf representation of the object and
 // unmarshals its attributes.
 func (e *Encryption) FromProto(pe *ProtoEncryption) error {
+	eclen := constants.ECPLen
+	if pe == nil || len(pe.C1) != eclen || len(pe.C2) != eclen {
+		return errors.New("invalid proto encryption")
+	}
 	e.c1 = Curve.ECP_fromBytes(pe.C1)
 	e.c2 = Curve.ECP_fromBytes(pe.C2)
 	return nil
+}
+
+// Validate checks for nil elements in the encryption.
+func (e *Encryption) Validate() bool {
+	if e == nil || e.c1 == nil || e.c2 == nil {
+		return false
+	}
+	return true
 }
 
 // NewEncryptionFromPoints wraps two points on G1 curve as ElGamal Encryption.
@@ -288,20 +328,20 @@ func NewEncryptionFromPoints(c1 *Curve.ECP, c2 *Curve.ECP) *Encryption {
 // Keygen generates private and public keys required for ElGamal encryption scheme.
 // Passing coconut.Params as an argument would cause issues with cyclic dependencies,
 // passing BpGroup in that case is sufficient.
-func Keygen(G *bpgroup.BpGroup) (*PrivateKey, *PublicKey) {
-	p, g1, rng := G.Order(), G.Gen1(), G.Rng()
+func Keygen(g *bpgroup.BpGroup) (*PrivateKey, *PublicKey) {
+	p, g1, rng := g.Order(), g.Gen1(), g.Rng()
 
 	d := Curve.Randomnum(p, rng)
 	gamma := Curve.G1mul(g1, d)
-	return &PrivateKey{d}, &PublicKey{p, g1, gamma}
+	return &PrivateKey{d: d}, &PublicKey{p: p, g: g1, gamma: gamma}
 }
 
 // Encrypt encrypts the given message in the form of h^m,
 // where h is a point on the G1 curve using the given public key.
 // The random k is returned alongside the encryption
 // as it is required by the Coconut Scheme to create proofs of knowledge.
-func Encrypt(G *bpgroup.BpGroup, pub *PublicKey, m *Curve.BIG, h *Curve.ECP) (*Encryption, *Curve.BIG) {
-	gamma, p, g1, rng := pub.Gamma, pub.P, pub.G, G.Rng()
+func Encrypt(g *bpgroup.BpGroup, pub *PublicKey, m *Curve.BIG, h *Curve.ECP) (*Encryption, *Curve.BIG) {
+	gamma, p, g1, rng := pub.gamma, pub.p, pub.g, g.Rng()
 
 	k := Curve.Randomnum(p, rng)
 	a := Curve.G1mul(g1, k)
@@ -313,8 +353,8 @@ func Encrypt(G *bpgroup.BpGroup, pub *PublicKey, m *Curve.BIG, h *Curve.ECP) (*E
 
 // Decrypt takes the ElGamal encryption of a message and returns a point on the G1 curve
 // that represents original h^m.
-func Decrypt(G *bpgroup.BpGroup, pk *PrivateKey, enc *Encryption) *Curve.ECP {
-	d := pk.D
+func Decrypt(g *bpgroup.BpGroup, pk *PrivateKey, enc *Encryption) *Curve.ECP {
+	d := pk.d
 
 	dec := Curve.NewECP()
 	dec.Copy(enc.c2)
@@ -327,5 +367,15 @@ func NewEncryptionResult(enc *Encryption, k *Curve.BIG) *EncryptionResult {
 	return &EncryptionResult{
 		enc: enc,
 		k:   k,
+	}
+}
+
+// PublicKeyFromPrivate returns a public key instance corresponding to the provided private key.
+func PublicKeyFromPrivate(pk *PrivateKey) *PublicKey {
+	g := Curve.ECP_generator()
+	return &PublicKey{
+		p:     Curve.NewBIGints(Curve.CURVE_Order),
+		g:     g,
+		gamma: Curve.G1mul(g, pk.d),
 	}
 }

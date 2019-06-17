@@ -23,17 +23,47 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jstuczyn/CoconutGo/constants"
+	"github.com/nymtech/nym/constants"
 	"github.com/jstuczyn/amcl/version3/go/amcl"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 )
 
-// todo: verify HashBytesToG1
-// todo: wait for George's change in bplib for hashG1 -> worst case scenario is to try to butcher and modify amcl fork
-
 // Printable is a wrapper for all objects that have ToString method. In particular Curve.ECP and Curve.ECP2.
 type Printable interface {
 	ToString() string
+}
+
+// ECPSliceToPrintable converts slice of ECP to slice of Printable.
+func ECPSliceToPrintable(s []*Curve.ECP) []Printable {
+	p := make([]Printable, len(s))
+	for i := range s {
+		p[i] = s[i]
+	}
+	return p
+}
+
+// ECP2SliceToPrintable converts slice of ECP2 to slice of Printable.
+func ECP2SliceToPrintable(s []*Curve.ECP2) []Printable {
+	p := make([]Printable, len(s))
+	for i := range s {
+		p[i] = s[i]
+	}
+	return p
+}
+
+// CombinePrintables combines multiple slices of Printable into a single slice.
+func CombinePrintables(p ...[]Printable) []Printable {
+	l := 0
+	for _, ps := range p {
+		l += len(ps)
+	}
+	po := make([]Printable, l)
+	i := 0
+	for _, ps := range p {
+		j := copy(po[i:], ps)
+		i += j
+	}
+	return po
 }
 
 // ToCoconutString returns string representation of ECP or ECP2 object such that it is compatible with
@@ -83,22 +113,24 @@ func addHashPadding(sha int, b []byte) []byte {
 // It is based on the amcl implementation: https://github.com/milagro-crypto/amcl/blob/master/version3/go/MPIN.go#L83
 func HashBytes(sha int, b []byte) ([]byte, error) {
 	var R []byte
-	if sha == amcl.SHA256 {
+	switch sha {
+	case amcl.SHA256:
 		H := amcl.NewHASH256()
 		H.Process_array(b)
 		R = H.Hash()
-	} else if sha == amcl.SHA384 {
+	case amcl.SHA384:
 		H := amcl.NewHASH384()
 		H.Process_array(b)
 		R = H.Hash()
-	} else if sha == amcl.SHA512 {
+	case amcl.SHA512:
 		H := amcl.NewHASH512()
 		H.Process_array(b)
 		R = H.Hash()
+	default:
+		return []byte{}, errors.New("unknown sha provided")
 	}
-
 	if R == nil {
-		return []byte{}, errors.New("Nil hash result")
+		return []byte{}, errors.New("nil hash result")
 	}
 	return R, nil
 }
@@ -114,7 +146,7 @@ func HashStringToBig(sha int, m string) (*Curve.BIG, error) {
 func HashBytesToBig(sha int, b []byte) (*Curve.BIG, error) {
 	if Curve.CURVE_PAIRING_TYPE == Curve.BN && sha != amcl.SHA256 {
 		// if curve used is BN254, ensure the used hash is SHA256 as this is what is used by Python implementation
-		return nil, fmt.Errorf("Hashing to BIG on BN254 requires SHA256 (%d), but %d was used instead", amcl.SHA256, sha)
+		return nil, fmt.Errorf("hashing to BIG on BN254 requires SHA256 (%d), but %d was used instead", amcl.SHA256, sha)
 	}
 	R, err := HashBytes(sha, b)
 	if err != nil {
@@ -139,13 +171,12 @@ func HashStringToG1(sha int, m string) (*Curve.ECP, error) {
 
 // HashBytesToG1 takes a bytes message and maps it to a point on G1 Curve
 // Python implementation use SHA512, so temporarily hardcoding it here
-// todo: NEED GEORGE'S FIX TO KNOW HOW TO FURTHER CHANGE IT
 func HashBytesToG1(sha int, b []byte) (*Curve.ECP, error) {
 	// Follow Python implementation
 	if Curve.CURVE_PAIRING_TYPE == Curve.BN {
 		// temp solution as it depends on George's decision in bplib
 		if sha != amcl.SHA512 {
-			return nil, fmt.Errorf("Hashing to G1 on BN254 requires SHA512 (%d), but %d was used instead", amcl.SHA512, sha)
+			return nil, fmt.Errorf("hashing to G1 on BN254 requires SHA512 (%d), but %d was used instead", amcl.SHA512, sha)
 		}
 
 		p := Curve.NewBIGints(Curve.Modulus)
@@ -185,6 +216,7 @@ func PolyEval(coeff []*Curve.BIG, x *Curve.BIG, o *Curve.BIG) *Curve.BIG {
 		t := x.Powmod(iBIG, o)                             // x ^ i
 		result = result.Plus(Curve.Modmul(coeff[i], t, o)) // coeff[0] * x ^ 0 + ... + coeff[i] * x ^ i
 	}
+	result.Mod(o)
 	return result
 }
 

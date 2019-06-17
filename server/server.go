@@ -1,5 +1,5 @@
 // server.go - Coconut IA Server
-// Copyright (C) 2018  Jedrzej Stuczynski.
+// Copyright (C) 2018-2019  Jedrzej Stuczynski.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -19,221 +19,131 @@ package server
 
 import (
 	"errors"
+	"fmt"
 	"sync"
-	"time"
 
-	"github.com/eapache/channels"
-
-	"github.com/jstuczyn/CoconutGo/crypto/coconut/concurrency/jobworker"
-	"github.com/jstuczyn/CoconutGo/crypto/coconut/scheme"
-	"github.com/jstuczyn/CoconutGo/logger"
-	grpclistener "github.com/jstuczyn/CoconutGo/server/comm/grpc/listener"
-	"github.com/jstuczyn/CoconutGo/server/comm/utils"
-	"github.com/jstuczyn/CoconutGo/server/commands"
-	"github.com/jstuczyn/CoconutGo/server/config"
-	"github.com/jstuczyn/CoconutGo/server/cryptoworker"
-	"github.com/jstuczyn/CoconutGo/server/listener"
+	"github.com/nymtech/nym/common/comm/commands"
+	"github.com/nymtech/nym/crypto/coconut/concurrency/jobqueue"
+	"github.com/nymtech/nym/crypto/coconut/concurrency/jobworker"
+	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
+	"github.com/nymtech/nym/logger"
+	"github.com/nymtech/nym/server/config"
+	grpclistener "github.com/nymtech/nym/server/grpc/listener"
+	"github.com/nymtech/nym/server/listener"
+	"github.com/nymtech/nym/server/requestqueue"
+	"github.com/nymtech/nym/server/serverworker"
+	"github.com/nymtech/nym/server/storage"
+	nymclient "github.com/nymtech/nym/tendermint/client"
 	"gopkg.in/op/go-logging.v1"
 )
 
-// todo: if provider AND issuer: ONLY accept getVK requests before completing startup
+const (
+	dbName = "serverStore"
+)
 
-// Server defines all the required attributes for a coconut server.
-type Server struct {
-	cfg *config.Config
-
-	sk  *coconut.SecretKey
-	vk  *coconut.VerificationKey
-	avk *coconut.VerificationKey
-
-	cmdCh *channels.InfiniteChannel
-	jobCh *channels.InfiniteChannel
-	log   *logging.Logger
-
-	cryptoWorkers []*cryptoworker.Worker
+// BaseServer defines all the required attributes for a coconut server.
+type BaseServer struct {
+	log           *logging.Logger
+	cmdCh         *requestqueue.RequestQueue
+	serverWorkers []*serverworker.ServerWorker
 	listeners     []*listener.Listener
 	grpclisteners []*grpclistener.Listener
-	jobWorkers    []*jobworker.Worker
-
-	haltedCh chan interface{}
-	haltOnce sync.Once
+	jobWorkers    []*jobworker.JobWorker
+	store         *storage.Database
+	nymClient     *nymclient.Client
+	haltedCh      chan interface{}
+	haltOnce      sync.Once
 }
 
-// GetIAsVerificationKeys gets verification keys of the issuers. Returns at least threshold number of them or nil if it times out.
-func (s *Server) GetIAsVerificationKeys() ([]*coconut.VerificationKey, *coconut.PolynomialPoints) {
-	maxRequests := s.cfg.Debug.ProviderMaxRequests
-	if s.cfg.Debug.ProviderMaxRequests <= 0 {
-		maxRequests = 16 // virtually no limit for our needs, but in case there's a bug somewhere it wouldn't destroy it all.
-	}
+func (s *BaseServer) NymClient() *nymclient.Client {
+	return s.nymClient
+}
 
-	cmd, err := commands.NewVerificationKeyRequest()
-	if err != nil {
-		s.log.Errorf("Failed to create Vk request: %v", err)
-		return nil, nil
-	}
-	packetBytes := utils.CommandToMarshaledPacket(cmd, commands.GetVerificationKeyID)
-	if packetBytes == nil {
-		s.log.Error("Could not create VK data packet") // should never happen...
-		return nil, nil
-	}
+func (s *BaseServer) Store() *storage.Database {
+	return s.store
+}
 
-	s.log.Notice("Going to send GetVK request to %v IAs", len(s.cfg.Provider.IAAddresses))
+func (s *BaseServer) CmdChIn() chan<- *commands.CommandRequest {
+	return s.cmdCh.In()
+}
 
-	var closeOnce sync.Once
+func (s *BaseServer) Listeners() []*listener.Listener {
+	return s.listeners
+}
 
-	responses := make([]*utils.ServerResponse, len(s.cfg.Provider.IAAddresses)) // can't possibly get more results
-	respCh := make(chan *utils.ServerResponse)
-	receivedResponses := make(map[string]bool)
+func (s *BaseServer) GrpcListeners() []*grpclistener.Listener {
+	return s.grpclisteners
+}
 
-	retryTicker := time.NewTicker(time.Duration(s.cfg.Debug.ProviderStartupRetryInterval) * time.Millisecond)
-	timeout := time.After(time.Duration(s.cfg.Debug.ProviderStartupTimeout) * time.Millisecond)
-
-outLoop:
-	for {
-		select {
-		// todo: figure out how to enter the case immediately without waiting for first tick
-		case <-retryTicker.C:
-			// this is recreated every run so that we would not get stale results
-			reqCh := utils.SendServerRequests(respCh, maxRequests, s.log, s.cfg.Debug.ConnectTimeout)
-
-			// write requests in a goroutine so we wouldn't block when trying to read responses
-			go func() {
-				defer func() {
-					// in case the channel unexpectedly blocks (which should THEORETICALLY not happen),
-					// the server won't crash
-					if r := recover(); r != nil {
-						s.log.Critical("Recovered: %v", r)
-					}
-				}()
-				for i := range s.cfg.Provider.IAAddresses {
-					if _, ok := receivedResponses[s.cfg.Provider.IAAddresses[i]]; !ok {
-						s.log.Debug("Writing request to %v", s.cfg.Provider.IAAddresses[i])
-						reqCh <- &utils.ServerRequest{MarshaledData: packetBytes, ServerAddress: s.cfg.Provider.IAAddresses[i], ServerID: s.cfg.Provider.IAIDs[i]}
-					}
-				}
-				closeOnce.Do(func() { close(reqCh) }) // to terminate the goroutines after they are done
-			}()
-			utils.WaitForServerResponses(respCh, responses[len(receivedResponses):], s.log, s.cfg.Debug.RequestTimeout)
-			closeOnce.Do(func() { close(reqCh) })
-
-			for i := range responses {
-				if responses[i] != nil {
-					receivedResponses[responses[i].ServerAddress] = true
-				}
-			}
-
-			if len(receivedResponses) == len(s.cfg.Provider.IAAddresses) {
-				s.log.Notice("Received Verification Keys from all IAs")
-				break outLoop
-			} else if len(receivedResponses) >= s.cfg.Provider.Threshold {
-				s.log.Notice("Did not receive all verification keys, but got more than (or equal to) threshold of them")
-				break outLoop
-			} else {
-				s.log.Noticef("Did not receive enough verification keys (%v out of minimum %v)", len(receivedResponses), s.cfg.Provider.Threshold)
-			}
-
-		case <-timeout:
-			s.log.Critical("Timed out while starting up...")
-			return nil, nil
-		}
-	}
-	retryTicker.Stop()
-
-	vks, pp := utils.ParseVerificationKeyResponses(responses, s.cfg.Provider.Threshold > 0, s.log)
-
-	if len(vks) >= s.cfg.Provider.Threshold && len(vks) > 0 {
-		s.log.Notice("Number of verification keys received is within threshold")
-	} else {
-		s.log.Error("Received less than threshold number of verification keys")
-		return nil, nil
-	}
-
-	return vks, pp
+func (s *BaseServer) ServerWorkers() []*serverworker.ServerWorker {
+	return s.serverWorkers
 }
 
 // New returns a new Server instance parameterized with the specified configuration.
-func New(cfg *config.Config) (*Server, error) {
-	var err error
-
-	log := logger.New(cfg.Logging.File, cfg.Logging.Level, cfg.Logging.Disable)
-	if log == nil {
-		return nil, errors.New("Failed to create a logger")
+// nolint: gocyclo
+func New(cfg *config.Config, log *logger.Logger) (*BaseServer, error) {
+	// there is no need to further validate it, as if it's not nil, it was already done
+	if cfg == nil {
+		return nil, errors.New("nil config provided")
 	}
-	serverLog := log.GetLogger("Server")
+	serverLog := log.GetLogger("BaseServer - " + cfg.Server.Identifier)
 
-	// ensures that it IS displayed if any logging at all is enabled
-	serverLog.Critical("Logging level set to %v", cfg.Logging.Level)
-	serverLog.Notice("Server's functionality: \nProvider:\t%v\nIA:\t\t%v", cfg.Server.IsProvider, cfg.Server.IsIssuer)
+	jobCh := jobqueue.New()     // commands issued by coconutworkers, like do pairing, g1mul, etc
+	cmdCh := requestqueue.New() // commands received via the socket, like sign those attributes
 
-	jobCh := channels.NewInfiniteChannel() // commands issued by coconutworkers, like do pairing, g1mul, etc
-	cmdCh := channels.NewInfiniteChannel() // commands received via the socket, like sign those attributes
+	params, err := coconut.Setup(cfg.Server.MaximumAttributes)
+	if err != nil {
+		return nil, err
+	}
 
-	sk := &coconut.SecretKey{}
-	vk := &coconut.VerificationKey{}
+	var nymClient *nymclient.Client
+	var store *storage.Database
 
-	var params *coconut.Params
-
-	// if it's not an issuer, we don't care about own keys, because they are not going to be used anyway (for now).
-	if cfg.Server.IsIssuer {
-		// todo: allow for empty verification key if secret key is set
-		if cfg.Debug.RegenerateKeys || cfg.Issuer.SecretKeyFile == "" || cfg.Issuer.VerificationKeyFile == "" {
-			serverLog.Notice("Generating new sk/vk coconut keypair")
-			params, err = coconut.Setup(cfg.Issuer.MaximumAttributes)
-			if err != nil {
-				return nil, err
-			}
-			serverLog.Debug("Generated params")
-
-			sk, vk, err = coconut.Keygen(params)
-			if err != nil {
-				return nil, err
-			}
-			serverLog.Debug("Generated new keys")
-
-			if sk.ToPEMFile(cfg.Issuer.SecretKeyFile) != nil || vk.ToPEMFile(cfg.Issuer.VerificationKeyFile) != nil {
-				serverLog.Error("Couldn't write new keys to the files")
-				return nil, errors.New("Couldn't write new keys to the files")
-			}
-
-			serverLog.Notice("Written new keys to the files")
-		} else {
-			err = sk.FromPEMFile(cfg.Issuer.SecretKeyFile)
-			if err != nil {
-				return nil, err
-			}
-			err = vk.FromPEMFile(cfg.Issuer.VerificationKeyFile)
-			if err != nil {
-				return nil, err
-			}
-			if len(sk.Y()) != len(vk.Beta()) || len(sk.Y()) > cfg.Issuer.MaximumAttributes {
-				serverLog.Errorf("Couldn't Load the keys")
-				return nil, errors.New("The loaded keys were invalid. Delete the files and restart the server to regenerate them")
-				// todo: check for g^Y() == Beta() for each i
-			}
-			serverLog.Notice("Loaded Coconut server keys from the files.")
-			// succesfully loaded keys - create params of appropriate length
-			params, err = coconut.Setup(len(sk.Y()))
-			if err != nil {
-				return nil, err
-			}
-		}
+	if cfg.Debug.DisableAllBlockchainCommunication {
+		serverLog.Warning("Blockchain communication is disabled - server will not communicate with blockchain at all")
 	} else {
-		// even if it's not an issuer, it needs params to credential verification
-		params, err = coconut.Setup(cfg.Issuer.MaximumAttributes)
+		nymClient, err = nymclient.New(cfg.Server.BlockchainNodeAddresses, log)
 		if err != nil {
-			return nil, err
+			errStr := fmt.Sprintf("Failed to create a nymClient: %v", err)
+			serverLog.Error(errStr)
+			return nil, errors.New(errStr)
 		}
 	}
 
-	avk := &coconut.VerificationKey{}
-
-	cryptoWorkers := make([]*cryptoworker.Worker, cfg.Debug.NumCoconutWorkers)
-	for i := range cryptoWorkers {
-		cryptoWorkers[i] = cryptoworker.New(jobCh.In(), cmdCh.Out(), uint64(i+1), log, params, sk, vk, avk)
+	// store is currently only used if server is using a monitor
+	store, err = storage.New(dbName, cfg.Server.DataDir)
+	if err != nil {
+		serverLog.Errorf("Failed to create a data store: %v", err)
+		return nil, err
 	}
-	serverLog.Noticef("Started %v Coconut Worker(s)", cfg.Debug.NumCoconutWorkers)
 
-	jobworkers := make([]*jobworker.Worker, cfg.Debug.NumJobWorkers)
+	serverWorkers := make([]*serverworker.ServerWorker, 0, cfg.Debug.NumServerWorkers)
+	for i := 0; i < cfg.Debug.NumServerWorkers; i++ {
+		serverWorkerCfg := &serverworker.Config{
+			JobQueue:   jobCh.In(),
+			IncomingCh: cmdCh.Out(),
+			ID:         uint64(i + 1),
+			Log:        log,
+			Params:     params,
+			NymClient:  nymClient,
+			Store:      store,
+		}
+		serverWorker, nerr := serverworker.New(serverWorkerCfg)
+		if nerr == nil {
+			serverWorkers = append(serverWorkers, serverWorker)
+		} else {
+			serverLog.Errorf("Error while starting up serverWorker%v: %v", i, nerr)
+		}
+	}
+
+	if len(serverWorkers) == 0 {
+		errMsg := "could not start any server worker"
+		serverLog.Critical(errMsg)
+		return nil, errors.New(errMsg)
+	}
+	serverLog.Noticef("Started %v Server Worker(s)", cfg.Debug.NumServerWorkers)
+
+	jobworkers := make([]*jobworker.JobWorker, cfg.Debug.NumJobWorkers)
 	for i := range jobworkers {
 		jobworkers[i] = jobworker.New(jobCh.Out(), uint64(i+1), log)
 	}
@@ -249,62 +159,44 @@ func New(cfg *config.Config) (*Server, error) {
 	}
 	serverLog.Noticef("Started %v listener(s)", len(cfg.Server.Addresses))
 
+	// TODO: FIXME: deal with the grpc listeners
 	grpclisteners := make([]*grpclistener.Listener, len(cfg.Server.GRPCAddresses))
-	for i, addr := range cfg.Server.GRPCAddresses {
-		grpclisteners[i], err = grpclistener.New(cfg, cmdCh.In(), uint64(i+1), log, addr)
-		if err != nil {
-			serverLog.Errorf("Failed to spawn listener on address: %v (%v).", addr, err)
-			return nil, err
-		}
-	}
+	// for i, addr := range cfg.Server.GRPCAddresses {
+	// 	grpclisteners[i], err = grpclistener.New(cfg, cmdCh.In(), uint64(i+1), log, addr)
+	// 	if err != nil {
+	// 		serverLog.Errorf("Failed to spawn listener on address: %v (%v).", addr, err)
+	// 		return nil, err
+	// 	}
+	// }
+	// serverLog.Noticef("Started %v grpclistener(s)", len(cfg.Server.GRPCAddresses))
 
-	serverLog.Noticef("Started %v grpclistener(s)", len(cfg.Server.GRPCAddresses))
-
-	s := &Server{
-		cfg: cfg,
-
-		sk:    sk,
-		vk:    vk,
-		cmdCh: cmdCh,
-		jobCh: jobCh,
-		log:   serverLog,
-
-		cryptoWorkers: cryptoWorkers,
+	s := &BaseServer{
+		log:           serverLog,
+		cmdCh:         cmdCh,
+		serverWorkers: serverWorkers,
 		listeners:     listeners,
 		grpclisteners: grpclisteners,
 		jobWorkers:    jobworkers,
-
-		haltedCh: make(chan interface{}),
+		store:         store,
+		nymClient:     nymClient,
+		haltedCh:      make(chan interface{}),
 	}
 
-	// need to start trying to obtain vks of all IAs after starting listener in case other servers are also IA+provider
-	if !cfg.Server.IsProvider {
-		avk = nil
-	} else {
-		vks, pp := s.GetIAsVerificationKeys()
-		if vks == nil {
-			return nil, errors.New("Failed to obtain verification keys of IAs")
-		}
-		// todo: take a random worker if the are multiple ?
-		*avk = *cryptoWorkers[0].CoconutWorker().AggregateVerificationKeysWrapper(vks, pp)
-	}
-	s.avk = avk
-
-	serverLog.Noticef("Started %v Server (Issuer: %v, Provider: %v)", cfg.Server.Identifier, cfg.Server.IsIssuer, cfg.Server.IsProvider)
+	serverLog.Noticef("Started %v Base Server ", cfg.Server.Identifier)
 	return s, nil
 }
 
 // Wait waits till the server is terminated for any reason.
-func (s *Server) Wait() {
+func (s *BaseServer) Wait() {
 	<-s.haltedCh
 }
 
 // Shutdown cleanly shuts down a given Server instance.
-func (s *Server) Shutdown() {
+func (s *BaseServer) Shutdown() {
 	s.haltOnce.Do(func() { s.halt() })
 }
 
-func (s *Server) halt() {
+func (s *BaseServer) halt() {
 	s.log.Notice("Starting graceful shutdown.")
 
 	for i, l := range s.grpclisteners {
@@ -322,10 +214,10 @@ func (s *Server) halt() {
 		}
 	}
 
-	for i, w := range s.cryptoWorkers {
+	for i, w := range s.serverWorkers {
 		if w != nil {
 			w.Halt()
-			s.cryptoWorkers[i] = nil
+			s.serverWorkers[i] = nil
 		}
 	}
 
@@ -334,6 +226,12 @@ func (s *Server) halt() {
 			w.Halt()
 			s.jobWorkers[i] = nil
 		}
+	}
+
+	if s.store != nil {
+		s.log.Debugf("Closing datastore")
+		s.store.Close()
+		s.store = nil
 	}
 
 	s.log.Notice("Shutdown complete.")

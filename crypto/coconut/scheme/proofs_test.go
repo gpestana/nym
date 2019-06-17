@@ -1,5 +1,5 @@
 // proofs_test.go - tests for NIZK
-// Copyright (C) 2018  Jedrzej Stuczynski.
+// Copyright (C) 2018-2019  Jedrzej Stuczynski.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -19,12 +19,12 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/jstuczyn/CoconutGo/constants"
+	"github.com/nymtech/nym/constants"
 
-	. "github.com/jstuczyn/CoconutGo/crypto/coconut/scheme"
-	"github.com/jstuczyn/CoconutGo/crypto/coconut/utils"
-	"github.com/jstuczyn/CoconutGo/crypto/elgamal"
-	. "github.com/jstuczyn/CoconutGo/crypto/testutils"
+	. "github.com/nymtech/nym/crypto/coconut/scheme"
+	"github.com/nymtech/nym/crypto/coconut/utils"
+	"github.com/nymtech/nym/crypto/elgamal"
+	. "github.com/nymtech/nym/crypto/testutils"
 	"github.com/jstuczyn/amcl/version3/go/amcl"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 )
@@ -50,6 +50,7 @@ func BenchmarkConstructSignerProof(b *testing.B) {
 	// so only variable number of private attributes is being tested
 	privns := []int{1, 3, 5, 10}
 	for _, privn := range privns {
+		privn := privn
 		b.Run(fmt.Sprintf("priv=%d", privn), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				b.StopTimer()
@@ -83,7 +84,7 @@ func BenchmarkConstructSignerProof(b *testing.B) {
 				}
 
 				b.StartTimer()
-				_, err := ConstructSignerProof(params, egPub.Gamma, encs, cm, ks, r, []*Curve.BIG{}, privs)
+				_, err := ConstructSignerProof(params, egPub.Gamma(), encs, cm, ks, r, []*Curve.BIG{}, privs)
 				if err != nil {
 					panic(err)
 				}
@@ -95,6 +96,7 @@ func BenchmarkConstructSignerProof(b *testing.B) {
 func BenchmarkVerifySignerProof(b *testing.B) {
 	privns := []int{1, 3, 5, 10}
 	for _, privn := range privns {
+		privn := privn
 		b.Run(fmt.Sprintf("priv=%d", privn), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				b.StopTimer()
@@ -127,10 +129,10 @@ func BenchmarkVerifySignerProof(b *testing.B) {
 					ks[i] = k
 				}
 
-				signerProof, _ := ConstructSignerProof(params, egPub.Gamma, encs, cm, ks, r, []*Curve.BIG{}, privs)
-				bsm := NewBlindSignMats(cm, encs, signerProof)
+				signerProof, _ := ConstructSignerProof(params, egPub.Gamma(), encs, cm, ks, r, []*Curve.BIG{}, privs)
+				lambda := NewLambda(cm, encs, signerProof)
 				b.StartTimer()
-				isValid := VerifySignerProof(params, egPub.Gamma, bsm)
+				isValid := VerifySignerProof(params, egPub.Gamma(), lambda)
 				if !isValid {
 					panic(isValid)
 				}
@@ -140,12 +142,14 @@ func BenchmarkVerifySignerProof(b *testing.B) {
 	}
 }
 
+//nolint: gochecknoglobals
 var verifierProofRes *VerifierProof
 
 func BenchmarkConstructVerifierProof(b *testing.B) {
 	privns := []int{1, 3, 5, 10}
 	var verifierProof *VerifierProof
 	for _, privn := range privns {
+		privn := privn
 		b.Run(fmt.Sprintf("priv=%d", privn), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				b.StopTimer()
@@ -167,18 +171,19 @@ func BenchmarkConstructVerifierProof(b *testing.B) {
 
 				t := Curve.Randomnum(p, rng)
 				b.StartTimer()
-				verifierProof = ConstructVerifierProof(params, vk, sig, privs, t)
+				verifierProof, _ = ConstructVerifierProof(params, vk, sig, privs, t)
 			}
 		})
 	}
 	// it is recommended to store results in package level variables,
-	// so that compiler would not try to optimize the benchmark
+	// so that compiler would not try to optimise the benchmark
 	verifierProofRes = verifierProof
 }
 
 func BenchmarkVerifyVerifierProof(b *testing.B) {
 	privns := []int{1, 3, 5, 10}
 	for _, privn := range privns {
+		privn := privn
 		b.Run(fmt.Sprintf("priv=%d", privn), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				b.StopTimer()

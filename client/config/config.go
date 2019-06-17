@@ -17,8 +17,6 @@
 // Package config defines configuration used by coconut client.
 package config
 
-// todo: once all options are figured out, introduce validation
-
 import (
 	"errors"
 	"io/ioutil"
@@ -26,15 +24,22 @@ import (
 	"runtime"
 
 	"github.com/BurntSushi/toml"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 )
+
+// TODO: refactor config structure, change section names, move attributes around, etc.
 
 const (
 	defaultLogLevel = "NOTICE"
 
-	defaultConnectTimeout = 1 * 1000 // 1 sec.
-	defaultRequestTimeout = 5 * 1000 // 5 sec.
-	defaultMaxRequests    = 3
-	noLimitMaxRequests    = 16
+	defaultConnectTimeout    = 5 * 1000  // 5 sec.
+	defaultRequestTimeout    = 30 * 1000 // 30 sec.
+	defaultMaxRequests       = 3
+	noLimitMaxRequests       = 16
+	defaultMaximumAttributes = 5
+
+	defaultLookUpBackoff         = 10 * 1000 // 10 sec.
+	defaultNumberOfLookUpRetries = 3
 )
 
 // nolint: gochecknoglobals
@@ -52,25 +57,15 @@ type Client struct {
 	// IAAddresses are the IP address:port combinations of Issuing Authority Servers.
 	IAAddresses []string
 
+	// UseGRPC specifies whether to use gRPC for sending server requests or TCP sockets.
+	UseGRPC bool
+
 	// IAAddresses are the gRPC IP address:port combinations of Issuing Authority Servers.
 	IAgRPCAddresses []string
-
-	// IAIDs are IDs of the servers used during generation of threshold keys.
-	// If empty, it is going to be assumed that IAAddresses are ordered correctly.
-	IAIDs []int
 
 	// MaxRequests defines maximum number of concurrent requests each client can make.
 	// -1 indicates no limit
 	MaxRequests int
-
-	// PersistentKeys specifies whether to use the keys from the files or create new ones every time.
-	PersistentKeys bool
-
-	// PublicKeyFile specifies the file containing the Coconut-specific ElGamal Public Key.
-	PublicKeyFile string
-
-	// PrivateKeyFile specifies the file containing the Coconut-specific ElGamal Private Key.
-	PrivateKeyFile string
 
 	// Threshold defines minimum number of signatures client needs to obtain. Default = len(IAAddresses).
 	// 0 = no threshold
@@ -80,11 +75,36 @@ type Client struct {
 	MaximumAttributes int
 }
 
+// Nym defines Nym-specific configuration options.
+type Nym struct {
+	// NymContract defined address of the ERC20 token Nym contract. It is expected to be provided in hex format.
+	NymContract ethcommon.Address
+
+	// PipeAccount defines address of Ethereum account that pipes Nym ERC20 into Nym Tendermint coins.
+	// It is expected to be provided in hex format.
+	PipeAccount ethcommon.Address
+
+	// AccountKeysFile specifies the file containing keys used for the accounts on the Nym Blockchain.
+	AccountKeysFile string
+
+	// BlockchainNodeAddresses specifies addresses of blockchain nodes
+	// to which the client should send all relevant requests.
+	// Note that only a single request will ever be sent, but multiple addresses are provided in case
+	// the particular node was unavailable.
+	BlockchainNodeAddresses []string
+
+	// EthereumNodeAddresses specifies addresses of Ethereum nodes
+	// to which the client should send all relevant requests.
+	// Note that only a single request will ever be sent, but multiple addresses are provided in case
+	// the particular node was unavailable. (TODO: implement this functionality)
+	EthereumNodeAddresses []string
+}
+
 // Debug is the Coconut Client debug configuration.
 type Debug struct {
 	// NumJobWorkers specifies the number of worker instances to use for jobpacket processing.
-
 	NumJobWorkers int
+
 	// ConnectTimeout specifies the maximum time a connection can take to establish a TCP/IP connection in milliseconds.
 	ConnectTimeout int
 
@@ -93,6 +113,13 @@ type Debug struct {
 
 	// RegenerateKeys specifies whether to generate new Coconut-specific ElGamal keypair and overwrite existing files.
 	RegenerateKeys bool
+
+	// NumberOfLookUpRetries specifies maximum number of retries to call issuer to look up the credentials.
+	NumberOfLookUpRetries int
+
+	// LookUpBackoff specifies the backoff duration after failing to look up credential
+	// (assuming it was due to not being processed yet).
+	LookUpBackoff int
 }
 
 func (dCfg *Debug) applyDefaults() {
@@ -104,6 +131,12 @@ func (dCfg *Debug) applyDefaults() {
 	}
 	if dCfg.RequestTimeout <= 0 {
 		dCfg.RequestTimeout = defaultRequestTimeout
+	}
+	if dCfg.NumberOfLookUpRetries <= 0 {
+		dCfg.NumberOfLookUpRetries = defaultNumberOfLookUpRetries
+	}
+	if dCfg.LookUpBackoff <= 0 {
+		dCfg.LookUpBackoff = defaultLookUpBackoff
 	}
 }
 
@@ -122,18 +155,16 @@ type Logging struct {
 // Config is the top level Coconut Client configuration.
 type Config struct {
 	Client  *Client
+	Nym     *Nym
 	Logging *Logging
 
 	Debug *Debug
 }
 
+// nolint: gocyclo
 func (cfg *Config) validateAndApplyDefaults() error {
 	if cfg.Client == nil {
 		return errors.New("config: No Client block was present")
-	}
-	// does not care if files are empty, if so, new keys will be generated and written there
-	if cfg.Client.PersistentKeys && (cfg.Client.PrivateKeyFile == "" || cfg.Client.PublicKeyFile == "") {
-		return errors.New("config: No key files were provided")
 	}
 
 	if cfg.Client.MaxRequests == 0 {
@@ -142,13 +173,16 @@ func (cfg *Config) validateAndApplyDefaults() error {
 		cfg.Client.MaxRequests = noLimitMaxRequests
 	}
 
-	if len(cfg.Client.IAIDs) <= 0 {
-		IAIDs := make([]int, len(cfg.Client.IAAddresses))
-		for i := range cfg.Client.IAAddresses {
-			IAIDs[i] = i + 1
-		}
-	} else if len(cfg.Client.IAIDs) != len(cfg.Client.IAAddresses) {
-		return errors.New("config: Invalid server configuration")
+	if cfg.Client.MaximumAttributes == 0 {
+		cfg.Client.MaximumAttributes = defaultMaximumAttributes
+	}
+
+	if len(cfg.Client.IAAddresses) == 0 && !cfg.Client.UseGRPC {
+		return errors.New("config: No server addresses provided")
+	}
+
+	if len(cfg.Client.IAgRPCAddresses) == 0 && cfg.Client.UseGRPC {
+		return errors.New("config: No server gRPC addresses provided")
 	}
 
 	if cfg.Debug == nil {
@@ -160,17 +194,32 @@ func (cfg *Config) validateAndApplyDefaults() error {
 		cfg.Logging = &defaultLogging
 	}
 
+	if cfg.Nym == nil {
+		return errors.New("config: No Nym block was present")
+	}
+	if len(cfg.Nym.AccountKeysFile) == 0 {
+		return errors.New("config: No key file provided")
+	}
+	if len(cfg.Nym.BlockchainNodeAddresses) == 0 {
+		return errors.New("config: No node addresses provided")
+	}
+	if len(cfg.Nym.EthereumNodeAddresses) == 0 {
+		return errors.New("config: No ethereum node addresses provider")
+	}
+	if len(cfg.Nym.NymContract) == 0 {
+		return errors.New("config: Unspecified address of the Nym contract")
+	}
+	if len(cfg.Nym.PipeAccount) == 0 {
+		return errors.New("config: Unspecified address of the Pipe account")
+	}
 	return nil
 }
 
-// LoadFile loads, parses and validates the provided file and returns the Config.
-func LoadFile(f string) (*Config, error) {
-	b, err := ioutil.ReadFile(filepath.Clean(f))
-	if err != nil {
-		return nil, err
-	}
+// LoadBinary loads, parses and validates the provided buffer b (as a config)
+// and returns the Config.
+func LoadBinary(b []byte) (*Config, error) {
 	cfg := new(Config)
-	_, err = toml.Decode(string(b), cfg)
+	_, err := toml.Decode(string(b), cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -179,4 +228,13 @@ func LoadFile(f string) (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+// LoadFile loads, parses and validates the provided file and returns the Config.
+func LoadFile(f string) (*Config, error) {
+	b, err := ioutil.ReadFile(filepath.Clean(f))
+	if err != nil {
+		return nil, err
+	}
+	return LoadBinary(b)
 }

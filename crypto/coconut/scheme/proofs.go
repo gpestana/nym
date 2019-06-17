@@ -19,55 +19,74 @@ package coconut
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
-	"github.com/jstuczyn/CoconutGo/constants"
+	"github.com/nymtech/nym/constants"
 
-	"github.com/jstuczyn/CoconutGo/crypto/coconut/utils"
-	"github.com/jstuczyn/CoconutGo/crypto/elgamal"
+	"github.com/nymtech/nym/crypto/coconut/utils"
+	"github.com/nymtech/nym/crypto/elgamal"
 	"github.com/jstuczyn/amcl/version3/go/amcl"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 )
 
-// todo: Ensure Signer and Verifier are the correct terms for the proofs
-// todo: worker pool for concurrency
-// todo: make errors private
-// todo: deal with too lengthy function signatures
-
 var (
 	// ErrConstructSignerCiphertexts indicates that invalid ciphertexts were provided for construction of
 	// proofs for corectness of ciphertexts and cm.
-	ErrConstructSignerCiphertexts = errors.New("Invalid ciphertexts provided")
+	ErrConstructSignerCiphertexts = errors.New("invalid ciphertexts provided")
 
 	// ErrConstructSignerAttrs indicates that invalid attributes (either attributes to sign or params generated at setup)
 	// were provided for construction of proofs for corectness of ciphertexts and cm.
-	ErrConstructSignerAttrs = errors.New("More than specified number of attributes provided")
+	ErrConstructSignerAttrs = errors.New("more than specified number of attributes provided")
 )
 
 // ConstructChallenge construct a BIG num challenge by hashing a number of Eliptic Curve points
 // It's based on the original Python implementation:
 // https://github.com/asonnino/coconut/blob/master/coconut/proofs.py#L9.
-func ConstructChallenge(elems []utils.Printable) *Curve.BIG {
+func ConstructChallenge(elems []utils.Printable) (*Curve.BIG, error) {
 	csa := make([]string, len(elems))
 	for i := range elems {
 		csa[i] = utils.ToCoconutString(elems[i])
 	}
 	cs := strings.Join(csa, ",")
-	c, err := utils.HashStringToBig(amcl.SHA256, cs)
-	if err != nil {
-		panic(err)
+	return utils.HashStringToBig(amcl.SHA256, cs)
+}
+
+// CreateWitnessResponses creates responses for the witnesses for the proofs of knowledge, where
+// p is the curve order
+// ws are the witnesses
+// c is the challenge
+// xs are the secrets
+func CreateWitnessResponses(p *Curve.BIG, ws []*Curve.BIG, c *Curve.BIG, xs []*Curve.BIG) []*Curve.BIG {
+	rs := make([]*Curve.BIG, len(ws))
+	for i := range ws {
+		rs[i] = ws[i].Minus(Curve.Modmul(c, xs[i], p))
+		rs[i] = rs[i].Plus(p)
+		rs[i].Mod(p) // rs[i] = (ws[i] - c * xs[i]) % p
 	}
-	return c
+
+	return rs
 }
 
 // ConstructSignerProof creates a non-interactive zero-knowledge proof to prove corectness of ciphertexts and cm.
 // It's based on the original Python implementation:
 // https://github.com/asonnino/coconut/blob/master/coconut/proofs.py#L16
-// nolint: interfacer, lll
-func ConstructSignerProof(params *Params, gamma *Curve.ECP, encs []*elgamal.Encryption, cm *Curve.ECP, k []*Curve.BIG, r *Curve.BIG, pubM []*Curve.BIG, privM []*Curve.BIG) (*SignerProof, error) {
-	p, g1, g2, hs, rng := params.p, params.g1, params.g2, params.hs, params.G.Rng()
+func ConstructSignerProof(params *Params,
+	gamma *Curve.ECP,
+	encs []*elgamal.Encryption,
+	cm *Curve.ECP,
+	k []*Curve.BIG,
+	r *Curve.BIG,
+	pubM []*Curve.BIG,
+	privM []*Curve.BIG,
+) (*SignerProof, error) {
+	p, g1, g2, hs := params.p, params.g1, params.g2, params.hs
 
 	attributes := append(privM, pubM...)
+	// if there are no encryptions it means there are no private attributes and hence blind signature should not be used
+	if len(encs) == 0 {
+		return nil, ErrConstructSignerCiphertexts
+	}
 	if len(encs) != len(k) || len(encs) != len(privM) {
 		return nil, ErrConstructSignerCiphertexts
 	}
@@ -76,16 +95,9 @@ func ConstructSignerProof(params *Params, gamma *Curve.ECP, encs []*elgamal.Encr
 	}
 
 	// witnesses creation
-	wr := Curve.Randomnum(p, rng)
-	wk := make([]*Curve.BIG, len(k))
-	wm := make([]*Curve.BIG, len(attributes))
-
-	for i := range k {
-		wk[i] = Curve.Randomnum(p, rng)
-	}
-	for i := range attributes {
-		wm[i] = Curve.Randomnum(p, rng)
-	}
+	wr := GetRandomNums(params, 1)[0]
+	wk := GetRandomNums(params, len(k))
+	wm := GetRandomNums(params, len(attributes))
 
 	b := make([]byte, constants.ECPLen)
 	cm.ToBytes(b, true)
@@ -114,43 +126,22 @@ func ConstructSignerProof(params *Params, gamma *Curve.ECP, encs []*elgamal.Encr
 	}
 
 	tmpSlice := []utils.Printable{g1, g2, cm, h, Cw}
-	ca := make([]utils.Printable, len(tmpSlice)+len(hs)+len(Aw)+len(Bw))
-	i := copy(ca, tmpSlice)
+	ca := utils.CombinePrintables(
+		tmpSlice,
+		utils.ECPSliceToPrintable(hs),
+		utils.ECPSliceToPrintable(Aw),
+		utils.ECPSliceToPrintable(Bw),
+	)
 
-	// can't use copy for those due to type difference (utils.Printable vs *Curve.ECP)
-	for _, item := range hs {
-		ca[i] = item
-		i++
+	c, err := ConstructChallenge(ca)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct challenge: %v", err)
 	}
-	for _, item := range Aw {
-		ca[i] = item
-		i++
-	}
-	for _, item := range Bw {
-		ca[i] = item
-		i++
-	}
-
-	c := ConstructChallenge(ca)
 
 	// responses
-	rr := wr.Minus(Curve.Modmul(c, r, p))
-	rr = rr.Plus(p)
-	rr.Mod(p) // rr = (wr - c * r) % o
-
-	rk := make([]*Curve.BIG, len(wk))
-	for i := range wk {
-		rk[i] = wk[i].Minus(Curve.Modmul(c, k[i], p))
-		rk[i] = rk[i].Plus(p)
-		rk[i].Mod(p) // rk[i] = (wk[i] - c * k[i]) % o
-	}
-
-	rm := make([]*Curve.BIG, len(wm))
-	for i := range wm {
-		rm[i] = wm[i].Minus(Curve.Modmul(c, attributes[i], p))
-		rm[i] = rm[i].Plus(p)
-		rm[i].Mod(p) // rm[i] = (wm[i] - c * attributes[i]) % o
-	}
+	rr := CreateWitnessResponses(p, []*Curve.BIG{wr}, c, []*Curve.BIG{r})[0] // rr = (wr - c * r) % o
+	rk := CreateWitnessResponses(p, wk, c, k)                                // rk[i] = (wk[i] - c * k[i]) % o
+	rm := CreateWitnessResponses(p, wm, c, attributes)                       // rm[i] = (wm[i] - c * attributes[i]) % o
 
 	return &SignerProof{
 		c:  c,
@@ -163,8 +154,7 @@ func ConstructSignerProof(params *Params, gamma *Curve.ECP, encs []*elgamal.Encr
 // VerifySignerProof verifies non-interactive zero-knowledge proofs in order to check corectness of ciphertexts and cm.
 // It's based on the original Python implementation:
 // https://github.com/asonnino/coconut/blob/master/coconut/proofs.py#L41
-// nolint: lll
-func VerifySignerProof(params *Params, gamma *Curve.ECP, signMats *BlindSignMats) bool {
+func VerifySignerProof(params *Params, gamma *Curve.ECP, signMats *Lambda) bool {
 	g1, g2, hs := params.g1, params.g2, params.hs
 	cm, encs, proof := signMats.cm, signMats.enc, signMats.proof
 
@@ -202,118 +192,115 @@ func VerifySignerProof(params *Params, gamma *Curve.ECP, signMats *BlindSignMats
 	}
 
 	tmpSlice := []utils.Printable{g1, g2, cm, h, Cw}
-	ca := make([]utils.Printable, len(tmpSlice)+len(hs)+len(Aw)+len(Bw))
-	i := copy(ca, tmpSlice)
+	ca := utils.CombinePrintables(
+		tmpSlice,
+		utils.ECPSliceToPrintable(hs),
+		utils.ECPSliceToPrintable(Aw),
+		utils.ECPSliceToPrintable(Bw),
+	)
 
-	// can't use copy for those due to type difference (utils.Printable vs *Curve.ECP)
-	for _, item := range hs {
-		ca[i] = item
-		i++
-	}
-	for _, item := range Aw {
-		ca[i] = item
-		i++
-	}
-	for _, item := range Bw {
-		ca[i] = item
-		i++
+	c, err := ConstructChallenge(ca)
+	if err != nil {
+		return false
 	}
 
-	return Curve.Comp(proof.c, ConstructChallenge(ca)) == 0
+	return Curve.Comp(proof.c, c) == 0
 }
 
-// ConstructVerifierProof creates a non-interactive zero-knowledge proof in order to prove corectness of kappa and nu.
-// It's based on the original Python implementation:
-// https://github.com/asonnino/coconut/blob/master/coconut/proofs.py#L57
-// nolint: lll
-func ConstructVerifierProof(params *Params, vk *VerificationKey, sig *Signature, privM []*Curve.BIG, t *Curve.BIG) *VerifierProof {
-	p, g1, g2, hs, rng := params.p, params.g1, params.g2, params.hs, params.G.Rng()
-
-	// witnesses creation
-	wm := make([]*Curve.BIG, len(privM))
-	for i := 0; i < len(privM); i++ {
-		wm[i] = Curve.Randomnum(p, rng)
-	}
-	wt := Curve.Randomnum(p, rng)
-
-	// witnesses commitments
+func constructKappaNuCommitments(vk *VerificationKey,
+	h *Curve.ECP,
+	wt *Curve.BIG,
+	wm,
+	privM []*Curve.BIG,
+) (*Curve.ECP2, *Curve.ECP) {
+	g2 := vk.g2
 	Aw := Curve.G2mul(g2, wt) // Aw = (wt * g2)
 	Aw.Add(vk.alpha)          // Aw = (wt * g2) + alpha
 	for i := range privM {
 		Aw.Add(Curve.G2mul(vk.beta[i], wm[i])) // Aw = (wt * g2) + alpha + (wm[0] * beta[0]) + ... + (wm[i] * beta[i])
 	}
-	Bw := Curve.G1mul(sig.sig1, wt) // Bw = wt * h
+	Bw := Curve.G1mul(h, wt) // Bw = wt * h
 
+	return Aw, Bw
+}
+
+func reconstructKappaNuCommitments(params *Params,
+	vk *VerificationKey,
+	sig *Signature,
+	theta *Theta,
+) (*Curve.ECP2, *Curve.ECP) {
+	p := params.p
+
+	Aw := Curve.G2mul(theta.kappa, theta.proof.c) // Aw = (c * kappa)
+	Aw.Add(Curve.G2mul(vk.g2, theta.proof.rt))    // Aw = (c * kappa) + (rt * g2)
+
+	// Aw = (c * kappa) + (rt * g2) + (alpha)
+	Aw.Add(vk.alpha)
+	// Aw = (c * kappa) + (rt * g2) + (alpha - alpha * c) = (c * kappa) + (rt * g2) + ((1 - c) * alpha)
+	Aw.Add(Curve.G2mul(vk.alpha, Curve.Modneg(theta.proof.c, p)))
+
+	for i := range theta.proof.rm {
+		// Aw = (c * kappa) + (rt * g2) + ((1 - c) * alpha) + (rm[0] * beta[0]) + ... + (rm[i] * beta[i])
+		Aw.Add(Curve.G2mul(vk.beta[i], theta.proof.rm[i]))
+	}
+
+	Bw := Curve.G1mul(theta.nu, theta.proof.c)    // Bw = (c * nu)
+	Bw.Add(Curve.G1mul(sig.sig1, theta.proof.rt)) // Bw = (c * nu) + (rt * h)
+
+	return Aw, Bw
+}
+
+// ConstructVerifierProof creates a non-interactive zero-knowledge proof in order to prove corectness of kappa and nu.
+// It's based on the original Python implementation:
+// https://github.com/asonnino/coconut/blob/master/coconut/proofs.py#L57
+func ConstructVerifierProof(params *Params,
+	vk *VerificationKey,
+	sig *Signature,
+	privM []*Curve.BIG,
+	t *Curve.BIG,
+) (*VerifierProof, error) {
+	p, g1, g2, hs := params.p, params.g1, params.g2, params.hs
+
+	// witnesses creation
+	wm := GetRandomNums(params, len(privM))
+	wt := GetRandomNums(params, 1)[0]
+
+	// witnesses commitments
+	Aw, Bw := constructKappaNuCommitments(vk, sig.sig1, wt, wm, privM)
+
+	// construct challenge
 	tmpSlice := []utils.Printable{g1, g2, vk.alpha, Aw, Bw}
-	ca := make([]utils.Printable, len(tmpSlice)+len(hs)+len(vk.beta))
-	i := copy(ca, tmpSlice)
-
-	// can't use copy for those due to type difference (utils.Printable vs *Curve.ECP and *Curve.ECP2)
-	for _, item := range hs {
-		ca[i] = item
-		i++
+	ca := utils.CombinePrintables(tmpSlice, utils.ECPSliceToPrintable(hs), utils.ECP2SliceToPrintable(vk.beta))
+	c, err := ConstructChallenge(ca)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct challenge: %v", err)
 	}
-	for _, item := range vk.beta {
-		ca[i] = item
-		i++
-	}
-
-	c := ConstructChallenge(ca)
 
 	// responses
-	rm := make([]*Curve.BIG, len(privM))
-	for i := range privM {
-		rm[i] = wm[i].Minus(Curve.Modmul(c, privM[i], p))
-		rm[i] = rm[i].Plus(p)
-		rm[i].Mod(p)
-	}
-
-	rt := wt.Minus(Curve.Modmul(c, t, p))
-	rt = rt.Plus(p)
-	rt.Mod(p)
+	rm := CreateWitnessResponses(p, wm, c, privM)                            // rm[i] = (wm[i] - c * privM[i]) % o
+	rt := CreateWitnessResponses(p, []*Curve.BIG{wt}, c, []*Curve.BIG{t})[0] // rt = (wt - c * t) % o
 
 	return &VerifierProof{
 		c:  c,
 		rm: rm,
 		rt: rt,
-	}
+	}, nil
 }
 
 // VerifyVerifierProof verifies non-interactive zero-knowledge proofs in order to check corectness of kappa and nu.
 // It's based on the original Python implementation:
 // https://github.com/asonnino/coconut/blob/master/coconut/proofs.py#L75
-func VerifyVerifierProof(params *Params, vk *VerificationKey, sig *Signature, showMats *BlindShowMats) bool {
-	p, g1, g2, hs := params.p, params.g1, params.g2, params.hs
+func VerifyVerifierProof(params *Params, vk *VerificationKey, sig *Signature, theta *Theta) bool {
+	g1, g2, hs := params.g1, params.g2, params.hs
 
-	Aw := Curve.G2mul(showMats.kappa, showMats.proof.c) // Aw = (c * kappa)
-	Aw.Add(Curve.G2mul(vk.g2, showMats.proof.rt))       // Aw = (c * kappa) + (rt * g2)
-
-	// Aw = (c * kappa) + (rt * g2) + (alpha)
-	Aw.Add(vk.alpha)
-	// Aw = (c * kappa) + (rt * g2) + (alpha - alpha * c) = (c * kappa) + (rt * g2) + ((1 - c) * alpha)
-	Aw.Add(Curve.G2mul(vk.alpha, Curve.Modneg(showMats.proof.c, p)))
-
-	for i := range showMats.proof.rm {
-		// Aw = (c * kappa) + (rt * g2) + ((1 - c) * alpha) + (rm[0] * beta[0]) + ... + (rm[i] * beta[i])
-		Aw.Add(Curve.G2mul(vk.beta[i], showMats.proof.rm[i]))
-	}
-
-	Bw := Curve.G1mul(showMats.nu, showMats.proof.c) // Bw = (c * nu)
-	Bw.Add(Curve.G1mul(sig.sig1, showMats.proof.rt)) // Bw = (c * nu) + (rt * h)
+	Aw, Bw := reconstructKappaNuCommitments(params, vk, sig, theta)
 
 	tmpSlice := []utils.Printable{g1, g2, vk.alpha, Aw, Bw}
-	ca := make([]utils.Printable, len(tmpSlice)+len(hs)+len(vk.beta))
-	i := copy(ca, tmpSlice)
-
-	// can't use copy for those due to type difference (utils.Printable vs *Curve.ECP and *Curve.ECP2)
-	for _, item := range hs {
-		ca[i] = item
-		i++
-	}
-	for _, item := range vk.beta {
-		ca[i] = item
-		i++
+	ca := utils.CombinePrintables(tmpSlice, utils.ECPSliceToPrintable(hs), utils.ECP2SliceToPrintable(vk.beta))
+	c, err := ConstructChallenge(ca)
+	if err != nil {
+		return false
 	}
 
-	return Curve.Comp(showMats.proof.c, ConstructChallenge(ca)) == 0
+	return Curve.Comp(theta.proof.c, c) == 0
 }
