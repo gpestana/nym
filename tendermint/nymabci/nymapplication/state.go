@@ -250,9 +250,15 @@ func (app *NymApplication) updatePipeTransferNotificationCount(txHash []byte, co
 	app.state.db.Set(key, countb)
 }
 
-func (app *NymApplication) setZetaStatus(zeta []byte, status tmconst.ZetaStatus) {
+// additional data is used as a suffix for zeta status
+// currently only used for spent status to more easily query for whom redeemed given zeta
+func (app *NymApplication) setZetaStatus(zeta []byte, status tmconst.ZetaStatus, additionalData ...byte) {
 	key := prefixKey(tmconst.ZetaStatusPrefix, zeta)
-	app.state.db.Set(key, status.DbEntry())
+	value := status.DbEntry()
+	if len(additionalData) > 0 {
+		value = prefixKey(value, additionalData)
+	}
+	app.state.db.Set(key, value)
 }
 
 func (app *NymApplication) checkIfZetaIsUnspent(zeta []byte) bool {
@@ -261,7 +267,7 @@ func (app *NymApplication) checkIfZetaIsUnspent(zeta []byte) bool {
 	if status == nil {
 		return true
 	}
-	return bytes.Equal(status, tmconst.ZetaStatusSpent.DbEntry())
+	return bytes.HasPrefix(status, tmconst.ZetaStatusSpent.DbEntry())
 }
 
 func (app *NymApplication) checkZetaStatus(zeta []byte) tmconst.ZetaStatus {
@@ -270,10 +276,10 @@ func (app *NymApplication) checkZetaStatus(zeta []byte) tmconst.ZetaStatus {
 	if status == nil {
 		return tmconst.ZetaStatusUnspent
 	}
-	if bytes.Equal(status, tmconst.ZetaStatusBeingVerified.DbEntry()) {
+	if bytes.HasPrefix(status, tmconst.ZetaStatusBeingVerified.DbEntry()) {
 		return tmconst.ZetaStatusBeingVerified
 	}
-	if bytes.Equal(status, tmconst.ZetaStatusSpent.DbEntry()) {
+	if bytes.HasPrefix(status, tmconst.ZetaStatusSpent.DbEntry()) {
 		return tmconst.ZetaStatusSpent
 	}
 	// should never happen, but if unsure, always assume it's already spent and gone
