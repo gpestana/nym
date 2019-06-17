@@ -21,5 +21,8 @@ package query
 const (
 	QueryCheckBalancePath = "/balance"
 	DEBUG_printVk         = "/DEBUG_PRINTVK"
-	ZetaStatus            = "/ZetaStatus"
+	// only spent/unspent
+	ZetaStatus = "/ZetaStatus"
+	// unspent/being verified/spent(+ who was credited)
+	FullZetaStatus = "/FullZetaStatus"
 )

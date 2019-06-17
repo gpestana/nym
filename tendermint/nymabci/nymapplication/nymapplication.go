@@ -286,7 +286,10 @@ func (app *NymApplication) Query(req types.RequestQuery) types.ResponseQuery {
 	case query.QueryCheckBalancePath:
 		return app.checkAccountBalanceQuery(req)
 	case query.ZetaStatus:
+		// TODO: deprecated, use FullZetaStatus instead
 		return app.checkZeta(req)
+	case query.FullZetaStatus:
+		return app.queryCheckZetaStatus(req)
 	case query.DEBUG_printVk:
 		res, err := app.printVk(req)
 		if err == tmconst.ErrNotInDebug {

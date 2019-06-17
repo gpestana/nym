@@ -326,7 +326,7 @@ func (app *NymApplication) checkCredentialVerificationNotification(tx []byte) ui
 
 	// check if zeta status is "being verified". This implies it wasn't spent before and that it was already requested
 	// to be deposited
-	if app.checkZetaStatus(req.Zeta) != tmconst.ZetaStatusBeingVerified {
+	if !bytes.Equal(app.checkZetaStatus(req.Zeta), tmconst.ZetaStatusBeingVerified.DbEntry()) {
 		app.log.Info("Invalid zeta status")
 		return code.INVALID_ZETA_STATUS
 	}

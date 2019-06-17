@@ -270,20 +270,13 @@ func (app *NymApplication) checkIfZetaIsUnspent(zeta []byte) bool {
 	return bytes.HasPrefix(status, tmconst.ZetaStatusSpent.DbEntry())
 }
 
-func (app *NymApplication) checkZetaStatus(zeta []byte) tmconst.ZetaStatus {
+func (app *NymApplication) checkZetaStatus(zeta []byte) []byte {
 	key := prefixKey(tmconst.ZetaStatusPrefix, zeta)
 	_, status := app.state.db.Get(key)
 	if status == nil {
-		return tmconst.ZetaStatusUnspent
+		return tmconst.ZetaStatusUnspent.DbEntry()
 	}
-	if bytes.HasPrefix(status, tmconst.ZetaStatusBeingVerified.DbEntry()) {
-		return tmconst.ZetaStatusBeingVerified
-	}
-	if bytes.HasPrefix(status, tmconst.ZetaStatusSpent.DbEntry()) {
-		return tmconst.ZetaStatusSpent
-	}
-	// should never happen, but if unsure, always assume it's already spent and gone
-	return tmconst.ZetaStatusSpent
+	return status
 }
 
 // returns new number of notifications received for this transaction
