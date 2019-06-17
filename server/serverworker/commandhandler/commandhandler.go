@@ -23,6 +23,7 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"reflect"
+	"time"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
@@ -34,6 +35,7 @@ import (
 	"github.com/nymtech/nym/server/storage"
 	nymclient "github.com/nymtech/nym/tendermint/client"
 	"github.com/nymtech/nym/tendermint/nymabci/code"
+	tmconst "github.com/nymtech/nym/tendermint/nymabci/constants"
 	"github.com/nymtech/nym/tendermint/nymabci/query"
 	"github.com/nymtech/nym/tendermint/nymabci/transaction"
 	"gopkg.in/op/go-logging.v1"
@@ -460,6 +462,8 @@ func (handlerData *SpendCredentialRequestHandlerData) Data() interface{} {
 	return handlerData.VerificationData
 }
 
+// TODO: split this function into multiple functions since clearly this is a procedure taking multiple steps
+// even division into "spend" and "deposit" would make everything way more readable
 func SpendCredentialRequestHandler(ctx context.Context, reqData HandlerData) *commands.Response {
 	req := reqData.Command().(*commands.SpendCredentialRequest)
 	verificationData := reqData.Data().(SpendCredentialVerificationData)
@@ -587,7 +591,56 @@ func SpendCredentialRequestHandler(ctx context.Context, reqData HandlerData) *co
 		return response
 	}
 
-	// TODO: wait here for consensus on credential status
+	// TODO: put value of this ticker in config
+	tickerInterval := time.Second
+	retryTicker := time.NewTicker(tickerInterval)
+	log.Info("Waiting for the credential to get verified")
+outerLoop:
+	for {
+		select {
+		case <-ctx.Done():
+			// TODO: perhaps recheck at later time?
+			errMsg := "Timed out while waiting for credential verificaton"
+			setErrorResponse(log, response, errMsg, commands.StatusCode_REQUEST_TIMEOUT)
+			return response
+		case <-retryTicker.C:
+			zetaStatusRes, err := verificationData.NymClient.Query(query.FullZetaStatus, req.Theta.Zeta)
+			if err != nil {
+				errMsg := "Failed to check status of zeta"
+				setErrorResponse(log, response, errMsg, commands.StatusCode_UNAVAILABLE)
+				return response
+			}
+			zetaStatus := zetaStatusRes.Response.Value
+			if bytes.HasPrefix(zetaStatus, tmconst.ZetaStatusUnspent.DbEntry()) {
+				log.Critical("Zeta has invalid state - unspent") // TODO: what to actually do?
+				// since the transaction to blockchain succeeded, it means our request to deposit the credential
+				// was executed and zeta by default should have status of 'being verified'
+			} else if bytes.HasPrefix(zetaStatus, tmconst.ZetaStatusBeingVerified.DbEntry()) {
+				log.Debug("We are still waiting on consensus on credential validity")
+			} else if bytes.HasPrefix(zetaStatus, tmconst.ZetaStatusSpent.DbEntry()) {
+				// BytesToAddress is cropping address from the left, so it's perfect for us to remove status prefix
+				creditedProviderAddress := ethcommon.BytesToAddress(zetaStatus)
+				// make sure this is our address
+				if bytes.Equal(creditedProviderAddress[:], verificationData.Address[:]) {
+					log.Notice("The credential was deposited to our account")
+					break outerLoop
+				} else {
+					errMsg := fmt.Sprintf("The credential was deposited to an unkown account (%v). Our address: %v",
+						creditedProviderAddress.Hex(),
+						verificationData.Address.Hex(),
+					)
+					setErrorResponse(log, response, errMsg, commands.StatusCode_UNKNOWN)
+					return response
+				}
+			} else {
+				log.Critical("Unknown state?")
+				errMsg := "Zeta is in unknown state"
+				setErrorResponse(log, response, errMsg, commands.StatusCode_UNKNOWN)
+				return response
+			}
+			log.Debugf("Waiting for %v before retrying", tickerInterval)
+		}
+	}
 
 	// the response data in future might be provider dependent, to include say some authorization token
 	response.ErrorStatus = commands.StatusCode_OK
