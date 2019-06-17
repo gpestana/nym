@@ -51,12 +51,12 @@ build_nym_nodes:
 		done ;\
 		chmod g+w -R build/nodes; \
 		docker run --user $$(id -u $${USER}):$$(id -g $${USER}) --rm -v $(CURDIR)/build/nodes:/tendermint:Z tendermint/tendermint testnet --v $(NUM_NODES) --o . --populate-persistent-peers --starting-ip-address 192.167.10.2 ; \
-	fi	
+	fi
 	i=0; while [ "$$i" -lt $(NUM_NODES) ]; do \
 		sed -i -e "s/$(APP_STATE_ORIGINAL)/$(APP_STATE_REPLACEMENT)/g" build/nodes/node$$i/config/genesis.json ; \
 		i=$$((i + 1));\
 	done ;\
-	docker build -t nym/nymnode -f ./DOCKER/nym_node/Dockerfile . 	
+	docker build -t nym/nymnode -f ./DOCKER/nym_node/Dockerfile .
 
 build_ethereum_watchers:
 	@if ! [ -f build/eth_watchers/watcher1/config.toml ]; then \
@@ -88,7 +88,12 @@ localnet-build:
 	make build_providers
 	make build_verifiers
 
-# Run a 4-node testnet locally
+# Run a local testnet consisting currently of:
+# 4 tendermint nodes
+# 3 issuing authorities
+# 2 credential verifiers
+# 2 ethereum watchers
+# 2 service providers to choose from
 localnet-start:
 	@if ! [ -f build/nodes/node0/config/genesis.json ]; then make localnet-build; fi
 	docker-compose up
