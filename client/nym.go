@@ -184,21 +184,21 @@ func (c *Client) WaitForBalanceIncrease(ctx context.Context, expectedBalance uin
 	c.log.Info("Waiting for our transaction to reach Tendermint chain")
 	retryTicker := time.NewTicker(2 * time.Second)
 
-	select {
-	case <-retryTicker.C:
-		currentBalance, err := c.GetCurrentNymBalance()
-		if err != nil {
-			// TODO: should we cancel instead?
-			c.log.Warningf("Error while querying for balance: %v", err)
+	for {
+		select {
+		case <-retryTicker.C:
+			currentBalance, err := c.GetCurrentNymBalance()
+			if err != nil {
+				// TODO: should we cancel instead?
+				c.log.Warningf("Error while querying for balance: %v", err)
+			}
+			if currentBalance == expectedBalance {
+				return nil
+			}
+		case <-ctx.Done():
+			return errors.New("operation was cancelled")
 		}
-		if currentBalance == expectedBalance {
-			return nil
-		}
-	case <-ctx.Done():
-		return errors.New("operation was cancelled")
 	}
-	// should never be reached
-	return errors.New("unexpected error")
 }
 
 // LookUpIssuedCredential allows to recover a previously issued credential given knowledge of height on which we
