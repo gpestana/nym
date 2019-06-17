@@ -78,14 +78,11 @@ func (b *block) isFull() bool {
 	defer b.Unlock()
 
 	if int64(len(b.Txs)) != b.NumTxs {
-		fmt.Println("not full 1", len(b.Txs), b.NumTxs)
 		return false
 	}
 
 	for i := range b.Txs {
 		if b.Txs[i] == nil {
-			fmt.Println("not full 2", b.Txs, i)
-
 			return false
 		}
 	}
@@ -229,7 +226,7 @@ func (m *Monitor) addNewBlock(b *block) {
 		return
 	}
 
-	m.log.Infof("Block at height: %v already present", b.height)
+	m.log.Debugf("Block at height: %v already present", b.height)
 	if m.unprocessedBlocks[b.height].receivedHeader {
 		// that's really an undefined behaviour. we probably received the same header twice?
 		// ignore for now
@@ -268,13 +265,13 @@ func (m *Monitor) addNewCatchUpBlock(res *ctypes.ResultBlockResults, overwrite b
 	m.Lock()
 	defer m.Unlock()
 
-	m.log.Infof("Catching up on block %v", res.Height)
+	m.log.Debugf("Catching up on block %v", res.Height)
 
 	// ensure it's not in blocks to be processed or that are processed
 
 	// we don't care about the current status of this height, whether it's processed or not
 	if overwrite {
-		m.log.Infof("Overwriting block at height %v", res.Height)
+		m.log.Debugf("Overwriting block at height %v", res.Height)
 		// according to godocs, if map is nil or element doesn't exist, delete is a no-op so this is fine
 		delete(m.unprocessedBlocks, res.Height)
 		delete(m.processedBlocks, res.Height)
@@ -312,7 +309,7 @@ func (m *Monitor) addNewCatchUpBlock(res *ctypes.ResultBlockResults, overwrite b
 
 // gets blockchain data from startHeight to endHeight (both inclusive)
 func (m *Monitor) catchUp(startHeight, endHeight int64) {
-	m.log.Infof("Catching up from %v to %v", startHeight, endHeight)
+	m.log.Debugf("Catching up from %v to %v", startHeight, endHeight)
 	// according to docs, blockchaininfo can return at most 20 items
 	if endHeight-startHeight >= 20 {
 		m.log.Debug("There are more than 20 blocks to catchup on")
@@ -362,7 +359,7 @@ func (m *Monitor) resyncWithBlockchain() error {
 		m.addNewCatchUpBlock(latestBlock, false)
 		m.catchUp(latestStored+1, latestBlock.Height-1)
 	} else {
-		m.log.Notice("Monitor is up to date with the blockchain")
+		m.log.Debug("Monitor is up to date with the blockchain")
 	}
 	return nil
 }
@@ -390,7 +387,7 @@ func (m *Monitor) resubscribeToBlockchain() error {
 }
 
 func (m *Monitor) resubscribeToBlockchainFull() error {
-	m.log.Notice("Resubscribing to the blockchain")
+	m.log.Debug("Resubscribing to the blockchain")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
@@ -459,7 +456,7 @@ func (m *Monitor) worker() {
 		case e := <-m.headersEventsCh:
 			headerData := e.Data.(types.EventDataNewBlockHeader).Header
 
-			m.log.Noticef("Received header for height : %v", headerData.Height)
+			m.log.Debugf("Received header for height : %v", headerData.Height)
 
 			// TODO: update based on new case
 			m.addNewBlock(startNewBlock(headerData))
@@ -469,7 +466,7 @@ func (m *Monitor) worker() {
 		case e := <-m.txsEventsCh:
 			txData := e.Data.(types.EventDataTx)
 
-			m.log.Noticef("Received tx %v height: %v", txData.Index, txData.Height)
+			m.log.Debugf("Received tx %v height: %v", txData.Index, txData.Height)
 
 			// TODO: update based on new case
 			m.addNewTx(startNewTx(txData))
@@ -487,7 +484,7 @@ func (m *Monitor) worker() {
 		case <-timeoutTicker.C:
 			// on target environment we assume regular-ish block intervals with empty blocks if needed.
 			// if we dont hear anything back, we assume a failure.
-			m.log.Warningf("Timeout - Didn't receive any data in %v seconds", maxInterval)
+			m.log.Warningf("Timeout - Didn't receive any transactions from Tendermint chain in %v seconds", maxInterval)
 			m.log.Debugf("%v blocks to be processed", len(m.unprocessedBlocks))
 
 			if err := m.resubscribeToBlockchainFull(); err != nil {

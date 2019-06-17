@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	startingBalance uint64 = 10 // this is for purely debug purposes. It will always be 0
+	startingBalance uint64 = 0 // this is for purely debug purposes. It will always be 0
 )
 
 // tx prefix was already removed

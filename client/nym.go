@@ -147,7 +147,7 @@ func (c *Client) WaitForERC20BalanceChangeWrapper(ctx context.Context, expectedB
 
 // TODO: perhaps wait for N blocks to be more certain of it?
 func (c *Client) waitForERC20BalanceChange(ctx context.Context, expectedBalance uint64) error {
-	c.log.Info("Waiting for our transaction to reach the chain")
+	c.log.Info("Waiting for our transaction to reach the Ethereum chain")
 	// TODO: make ticker interval configurable in config.toml file?
 	retryTicker := time.NewTicker(2 * time.Second)
 

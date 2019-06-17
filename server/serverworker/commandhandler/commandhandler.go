@@ -515,7 +515,7 @@ func SpendCredentialRequestHandler(ctx context.Context, reqData HandlerData) *co
 			setErrorResponse(log, response, "Failed to verify the data", commands.StatusCode_INVALID_SIGNATURE)
 			return response
 		}
-		log.Info("The received data is valid")
+		log.Info("The received credential is valid (checked locally)")
 	} else {
 		bind, bindErr := coconut.CreateBinding(verificationData.Address[:])
 		if bindErr != nil {
@@ -544,7 +544,7 @@ func SpendCredentialRequestHandler(ctx context.Context, reqData HandlerData) *co
 		setErrorResponse(log, response, errMsg, commands.StatusCode_DOUBLE_SPENDING_ATTEMPT)
 	}
 
-	log.Debug("The received zeta seems to not have been spent before (THIS IS NOT A GUARANTEE)")
+	log.Info("The received credential seems to not have been spent before (THIS IS NOT A GUARANTEE)")
 
 	// TODO: now it's a question of whether we want to immediately try to deposit our credential or wait and do it later
 	// and possibly in bulk. In the former case: store the data in the database
@@ -594,7 +594,7 @@ func SpendCredentialRequestHandler(ctx context.Context, reqData HandlerData) *co
 	// TODO: put value of this ticker in config
 	tickerInterval := time.Second
 	retryTicker := time.NewTicker(tickerInterval)
-	log.Info("Waiting for the credential to get verified")
+	log.Info("Waiting for the credential to get verified by the Nym network")
 outerLoop:
 	for {
 		select {
@@ -621,6 +621,7 @@ outerLoop:
 				// BytesToAddress is cropping address from the left, so it's perfect for us to remove status prefix
 				creditedProviderAddress := ethcommon.BytesToAddress(zetaStatus)
 				// make sure this is our address
+				log.Info("The credential was successfully verified")
 				if bytes.Equal(creditedProviderAddress[:], verificationData.Address[:]) {
 					log.Notice("The credential was deposited to our account")
 					break outerLoop

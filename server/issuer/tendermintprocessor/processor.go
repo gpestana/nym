@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"time"
 
+	proto "github.com/golang/protobuf/proto"
 	"github.com/nymtech/nym/common/comm/commands"
 	monitor "github.com/nymtech/nym/common/tendermintmonitor"
 	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
@@ -31,7 +32,6 @@ import (
 	"github.com/nymtech/nym/tendermint/nymabci/code"
 	tmconst "github.com/nymtech/nym/tendermint/nymabci/constants"
 	"github.com/nymtech/nym/worker"
-	proto "github.com/golang/protobuf/proto"
 	"gopkg.in/op/go-logging.v1"
 )
 
@@ -64,7 +64,7 @@ func (p *Processor) worker() {
 
 		height, nextBlock := p.monitor.GetLowestFullUnprocessedBlock()
 		if nextBlock == nil {
-			p.log.Info("No blocks to process")
+			p.log.Debug("No blocks to process")
 			select {
 			case <-p.HaltCh():
 				p.log.Debug("Returning from backoff select")
@@ -112,12 +112,12 @@ func (p *Processor) worker() {
 			if res == nil || res.Data == nil {
 				p.log.Errorf("Failed to sign request at index: %v on height %v", i, height)
 			}
-			p.log.Infof("Signed tx %v on height %v", i, height)
+			p.log.Debugf("Signed tx %v on height %v", i, height)
 
 			issuedCred := res.Data.(utils.IssuedSignature)
 
 			p.store.StoreIssuedSignature(height, blindSignMaterials.EgPub.Gamma, issuedCred)
-			p.log.Infof("Stored sig for tx %v on height %v", i, height)
+			p.log.Debugf("Stored sig for tx %v on height %v", i, height)
 		}
 		p.monitor.FinalizeHeight(height)
 		nextBlock.Unlock()

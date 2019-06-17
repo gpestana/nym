@@ -127,7 +127,7 @@ func checkERC20NymBalance(cc *cclient.Client, log *logging.Logger) (uint64, uint
 }
 
 func nymFlow(cc *cclient.Client) {
-	logger, err := logger.New("", "DEBUG", false)
+	logger, err := logger.New("", "INFO", false)
 	if err != nil {
 		panic(err)
 	}

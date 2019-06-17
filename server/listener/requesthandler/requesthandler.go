@@ -21,10 +21,10 @@ import (
 	"context"
 	"reflect"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/nymtech/nym/common/comm/commands"
 	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
 	"github.com/nymtech/nym/server/issuer/utils"
-	"github.com/golang/protobuf/proto"
 )
 
 // TODO: perhaps if it's too expensive, replace reflect.Type with some string or even a byte?
@@ -172,9 +172,12 @@ func ResolveLookUpBlockCredentialsRequestHandler(ctx context.Context, resCh <-ch
 
 func ResolveSpendCredentialRequestHandler(ctx context.Context, resCh <-chan *commands.Response) proto.Message {
 	data, protoStatus := waitUntilResolved(ctx, resCh)
-
+	status := false
+	if data != nil {
+		status = data.(bool)
+	}
 	return &commands.SpendCredentialResponse{
-		WasSuccessful: data.(bool),
+		WasSuccessful: status,
 		Status:        protoStatus,
 	}
 }
