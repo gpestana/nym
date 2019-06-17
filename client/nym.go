@@ -26,6 +26,10 @@ import (
 	"net"
 	"time"
 
+	ethcommon "github.com/ethereum/go-ethereum/common"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/golang/protobuf/proto"
+	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"github.com/nymtech/nym/common/comm"
 	"github.com/nymtech/nym/common/comm/commands"
 	"github.com/nymtech/nym/common/comm/packet"
@@ -35,10 +39,6 @@ import (
 	"github.com/nymtech/nym/tendermint/nymabci/code"
 	"github.com/nymtech/nym/tendermint/nymabci/query"
 	"github.com/nymtech/nym/tendermint/nymabci/transaction"
-	ethcommon "github.com/ethereum/go-ethereum/common"
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/golang/protobuf/proto"
-	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 )
 
 func (c *Client) parseCredentialPairResponse(resp *commands.LookUpCredentialResponse,
@@ -180,26 +180,26 @@ func (c *Client) waitForERC20BalanceChange(ctx context.Context, expectedBalance 
 }
 
 // // actually we don't need this method at all - when we broadcast the data we wait for it to be included
-// func (c *Client) waitForBalanceIncrease(ctx context.Context, expectedBalance uint64) error {
-// 	c.log.Info("Waiting for our transaction to reach Tendermint chain")
-// 	retryTicker := time.NewTicker(2 * time.Second)
+func (c *Client) WaitForBalanceIncrease(ctx context.Context, expectedBalance uint64) error {
+	c.log.Info("Waiting for our transaction to reach Tendermint chain")
+	retryTicker := time.NewTicker(2 * time.Second)
 
-// 	select {
-// 	case <-retryTicker.C:
-// 		currentBalance, err := c.GetCurrentNymBalance()
-// 		if err != nil {
-// 			// TODO: should we cancel instead?
-// 			c.log.Warningf("Error while querying for balance: %v", err)
-// 		}
-// 		if currentBalance == expectedBalance {
-// 			return nil
-// 		}
-// 	case <-ctx.Done():
-// 		return errors.New("operation was cancelled")
-// 	}
-// 	// should never be reached
-// 	return errors.New("unexpected error")
-// }
+	select {
+	case <-retryTicker.C:
+		currentBalance, err := c.GetCurrentNymBalance()
+		if err != nil {
+			// TODO: should we cancel instead?
+			c.log.Warningf("Error while querying for balance: %v", err)
+		}
+		if currentBalance == expectedBalance {
+			return nil
+		}
+	case <-ctx.Done():
+		return errors.New("operation was cancelled")
+	}
+	// should never be reached
+	return errors.New("unexpected error")
+}
 
 // LookUpIssuedCredential allows to recover a previously issued credential given knowledge of height on which we
 // sent the materials and the elGamal keypair associated with the request.
