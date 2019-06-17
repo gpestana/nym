@@ -320,7 +320,7 @@ func (app *NymApplication) handleCredentialVerificationNotification(reqb []byte)
 			ethcommon.BytesToAddress(req.ProviderAddress).Hex(),
 			req.Value,
 		))
-		app.setZetaStatus(req.Zeta, tmconst.ZetaStatusSpent)
+		app.setZetaStatus(req.Zeta, tmconst.ZetaStatusSpent, req.ProviderAddress...)
 	}
 
 	return types.ResponseDeliverTx{Code: code.OK}
