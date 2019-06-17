@@ -88,6 +88,12 @@
       },
       {  
         "pub_key":"BNNqH8evAM/w97DYVWhS4g9W3Qf68l5nGCCqXopTq8iYV+hGd4ISwPm8z4uomRkWD9VLySt3ggBvlqQLSSJw0Lc="
+      },
+      {
+        "pub_key":"BFFBP6SdRojxZhpejoOGoQnGFzDOlmStsdjBuLXeFeHau7HBPmnBDwZyBZUwKrCR3BrqAKJnv3PfbTBJsDEqe9Y="
+      },
+      {
+        "pub_key":"BCvLQP7AM5kcovDJEiMzoQ89xHHrYG4ASPIT9NH7Sys2sZu4y3Vc/d3yP8wC5l769BtXTXeIzRLgSubTCDBq9/M="
       }
     ],
     "verifiers":[  

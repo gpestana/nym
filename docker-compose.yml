@@ -101,6 +101,34 @@ services:
       localnet:
         ipv4_address: 192.167.12.2 
 
+  watcher3:
+    # below two are for debug purposes only
+    stdin_open: true
+    tty: true
+    container_name: watcher3
+    image: "nym/ethereum-watcher"
+    volumes:
+      - ./build/ethereum-watchers/watcher3:/ethereum-watcher:Z
+    depends_on:
+      - node2
+    networks:
+      localnet:
+        ipv4_address: 192.167.12.3
+
+  watcher4:
+    # below two are for debug purposes only
+    stdin_open: true
+    tty: true
+    container_name: watcher4
+    image: "nym/ethereum-watcher"
+    volumes:
+      - ./build/ethereum-watchers/watcher4:/ethereum-watcher:Z
+    depends_on:
+      - node3
+    networks:
+      localnet:
+        ipv4_address: 192.167.12.4
+
   issuer1:
     # below two are for debug purposes only
     stdin_open: true
