@@ -21,11 +21,11 @@ package coconutworker
 import (
 	"sync"
 
+	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"github.com/nymtech/nym/crypto/coconut/concurrency/jobpacket"
 	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
 	"github.com/nymtech/nym/crypto/elgamal"
 	"github.com/nymtech/nym/nym/token"
-	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 )
 
 // CoconutWorker allows writing coconut actions to a shared job queue,
@@ -38,6 +38,12 @@ type CoconutWorker struct {
 // SignWrapper wraps the provided arguments with pre-generated params.
 func (cw *CoconutWorker) SignWrapper(sk *coconut.SecretKey, pubM []*Curve.BIG) (*coconut.Signature, error) {
 	return cw.Sign(cw.muxParams, sk, pubM)
+}
+
+// TTPKeygenWrapper wraps the provided arguments with pre-generated params.
+// nolint: lll
+func (cw *CoconutWorker) TTPKeygenWrapper(t, n int) ([]*coconut.ThresholdSecretKey, []*coconut.ThresholdVerificationKey, error) {
+	return cw.TTPKeygen(cw.muxParams, t, n)
 }
 
 // BlindSignWrapper wraps the provided arguments with pre-generated params.
