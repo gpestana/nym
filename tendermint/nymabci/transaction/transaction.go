@@ -206,7 +206,7 @@ func CreateNewTransferToPipeAccountNotification(privateKey *ecdsa.PrivateKey,
 	return marshalRequest(req, TxTransferToPipeAccountNotification)
 }
 
-func CreateCredentialRequest(privateKey *ecdsa.PrivateKey,
+func CreateNewCredentialRequest(privateKey *ecdsa.PrivateKey,
 	pipeAccountAddress ethcommon.Address,
 	bsm *coconut.BlindSignMaterials,
 	value int64,

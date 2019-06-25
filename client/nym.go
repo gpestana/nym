@@ -323,7 +323,7 @@ func (c *Client) sendCredentialRequest(token *token.Token, egPub *elgamal.Public
 	pubM, _ := token.GetPublicAndPrivateSlices()
 	bsm := coconut.NewBlindSignMaterials(lambda, egPub, pubM)
 
-	req, err := transaction.CreateCredentialRequest(c.privateKey, c.cfg.Nym.PipeAccount, bsm, token.Value())
+	req, err := transaction.CreateNewCredentialRequest(c.privateKey, c.cfg.Nym.PipeAccount, bsm, token.Value())
 	if err != nil {
 		return -1, c.logAndReturnError("sendCredentialRequest: Failed to create request: %v", err)
 	}
