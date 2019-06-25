@@ -55,6 +55,11 @@ const (
 	// TxTokenRedemptionRequest is byte prefix for transaction to request transfer of tokens from the Nym system
 	// back into ERC20 Nym tokens.
 	TxTokenRedemptionRequest byte = 0xa4
+	// TxTokenRedemptionConfirmationNotification is byte prefix for transaction notifying tendermint nodes about
+	// redeemer seeing said token redemption request (so that threshold can be determined and Ethereum contract called)
+	// Note that this is a dummy and quite naive implementation, but is only there to have 'a' solution as
+	// in actual deployment there won't be pipe accounts as in here.
+	TxTokenRedemptionConfirmationNotification byte = 0xa5
 	// TxAdvanceBlock is byte prefix for transaction to store entire tx block in db to advance the blocks.
 	TxAdvanceBlock byte = 0xff // entirely for debug purposes
 )
@@ -317,10 +322,41 @@ func CreateNewTokenRedemptionRequest(privateKey *ecdsa.PrivateKey, amount uint64
 	}
 
 	req := &TokenRedemptionRequest{
-		ProviderAddress: address[:],
-		Amount:          amount,
-		Nonce:           nonce,
-		Sig:             sig,
+		UserAddress: address[:],
+		Amount:      amount,
+		Nonce:       nonce,
+		Sig:         sig,
 	}
 	return marshalRequest(req, TxTokenRedemptionRequest)
+}
+
+func CreateNewTokenRedemptionConfirmationNotification(privateKey *ecdsa.PrivateKey,
+	userAddress ethcommon.Address,
+	amount uint64,
+	nonce []byte,
+) ([]byte, error) {
+
+	publicKey := privateKey.Public().(*ecdsa.PublicKey)
+	publicKeyBytes := ethcrypto.FromECDSAPub(publicKey)
+
+	msg := make([]byte, len(publicKeyBytes)+ethcommon.AddressLength+ethcommon.AddressLength+8+tmconst.NonceLength)
+	i := copy(msg, publicKeyBytes)
+	i += copy(msg[i:], userAddress[:])
+	binary.BigEndian.PutUint64(msg[i:], amount)
+	i += 8
+	copy(msg[i:], nonce)
+
+	sig, err := ethcrypto.Sign(tmconst.HashFunction(msg), privateKey)
+	if err != nil {
+		return nil, err
+	}
+
+	req := &TokenRedemptionConfirmationNotification{
+		RedeemerPublicKey: publicKeyBytes,
+		UserAddress:       userAddress[:],
+		Amount:            amount,
+		Nonce:             nonce,
+		Sig:               sig,
+	}
+	return marshalRequest(req, TxTokenRedemptionConfirmationNotification)
 }

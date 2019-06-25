@@ -94,15 +94,28 @@ message CredentialVerificationNotification {
 }
 
 message TokenRedemptionRequest {
-    // Ethereum address of the provider wishing to move funds back to ERC20
-    bytes ProviderAddress = 1;
-    // Amount to move back into ERC20 tokens. Provider needs to have at least that much available.
+    // Ethereum address of the user wishing to move funds back to ERC20
+    bytes UserAddress = 1;
+    // Amount to move back into ERC20 tokens. User needs to have at least that much available.
     uint64 Amount = 2;
     // Required to prevent replay attacks. TODO: if managing this turns out to be too difficult, for now just
     // move ALL funds from the account back to ERC20
     bytes Nonce = 3;
     // Signature on entire request to confirm its validity
     bytes Sig = 4;
+}
+
+message TokenRedemptionConfirmationNotification {
+    // Used to identify the particular redeemer and to verify signature
+    bytes RedeemerPublicKey = 1;
+    // Address of the user who sent the original request
+    bytes UserAddress = 2;
+    // Amount to move back into ERC20 tokens. Part of original request
+    uint64 Amount = 3;
+    // Nonce of the original request
+    bytes Nonce = 4;
+    // Signature on the entire message done with the redeemer's key.
+    bytes Sig = 5;
 }
 
 // message AddIssuerRequest {
