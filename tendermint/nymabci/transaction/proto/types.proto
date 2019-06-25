@@ -93,6 +93,17 @@ message CredentialVerificationNotification {
     bytes Sig = 6;
 }
 
+message TokenRedemptionRequest {
+    // Ethereum address of the provider wishing to move funds back to ERC20
+    bytes ProviderAddress = 1;
+    // Amount to move back into ERC20 tokens. Provider needs to have at least that much available.
+    uint64 Amount = 2;
+    // Required to prevent replay attacks. TODO: if managing this turns out to be too difficult, for now just
+    // move ALL funds from the account back to ERC20
+    bytes Nonce = 3;
+    // Signature on entire request to confirm its validity
+    bytes Sig = 4;
+}
 
 // message AddIssuerRequest {
 //     // ID of the new issuer

@@ -52,6 +52,9 @@ const (
 	// TxCredentialVerificationNotification is byte prefix for transaction notifying tendermint nodes about
 	// validity (or lack of therein) of a credential some service provider wanted to deposit.
 	TxCredentialVerificationNotification byte = 0xa3
+	// TxTokenRedemptionRequest is byte prefix for transaction to request transfer of tokens from the Nym system
+	// back into ERC20 Nym tokens.
+	TxTokenRedemptionRequest byte = 0xa4
 	// TxAdvanceBlock is byte prefix for transaction to store entire tx block in db to advance the blocks.
 	TxAdvanceBlock byte = 0xff // entirely for debug purposes
 )
@@ -292,4 +295,32 @@ func CreateNewCredentialVerificationNotification(privateKey *ecdsa.PrivateKey,
 		Sig:                sig,
 	}
 	return marshalRequest(req, TxCredentialVerificationNotification)
+}
+
+func CreateNewTokenRedemptionRequest(privateKey *ecdsa.PrivateKey, amount uint64) ([]byte, error) {
+	address := ethcrypto.PubkeyToAddress(*privateKey.Public().(*ecdsa.PublicKey))
+
+	nonce, err := utils.GenerateRandomBytes(tmconst.NonceLength)
+	if err != nil {
+		return nil, err
+	}
+
+	msg := make([]byte, ethcommon.AddressLength+8+tmconst.NonceLength)
+	i := copy(msg, address[:])
+	binary.BigEndian.PutUint64(msg[i:], amount)
+	i += 8
+	copy(msg[i:], nonce)
+
+	sig, err := ethcrypto.Sign(tmconst.HashFunction(msg), privateKey)
+	if err != nil {
+		return nil, err
+	}
+
+	req := &TokenRedemptionRequest{
+		ProviderAddress: address[:],
+		Amount:          amount,
+		Nonce:           nonce,
+		Sig:             sig,
+	}
+	return marshalRequest(req, TxTokenRedemptionRequest)
 }
