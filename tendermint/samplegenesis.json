@@ -44,7 +44,7 @@
     "systemProperties":{  
       "watcherThreshold":2,
       "verifierThreshold":2,
-      "pipeAccount":"0xd6A548f60FB6F98fB29e6226DE1405c20DbbCF52",
+      "pipeAccount":"0xb749305b3293477b4d6b498b22db5353c9acb3f1",
       "coconutProperties":{  
         "q":5,
         "threshold":3

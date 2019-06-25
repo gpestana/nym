@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 
-	"github.com/nymtech/nym/ethereum/client"
-	"github.com/nymtech/nym/logger"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/nymtech/nym/ethereum/client"
+	"github.com/nymtech/nym/logger"
 )
 
 // just sends some tokens to the pipe account
@@ -16,7 +16,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	pipeContract := common.HexToAddress("0xd6A548f60FB6F98fB29e6226DE1405c20DbbCF52")
+	pipeContract := common.HexToAddress("0xb749305b3293477b4d6b498b22db5353c9acb3f1")
 	nymContract := common.HexToAddress("0xE80025228D5448A55B995c829B89567ECE5203d3")
 
 	log, err := logger.New("", "DEBUG", false)
