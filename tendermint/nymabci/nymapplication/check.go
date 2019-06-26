@@ -334,7 +334,7 @@ func (app *NymApplication) checkCredentialVerificationNotificationTx(tx []byte) 
 	// check signature
 	msg := make([]byte, len(req.VerifierPublicKey)+ethcommon.AddressLength+8+len(req.Zeta)+1)
 	i := copy(msg, req.VerifierPublicKey)
-	i += copy(msg[i:], req.ProviderAddress[:])
+	i += copy(msg[i:], req.ProviderAddress)
 	binary.BigEndian.PutUint64(msg[i:], uint64(req.Value))
 	i += 8
 	if req.CredentialValidity {
@@ -358,5 +358,58 @@ func (app *NymApplication) checkCredentialVerificationNotificationTx(tx []byte) 
 		return code.ALREADY_CONFIRMED
 	}
 
+	return code.OK
+}
+
+func (app *NymApplication) checkTokenRedemptionRequestTx(tx []byte) uint32 {
+	// we need to check:
+	// if user has enough funds to move (and by extension whether his account even exists)
+	// if the nonce is unique
+	// if the signature is valid
+	req := &transaction.TokenRedemptionRequest{}
+
+	if err := proto.Unmarshal(tx, req); err != nil {
+		app.log.Info("Failed to unmarshal request")
+		return code.INVALID_TX_PARAMS
+	}
+
+	// firstly check if client's account even exists and if it has sufficient balance
+	if accBalance, err := app.retrieveAccountBalance(req.UserAddress); err != nil || accBalance < req.Amount {
+		return code.INSUFFICIENT_BALANCE
+	}
+
+	if app.checkNonce(req.Nonce, req.UserAddress) {
+		return code.REPLAY_ATTACK_ATTEMPT
+	}
+
+	// check signature
+	msg := make([]byte, ethcommon.AddressLength+8+tmconst.NonceLength)
+	i := copy(msg, req.UserAddress)
+	binary.BigEndian.PutUint64(msg[i:], req.Amount)
+	i += 8
+	copy(msg[i:], req.Nonce)
+
+	recPub, err := ethcrypto.SigToPub(tmconst.HashFunction(msg), req.Sig)
+	if err != nil {
+		app.log.Info("Error while trying to recover public key associated with the signature")
+		return code.INVALID_SIGNATURE
+	}
+
+	recAddr := ethcrypto.PubkeyToAddress(*recPub)
+	if !bytes.Equal(recAddr[:], req.UserAddress) {
+		app.log.Info("Failed to verify signature on request")
+		return code.INVALID_SIGNATURE
+	}
+
+	return code.OK
+}
+
+func (app *NymApplication) checkTokenRedemptionConfirmationNotificationTx(tx []byte) uint32 {
+	// we need to check:
+	// if the threshold was already reached - then we just 'ignore' the tx
+	// if the redeemer is in the trusted set
+	// correct formation of users account address
+	// if the signature is valid
+	// if the redeemer has not 'confirmed' this tx before
 	return code.OK
 }
