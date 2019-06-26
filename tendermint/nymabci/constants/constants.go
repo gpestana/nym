@@ -29,7 +29,7 @@ const (
 	DebugMode = true
 
 	// NonceLength indicates number of bytes used for any nonces.
-	NonceLength = 16 // 128 bits - should be more than enough
+	NonceLength = 32
 )
 
 // TODO: requires major cleanup and removing unused entries
