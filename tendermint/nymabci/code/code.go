@@ -79,6 +79,8 @@ const (
 	// INVALID_ZETA_STATUS represents error when trying to register verification notification while zeta was either
 	// already spent or not requested to be deposited
 	INVALID_ZETA_STATUS uint32 = 24
+	// TOKEN_REDEEMER_DOES_NOT_EXIST represents error when trying to verify signature signed by an unknown redeemer
+	TOKEN_REDEEMER_DOES_NOT_EXIST uint32 = 25
 	// COULD_NOT_TRANSFER represents a generic error for failing to transfer funds between accounts.
 	COULD_NOT_TRANSFER uint32 = 100 // todo: replace occurrences with more specific errors
 )
@@ -139,6 +141,8 @@ func ToString(code uint32) string {
 		return "Credential Verifier Does Not Exist"
 	case INVALID_ZETA_STATUS:
 		return "Invalid Zeta Status"
+	case TOKEN_REDEEMER_DOES_NOT_EXIST:
+		return "Token Redeemer Does Not Exist"
 	default:
 		return "Unknown Error Code"
 	}

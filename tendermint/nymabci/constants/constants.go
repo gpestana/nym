@@ -58,6 +58,9 @@ var (
 	// CredentialVerifierKeyPrefix represents the prefix for storing public keys of trusted verifiers.
 	CredentialVerifierKeyPrefix = []byte("CredentialVerifier")
 
+	// TokenRedeemerKeyPrefix represents the prefix for storing public key of trusted redeemers.
+	TokenRedeemerKeyPrefix = []byte("TokenRedeemer")
+
 	// AccountsPrefix represents prefix for each account in the database to indicate amount of associated tokens.
 	AccountsPrefix = []byte("account")
 
@@ -84,6 +87,10 @@ var (
 	// to indicate given verifier has already notified about particular credential status.
 	CredentialVerifierNotificationPrefix = []byte("CREDVERIFNOTIF")
 
+	// TokenRedeemerNotificationPrefix represents prefix for database entry
+	// to indicate given redeemer has already notified and confirmed given user's intent to redeem tokens.
+	TokenRedeemerNotificationPrefix = []byte("TOKENREDNOTIF")
+
 	// PipeAccountTransferNotificationCountKeyPrefix represents prefix for the key for number of watchers
 	// confirming given transfer
 	PipeAccountTransferNotificationCountKeyPrefix = []byte("COUNT HODLTRANSFNOTIF")
@@ -92,11 +99,18 @@ var (
 	// verifying given credential
 	CredentialVerificationNotificationCountKeyPrefix = []byte("COUNT CREDVERIFNOTIF")
 
+	// TokenRedemptionNotificationCountKeyPrefix represents prefix for the key for number of redeemers
+	// confirming user's intent to redeem tokens
+	TokenRedemptionNotificationCountKeyPrefix = []byte("COUNT TOKENREDNOTIF")
+
 	// WatcherThresholdKey represents key under which watcher threshold as initially set in genesis state is stored.
 	WatcherThresholdKey = []byte("WatcherThreshold")
 
 	// VerifierThresholdKey represents key under which verifier threshold as initially set in genesis state is stored.
 	VerifierThresholdKey = []byte("VerifierThreshold")
+
+	// RedeemerThresholdKey represents key under which redeemer threshold as initially set in genesis state is stored.
+	RedeemerThresholdKey = []byte("RedeemerThreshold")
 
 	// PipeContractKey represents key under which address of the pipe account
 	// as initially set in genesis state is stored.

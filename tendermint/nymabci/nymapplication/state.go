@@ -42,6 +42,7 @@ type State struct {
 
 	watcherThreshold  uint32
 	verifierThreshold uint32
+	redeemerThreshold uint32 // TODO: FIXME:
 	pipeAccount       ethcommon.Address
 }
 
@@ -195,6 +196,19 @@ func (app *NymApplication) checkVerifierKey(publicKey []byte) bool {
 	return app.state.db.Has(dbEntry)
 }
 
+func (app *NymApplication) storeRedeemerKey(redeemer Redeemer) {
+	pubB64 := base64.StdEncoding.EncodeToString(redeemer.PublicKey)
+	app.log.Debug(fmt.Sprintf("Adding to the trusted set redeemer with public key: %v", pubB64))
+	dbEntry := prefixKey(tmconst.TokenRedeemerKeyPrefix, redeemer.PublicKey)
+	// TODO: do we even need to set any meaningful value here?
+	app.state.db.Set(dbEntry, tmconst.TokenRedeemerKeyPrefix)
+}
+
+func (app *NymApplication) checkRedeemerKey(publicKey []byte) bool {
+	dbEntry := prefixKey(tmconst.TokenRedeemerKeyPrefix, publicKey)
+	return app.state.db.Has(dbEntry)
+}
+
 // checks if given (random) nonce was already seen before for the particular address
 func (app *NymApplication) checkNonce(nonce, address []byte) bool {
 	if len(nonce) != tmconst.NonceLength || len(address) != ethcommon.AddressLength {
@@ -340,6 +354,98 @@ func (app *NymApplication) updateCredentialVerificationNotificationCount(zeta []
 
 	// [PREFIX || uint64(VALUE) || ZETA ]
 	key = prefixKey(tmconst.CredentialVerificationNotificationCountKeyPrefix, key)
+
+	countb := make([]byte, 4)
+	binary.BigEndian.PutUint32(countb, count)
+
+	app.state.db.Set(key, countb)
+}
+
+// ============================================
+// ============================================
+// ============================================
+// ============================================
+// ============================================
+
+// returns new number of notifications received for this transaction
+func (app *NymApplication) storeRedeemerNotification(redeemerKey []byte,
+	userAddress ethcommon.Address,
+	nonce []byte,
+	amount uint64,
+) uint32 {
+	key := make([]byte, len(redeemerKey)+ethcommon.AddressLength+tmconst.NonceLength+8)
+	i := copy(key, redeemerKey)
+	i += copy(key[i:], userAddress[:])
+	binary.BigEndian.PutUint64(key[i:], amount)
+	i += 8
+	copy(key[i:], nonce)
+
+	// [ PREFIX || REDEEMER || USER || AMOUNT || NONCE ]
+	// [ USER || AMOUNT || NONCE ] identifies particular tx
+	key = prefixKey(tmconst.TokenRedeemerNotificationPrefix, key)
+
+	// again, does the value matter here? we could just set an empty array to save on space
+	// first store that given redeemer sent the notification
+	app.state.db.Set(key, tmconst.TokenRedeemerNotificationPrefix)
+
+	// then update the global count
+	currentCount := app.getTokenRedemptionNotificationCount(userAddress, nonce, amount)
+	newCount := currentCount + 1
+	app.updateTokenRedemptionNotificationCount(userAddress, nonce, amount, newCount)
+	return newCount
+}
+
+// checks if this verifier has already sent notification regarding this credential
+func (app *NymApplication) checkRedeemerNotification(redeemerKey []byte,
+	userAddress ethcommon.Address,
+	nonce []byte,
+	amount uint64,
+) bool {
+	key := make([]byte, len(redeemerKey)+ethcommon.AddressLength+tmconst.NonceLength+8)
+	i := copy(key, redeemerKey)
+	i += copy(key[i:], userAddress[:])
+	binary.BigEndian.PutUint64(key[i:], amount)
+	i += 8
+	copy(key[i:], nonce)
+
+	// [ PREFIX || REDEEMER || USER || AMOUNT || NONCE ]
+	// [ USER || AMOUNT || NONCE ] identifies particular tx
+	key = prefixKey(tmconst.TokenRedeemerNotificationPrefix, key)
+
+	return app.state.db.Has(key)
+}
+
+func (app *NymApplication) getTokenRedemptionNotificationCount(userAddress ethcommon.Address,
+	nonce []byte,
+	amount uint64,
+) uint32 {
+	key := make([]byte, ethcommon.AddressLength+8+tmconst.NonceLength)
+	i := copy(key, userAddress[:])
+	binary.BigEndian.PutUint64(key[i:], amount)
+	i += 8
+	copy(key[i:], nonce)
+	// [ PREFIX || USER || AMOUNT || NONCE ]
+	key = prefixKey(tmconst.TokenRedemptionNotificationCountKeyPrefix, key)
+
+	_, val := app.state.db.Get(key)
+	if val == nil {
+		return 0
+	}
+	return binary.BigEndian.Uint32(val)
+}
+
+func (app *NymApplication) updateTokenRedemptionNotificationCount(userAddress ethcommon.Address,
+	nonce []byte,
+	amount uint64,
+	count uint32,
+) {
+	key := make([]byte, ethcommon.AddressLength+8+tmconst.NonceLength)
+	i := copy(key, userAddress[:])
+	binary.BigEndian.PutUint64(key[i:], amount)
+	i += 8
+	copy(key[i:], nonce)
+	// [ PREFIX || USER || AMOUNT || NONCE ]
+	key = prefixKey(tmconst.TokenRedemptionNotificationCountKeyPrefix, key)
 
 	countb := make([]byte, 4)
 	binary.BigEndian.PutUint32(countb, count)

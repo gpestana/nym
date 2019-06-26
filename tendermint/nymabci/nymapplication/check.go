@@ -411,5 +411,58 @@ func (app *NymApplication) checkTokenRedemptionConfirmationNotificationTx(tx []b
 	// correct formation of users account address
 	// if the signature is valid
 	// if the redeemer has not 'confirmed' this tx before
+
+	req := &transaction.TokenRedemptionConfirmationNotification{}
+
+	if err := proto.Unmarshal(tx, req); err != nil {
+		app.log.Info("Failed to unmarshal request")
+		return code.INVALID_TX_PARAMS
+	}
+
+	address := ethcommon.BytesToAddress(req.UserAddress)
+	// first check if the threshold was alredy reached and transaction was committed
+	if app.getTokenRedemptionNotificationCount(address, req.Nonce, req.Amount) == app.state.redeemerThreshold {
+		app.log.Info("Already reached required threshold")
+		return code.ALREADY_COMMITTED
+	}
+
+	// check if the verifier can be trusted
+	if !app.checkRedeemerKey(req.RedeemerPublicKey) {
+		app.log.Info("This redeemer is not in the trusted set")
+		return code.TOKEN_REDEEMER_DOES_NOT_EXIST
+	}
+
+	// check if user address is correctly formed
+	if len(req.UserAddress) != ethcommon.AddressLength {
+		app.log.Info("User's address is malformed")
+		return code.MALFORMED_ADDRESS
+	}
+
+	// check signature
+	msg := make([]byte, len(req.RedeemerPublicKey)+ethcommon.AddressLength+ethcommon.AddressLength+8+tmconst.NonceLength)
+	i := copy(msg, req.RedeemerPublicKey)
+	i += copy(msg[i:], req.UserAddress)
+	binary.BigEndian.PutUint64(msg[i:], req.Amount)
+	i += 8
+	copy(msg[i:], req.Nonce)
+
+	sig := req.Sig
+	// last byte is a recoveryID which we don't care about
+	if len(sig) > 64 {
+		sig = sig[:64]
+	}
+
+	if !ethcrypto.VerifySignature(req.RedeemerPublicKey, tmconst.HashFunction(msg), sig) {
+		app.log.Info("The signature on message is invalid")
+		return code.INVALID_SIGNATURE
+	}
+
+	// check if this tx was not already confirmed by this redeemer
+	if app.checkRedeemerNotification(req.RedeemerPublicKey, address, req.Nonce, req.Amount) {
+		app.log.Info("This redeemer already sent this notification before")
+		return code.ALREADY_CONFIRMED
+	}
+
 	return code.OK
+
 }

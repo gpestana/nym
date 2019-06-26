@@ -53,6 +53,11 @@ type Verifier struct {
 	PublicKey []byte `json:"pub_key"`
 }
 
+type Redeemer struct {
+	// Public key associated with given redeemer. Used to authenticate any notifications they send to the chain.
+	PublicKey []byte `json:"pub_key"`
+}
+
 type GenesisAccount struct {
 	Address ethcommon.Address `json:"address"`
 	Balance uint64            `json:"balance"`
@@ -67,4 +72,5 @@ type GenesisAppState struct {
 	Issuers             []Issuer         `json:"issuingAuthorities"`
 	EthereumWatchers    []Watcher        `json:"ethereumWatchers"`
 	CredentialVerifiers []Verifier       `json:"verifiers"`
+	TokenRedeemers      []Redeemer       `json:"redeemers"`
 }
