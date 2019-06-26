@@ -310,7 +310,7 @@ func (app *NymApplication) storeVerifierNotification(verifierKey, zeta []byte, v
 	app.state.db.Set(key, tmconst.CredentialVerifierNotificationPrefix)
 
 	// then update the global count, but only if credential is valid
-	currentCount := app.getCredentialVerificationCount(zeta, value)
+	currentCount := app.getCredentialVerificationNotificationCount(zeta, value)
 	if valid {
 		newCount := currentCount + 1
 		app.updateCredentialVerificationNotificationCount(zeta, value, newCount)
@@ -332,7 +332,7 @@ func (app *NymApplication) checkVerifierNotification(verifierKey, zeta []byte, v
 	return app.state.db.Has(key)
 }
 
-func (app *NymApplication) getCredentialVerificationCount(zeta []byte, value int64) uint32 {
+func (app *NymApplication) getCredentialVerificationNotificationCount(zeta []byte, value int64) uint32 {
 	key := make([]byte, len(zeta)+8)
 	i := copy(key, zeta)
 	binary.BigEndian.PutUint64(key[i:], uint64(value))

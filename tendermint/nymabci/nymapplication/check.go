@@ -307,7 +307,7 @@ func (app *NymApplication) checkCredentialVerificationNotificationTx(tx []byte) 
 	}
 
 	// first check if the threshold was alredy reached and transaction was committed
-	if app.getCredentialVerificationCount(req.Zeta, req.Value) == app.state.verifierThreshold {
+	if app.getCredentialVerificationNotificationCount(req.Zeta, req.Value) == app.state.verifierThreshold {
 		app.log.Info("Already reached required threshold")
 		return code.ALREADY_COMMITTED
 	}
