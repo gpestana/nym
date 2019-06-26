@@ -75,6 +75,10 @@ var (
 	// to a successful request to transfer tokens to the pipe account.
 	CredentialRequestKeyPrefix = []byte("GETCREDENTIAL")
 
+	// RedeemCredentialRequestKeyPrefix represents prefix attached to key field of kvpair in the tags of response
+	// to a successful request to move redeem attached credential and move tokens into corresponding Nym account.
+	RedeemCredentialRequestKeyPrefix = []byte("REDEEMCREDENTIAL")
+
 	// RedeemTokensRequestKeyPrefix represents prefix attached to key field of kvpair in the tags of response
 	// to a successful request to move tokens to the corresponding ERC20 account.
 	RedeemTokensRequestKeyPrefix = []byte("REDEEMTOKENS")

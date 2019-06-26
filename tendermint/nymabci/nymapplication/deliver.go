@@ -201,12 +201,16 @@ func (app *NymApplication) handleDepositCredential(reqb []byte) types.ResponseDe
 		return types.ResponseDeliverTx{Code: code.INVALID_TX_PARAMS}
 	}
 
-	app.log.Debug(fmt.Sprintf("Deposit request from address %v, zeta %v", req.ProviderAddress, req.CryptoMaterials.Theta.Zeta))
+	app.log.Debug(
+		fmt.Sprintf("Deposit request from address %v, zeta %v", req.ProviderAddress, req.CryptoMaterials.Theta.Zeta),
+	)
 
 	app.setZetaStatus(req.CryptoMaterials.Theta.Zeta, tmconst.ZetaStatusBeingVerified)
 
-	key := make([]byte, ethcommon.AddressLength+len(req.CryptoMaterials.Theta.Zeta)+len(tmconst.RedeemTokensRequestKeyPrefix)+8)
-	i := copy(key, tmconst.RedeemTokensRequestKeyPrefix)
+	key := make([]byte,
+		ethcommon.AddressLength+len(req.CryptoMaterials.Theta.Zeta)+len(tmconst.RedeemCredentialRequestKeyPrefix)+8,
+	)
+	i := copy(key, tmconst.RedeemCredentialRequestKeyPrefix)
 	i += copy(key[i:], address[:])
 	binary.BigEndian.PutUint64(key[i:], uint64(req.Value))
 	i += 8
@@ -221,47 +225,6 @@ func (app *NymApplication) handleDepositCredential(reqb []byte) types.ResponseDe
 			{Key: key, Value: cryptoMaterialsBytes},
 		},
 	}
-
-	// everything below this line will be moved to separate entity (in a way) it will be replaced by the commneted
-	// code above
-	//
-	//
-	// =======================================================================================================
-	//
-	//
-	// TODO: credential and proof verification will be moved to another 'verifier' entity
-	// but for test sake, let's just leave them here for a time being.
-	// avk, err := app.retrieveAggregateVerificationKey()
-	// if err != nil {
-	// 	app.log.Error("Failed to retrieve verification key")
-	// 	return types.ResponseDeliverTx{Code: code.UNKNOWN}
-	// }
-
-	// // NOTE: TODO:
-	// // if credentials were to be verified during delivertx rather than by separate entity, there's no
-	// // point in generating those params every deliverTx. Just store them in state and generate them every time
-	// // server restarts (or they are nil)
-	// params := app.getSimpleCoconutParams()
-	// if params == nil {
-	// 	app.log.Error("Failed to generate coconut params")
-	// 	return types.ResponseDeliverTx{Code: code.UNKNOWN}
-	// }
-	// // verify the credential
-	// isValid := coconut.BlindVerifyTumbler(params, avk, cred, theta, pubM, address[:])
-
-	// if isValid {
-	// 	app.log.Debug("The received credential was valid")
-	// 	if err := app.increaseBalanceBy(address[:], uint64(req.Value)); err != nil {
-	// 		app.log.Error("failed to increase provider's balance? Critical failure")
-	// 		panic(err)
-	// 	}
-	// 	// store the used credential
-	// 	app.storeSpentZeta(req.CryptoMaterials.Theta.Zeta)
-	// 	return types.ResponseDeliverTx{Code: code.OK}
-	// }
-
-	// app.log.Debug("The received credential was invalid")
-	// return types.ResponseDeliverTx{Code: code.INVALID_CREDENTIAL}
 }
 
 func (app *NymApplication) handleCredentialVerificationNotification(reqb []byte) types.ResponseDeliverTx {
@@ -322,6 +285,75 @@ func (app *NymApplication) handleCredentialVerificationNotification(reqb []byte)
 		))
 		app.setZetaStatus(req.Zeta, tmconst.ZetaStatusSpent, req.ProviderAddress...)
 	}
+
+	return types.ResponseDeliverTx{Code: code.OK}
+}
+
+func (app *NymApplication) handleTokenRedemption(reqb []byte) types.ResponseDeliverTx {
+	req := &transaction.TokenRedemptionRequest{}
+
+	if err := proto.Unmarshal(reqb, req); err != nil {
+		return types.ResponseDeliverTx{Code: code.INVALID_TX_PARAMS}
+	}
+
+	if checkResult := app.checkTokenRedemptionRequestTx(reqb); checkResult != code.OK {
+		app.log.Info("handleTokenRedemption failed checkTx")
+		return types.ResponseDeliverTx{Code: checkResult}
+	}
+
+	address := ethcommon.BytesToAddress(req.UserAddress)
+
+	// we know user has enough funds, nonce is unique, signature is valid, etc.
+
+	// TODO: do we just 'remove' the funds or somehow just 'lock' them
+	// by say creating a temporary account and moving the funds there?
+	// But since this solution will not be used in real deployment, the dummy and simpler solution can be used:
+	// just remove funds here.
+
+	// remove funds
+	if err := app.decreaseBalanceBy(req.UserAddress, req.Amount); err != nil {
+		// it's impossible for it to fail as err is only thrown if account does not exist or has insufficient balance
+		// and we already checked for that
+		app.log.Error(fmt.Sprintf("Undefined behaviour when trying to decrease client's (%v) balance: %v",
+			ethcommon.BytesToAddress(req.UserAddress).Hex(),
+			err,
+		))
+		// TODO: panic or just continue?
+	}
+
+	key := make([]byte,
+		ethcommon.AddressLength+len(tmconst.RedeemTokensRequestKeyPrefix)+8+tmconst.NonceLength,
+	)
+	i := copy(key, tmconst.RedeemTokensRequestKeyPrefix)
+	i += copy(key[i:], address[:])
+	binary.BigEndian.PutUint64(key[i:], req.Amount)
+	i += 8
+	copy(key[i:], req.Nonce)
+	return types.ResponseDeliverTx{
+		Code: code.OK,
+		Tags: []cmn.KVPair{
+			// in this dummy implementation we don't really need to attach much information,
+			// only just enough to identify this particular transaction because no processing on redeemer side is required
+			// [ Prefix || User || Amount || Nonce --- nil? ]
+			// TODO: resolve https://github.com/nymtech/nym/issues/7#issue-461004937 and put the data more nicely in here
+			{Key: key, Value: nil},
+		},
+	}
+}
+
+func (app *NymApplication) handleTokenRedemptionConfirmationNotification(reqb []byte) types.ResponseDeliverTx {
+	req := &transaction.TokenRedemptionConfirmationNotification{}
+
+	if err := proto.Unmarshal(reqb, req); err != nil {
+		return types.ResponseDeliverTx{Code: code.INVALID_TX_PARAMS}
+	}
+
+	if checkResult := app.checkTokenRedemptionConfirmationNotificationTx(reqb); checkResult != code.OK {
+		app.log.Info("handleTokenRedemptionConfirmationNotification failed checkTx")
+		return types.ResponseDeliverTx{Code: checkResult}
+	}
+
+	// TODO:
 
 	return types.ResponseDeliverTx{Code: code.OK}
 }

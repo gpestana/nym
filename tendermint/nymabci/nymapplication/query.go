@@ -46,7 +46,7 @@ func (app *NymApplication) checkZeta(req types.RequestQuery) types.ResponseQuery
 
 func (app *NymApplication) queryCheckZetaStatus(req types.RequestQuery) types.ResponseQuery {
 	status := app.checkZetaStatus(req.Data)
-	app.log.Debug(fmt.Sprintf("Zeta %v status: %v", status))
+	app.log.Debug(fmt.Sprintf("Zeta %v status: %v", req.Data, status))
 	return types.ResponseQuery{Code: code.OK, Key: req.Data, Value: status}
 }
 

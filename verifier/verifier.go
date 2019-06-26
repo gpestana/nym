@@ -157,14 +157,14 @@ func (v *Verifier) worker() {
 
 		for i, tx := range nextBlock.Txs {
 			if tx.Code != code.OK || len(tx.Tags) == 0 ||
-				!bytes.HasPrefix(tx.Tags[0].Key, tmconst.RedeemTokensRequestKeyPrefix) {
-				v.log.Infof("Tx %v at height %v is not a redeem tokens request", i, height)
+				!bytes.HasPrefix(tx.Tags[0].Key, tmconst.RedeemCredentialRequestKeyPrefix) {
+				v.log.Infof("Tx %v at height %v is not a redeem credential request", i, height)
 				continue
 			}
 
 			// remember that the key field is: [ Prefix || Address || uint64(value) || zeta ]
 			// and all of them have constants lengths (TODO: zeta can be compressed/uncompressed, need to fix that)
-			plen := len(tmconst.RedeemTokensRequestKeyPrefix)
+			plen := len(tmconst.RedeemCredentialRequestKeyPrefix)
 			alen := ethcommon.AddressLength
 
 			addressBytes := tx.Tags[0].Key[plen : plen+alen]
