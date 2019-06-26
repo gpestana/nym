@@ -249,7 +249,7 @@ func (app *NymApplication) CheckTx(tx []byte) types.ResponseCheckTx {
 		return types.ResponseCheckTx{Code: checkCode}
 	case transaction.TxCredentialVerificationNotification:
 		app.log.Debug("CheckTx for TxCredentialVerificationNotification")
-		checkCode := app.checkCredentialVerificationNotification(tx[1:])
+		checkCode := app.checkCredentialVerificationNotificationTx(tx[1:])
 		if checkCode != code.OK {
 			app.log.Info(fmt.Sprintf("checkTx for TxCredentialVerificationNotification failed with code: %v - %v",
 				checkCode, code.ToString(checkCode)))

@@ -271,7 +271,7 @@ func (app *NymApplication) handleCredentialVerificationNotification(reqb []byte)
 		return types.ResponseDeliverTx{Code: code.INVALID_TX_PARAMS}
 	}
 
-	if checkResult := app.checkCredentialVerificationNotification(reqb); checkResult != code.OK {
+	if checkResult := app.checkCredentialVerificationNotificationTx(reqb); checkResult != code.OK {
 		app.log.Info("handleCredentialVerificationNotification failed checkTx")
 		return types.ResponseDeliverTx{Code: checkResult}
 	}

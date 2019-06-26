@@ -298,7 +298,7 @@ func (app *NymApplication) checkCredentialRequestTx(tx []byte) uint32 {
 	return code.OK
 }
 
-func (app *NymApplication) checkCredentialVerificationNotification(tx []byte) uint32 {
+func (app *NymApplication) checkCredentialVerificationNotificationTx(tx []byte) uint32 {
 	req := &transaction.CredentialVerificationNotification{}
 
 	if err := proto.Unmarshal(tx, req); err != nil {
