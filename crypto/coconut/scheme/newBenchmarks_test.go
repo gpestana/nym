@@ -72,13 +72,11 @@ func BenchmarkTTPKeygenConcurrent(b *testing.B) {
 	}
 
 	q := 5
-	ias := []int{3, 5, 10, 20, 50, 100}
+	ias := []int{3, 5, 10, 20, 35, 50, 75, 100}
 	for _, n := range ias {
 		t := int(math.Round(float64(n) * 2 / 3))
 		b.Run(fmt.Sprintf("q=%d/threshold=%d/IAs=%d", q, t, n), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				b.StopTimer()
-				b.StartTimer()
 				_, _, err := ccw.TTPKeygenWrapper(t, n)
 				if err != nil {
 					panic(err)
@@ -160,7 +158,7 @@ func BenchmarkUnblindAndAggregateConcurrent(b *testing.B) {
 		workers[i] = jobworker.New(jobqueue.Out(), uint64(i), logger)
 	}
 
-	ias := []int{3, 5, 10, 20, 50, 100}
+	ias := []int{3, 5, 10, 20, 35, 50, 75, 100}
 	for _, n := range ias {
 		t := int(math.Round(float64(n) * 2 / 3))
 
@@ -226,48 +224,52 @@ func BenchmarkShowBlindSignature(b *testing.B) {
 	}
 }
 
-func BenchmarkShowBlindSignatureConcurrent(b *testing.B) {
-	numWorkers := 4
-	jobqueue := jobqueue.New()
+// replaced by variation in number of attributes
 
-	params, err := coconut.Setup(5)
-	if err != nil {
-		panic(err)
-	}
+// func BenchmarkShowBlindSignatureConcurrent(b *testing.B) {
+// 	numWorkers := 4
+// 	jobqueue := jobqueue.New()
 
-	workers := make([]*jobworker.JobWorker, numWorkers)
-	ccw := coconutworker.New(jobqueue.In(), params)
+// 	params, err := coconut.Setup(5)
+// 	if err != nil {
+// 		panic(err)
+// 	}
 
-	// log needs to be a non-nil, but just void whatever is to be logged
-	logger, err := logger.New("", "CRITICAL", true)
-	if err != nil {
-		panic(err)
-	}
+// 	workers := make([]*jobworker.JobWorker, numWorkers)
+// 	ccw := coconutworker.New(jobqueue.In(), params)
 
-	for i := 0; i < numWorkers; i++ {
-		workers[i] = jobworker.New(jobqueue.Out(), uint64(i), logger)
-	}
+// 	// log needs to be a non-nil, but just void whatever is to be logged
+// 	logger, err := logger.New("", "CRITICAL", true)
+// 	if err != nil {
+// 		panic(err)
+// 	}
 
-	for i := 0; i < b.N; i++ {
-		b.StopTimer()
-		p, rng := params.P(), params.G.Rng()
+// 	for i := 0; i < numWorkers; i++ {
+// 		workers[i] = jobworker.New(jobqueue.Out(), uint64(i), logger)
+// 	}
 
-		privs := []*Curve.BIG{Curve.Randomnum(p, rng), Curve.Randomnum(p, rng)}
-		pubs := []*Curve.BIG{Curve.Randomnum(p, rng)}
+// 	// TODO: RERUN THIS
+// 	b.ResetTimer()
+// 	for i := 0; i < b.N; i++ {
+// 		b.StopTimer()
+// 		p, rng := params.P(), params.G.Rng()
 
-		egPriv, egPub := ccw.ElGamalKeygenWrapper()
-		blindSignMats, _ := ccw.PrepareBlindSignWrapper(egPub, pubs, privs)
+// 		privs := []*Curve.BIG{Curve.Randomnum(p, rng), Curve.Randomnum(p, rng)}
+// 		pubs := []*Curve.BIG{Curve.Randomnum(p, rng)}
 
-		sk, vk, _ := Keygen(params)
-		blindSig, _ := ccw.BlindSignWrapper(sk, blindSignMats, egPub, pubs)
-		sig := ccw.UnblindWrapper(blindSig, egPriv)
-		b.StartTimer()
-		_, err := ccw.ShowBlindSignatureWrapper(vk, sig, privs)
-		if err != nil {
-			panic(err)
-		}
-	}
-}
+// 		egPriv, egPub := ccw.ElGamalKeygenWrapper()
+// 		blindSignMats, _ := ccw.PrepareBlindSignWrapper(egPub, pubs, privs)
+
+// 		sk, vk, _ := Keygen(params)
+// 		blindSig, _ := ccw.BlindSignWrapper(sk, blindSignMats, egPub, pubs)
+// 		sig := ccw.UnblindWrapper(blindSig, egPriv)
+// 		b.StartTimer()
+// 		_, err := ccw.ShowBlindSignatureWrapper(vk, sig, privs)
+// 		if err != nil {
+// 			panic(err)
+// 		}
+// 	}
+// }
 
 func BenchmarkBlindVerify(b *testing.B) {
 	for i := 0; i < b.N; i++ {
@@ -316,6 +318,7 @@ func BenchmarkBlindVerifyConcurrent(b *testing.B) {
 		workers[i] = jobworker.New(jobqueue.Out(), uint64(i), logger)
 	}
 
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
 		p, rng := params.P(), params.G.Rng()
@@ -336,6 +339,202 @@ func BenchmarkBlindVerifyConcurrent(b *testing.B) {
 		isValid := ccw.BlindVerifyTumblerWrapper(vk, sig, blindShowMatsTumbler, pubs, []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
 		if !isValid {
 			panic(isValid)
+		}
+	}
+}
+
+func BenchmarkShowBlindSignatureAttributesConcurrent(b *testing.B) {
+	numWorkers := 4
+	jobqueue := jobqueue.New()
+
+	attributes := []int{1, 3, 5, 10, 20, 50, 100}
+
+	for _, attrs := range attributes {
+		params, err := coconut.Setup(attrs + 1)
+		if err != nil {
+			panic(err)
+		}
+
+		workers := make([]*jobworker.JobWorker, numWorkers)
+		ccw := coconutworker.New(jobqueue.In(), params)
+
+		// log needs to be a non-nil, but just void whatever is to be logged
+		logger, err := logger.New("", "CRITICAL", true)
+		if err != nil {
+			panic(err)
+		}
+
+		for i := 0; i < numWorkers; i++ {
+			workers[i] = jobworker.New(jobqueue.Out(), uint64(i), logger)
+		}
+
+		b.Run(fmt.Sprintf("attrs=%v", attrs), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				b.StopTimer()
+				p, rng := params.P(), params.G.Rng()
+				privs := make([]*Curve.BIG, attrs)
+				for j := 0; j < attrs; j++ {
+					privs[j] = Curve.Randomnum(p, rng)
+				}
+
+				pubs := []*Curve.BIG{Curve.Randomnum(p, rng)}
+
+				egPriv, egPub := ccw.ElGamalKeygenWrapper()
+				blindSignMats, _ := ccw.PrepareBlindSignWrapper(egPub, pubs, privs)
+
+				sk, vk, _ := Keygen(params)
+				blindSig, _ := ccw.BlindSignWrapper(sk, blindSignMats, egPub, pubs)
+				sig := ccw.UnblindWrapper(blindSig, egPriv)
+				b.StartTimer()
+				_, err := ccw.ShowBlindSignatureWrapper(vk, sig, privs)
+				if err != nil {
+					panic(err)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkBlindSignAttributesConcurrent(b *testing.B) {
+	numWorkers := 4
+	jobqueue := jobqueue.New()
+
+	attributes := []int{1, 3, 5, 10, 20, 50, 100}
+
+	for _, attrs := range attributes {
+		params, err := coconut.Setup(attrs + 1)
+		if err != nil {
+			panic(err)
+		}
+
+		workers := make([]*jobworker.JobWorker, numWorkers)
+		ccw := coconutworker.New(jobqueue.In(), params)
+
+		// log needs to be a non-nil, but just void whatever is to be logged
+		logger, err := logger.New("", "CRITICAL", true)
+		if err != nil {
+			panic(err)
+		}
+
+		for i := 0; i < numWorkers; i++ {
+			workers[i] = jobworker.New(jobqueue.Out(), uint64(i), logger)
+		}
+
+		b.Run(fmt.Sprintf("attrs=%v", attrs), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				b.StopTimer()
+				p, rng := params.P(), params.G.Rng()
+				privs := make([]*Curve.BIG, attrs)
+				for j := 0; j < attrs; j++ {
+					privs[j] = Curve.Randomnum(p, rng)
+				}
+
+				pubs := []*Curve.BIG{Curve.Randomnum(p, rng)}
+
+				_, egPub := ccw.ElGamalKeygenWrapper()
+				blindSignMats, _ := ccw.PrepareBlindSignWrapper(egPub, pubs, privs)
+
+				sk, _, _ := Keygen(params)
+				b.StartTimer()
+				_, err := ccw.BlindSignWrapper(sk, blindSignMats, egPub, pubs)
+				if err != nil {
+					panic(err)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkBlindSignAttributesPublicConcurrent(b *testing.B) {
+	numWorkers := 4
+	jobqueue := jobqueue.New()
+
+	attributes := []int{1, 3, 5, 10, 20, 50, 100}
+
+	for _, attrs := range attributes {
+		params, err := coconut.Setup(attrs + 1)
+		if err != nil {
+			panic(err)
+		}
+
+		workers := make([]*jobworker.JobWorker, numWorkers)
+		ccw := coconutworker.New(jobqueue.In(), params)
+
+		// log needs to be a non-nil, but just void whatever is to be logged
+		logger, err := logger.New("", "CRITICAL", true)
+		if err != nil {
+			panic(err)
+		}
+
+		for i := 0; i < numWorkers; i++ {
+			workers[i] = jobworker.New(jobqueue.Out(), uint64(i), logger)
+		}
+
+		b.Run(fmt.Sprintf("attrs=%v", attrs), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				b.StopTimer()
+				p, rng := params.P(), params.G.Rng()
+				pubs := make([]*Curve.BIG, attrs)
+				for j := 0; j < attrs; j++ {
+					pubs[j] = Curve.Randomnum(p, rng)
+				}
+
+				privs := []*Curve.BIG{Curve.Randomnum(p, rng)}
+
+				_, egPub := ccw.ElGamalKeygenWrapper()
+				blindSignMats, _ := ccw.PrepareBlindSignWrapper(egPub, pubs, privs)
+
+				sk, _, _ := Keygen(params)
+				b.StartTimer()
+				_, err := ccw.BlindSignWrapper(sk, blindSignMats, egPub, pubs)
+				if err != nil {
+					panic(err)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkRandomizationConcurrent(b *testing.B) {
+	numWorkers := 4
+	jobqueue := jobqueue.New()
+
+	params, err := coconut.Setup(5)
+	if err != nil {
+		panic(err)
+	}
+
+	workers := make([]*jobworker.JobWorker, numWorkers)
+	ccw := coconutworker.New(jobqueue.In(), params)
+
+	// log needs to be a non-nil, but just void whatever is to be logged
+	logger, err := logger.New("", "CRITICAL", true)
+	if err != nil {
+		panic(err)
+	}
+
+	for i := 0; i < numWorkers; i++ {
+		workers[i] = jobworker.New(jobqueue.Out(), uint64(i), logger)
+	}
+
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		p, rng := params.P(), params.G.Rng()
+
+		privs := []*Curve.BIG{Curve.Randomnum(p, rng), Curve.Randomnum(p, rng)}
+		pubs := []*Curve.BIG{Curve.Randomnum(p, rng)}
+
+		egPriv, egPub := ccw.ElGamalKeygenWrapper()
+		blindSignMats, _ := ccw.PrepareBlindSignWrapper(egPub, pubs, privs)
+
+		sk, _, _ := Keygen(params)
+		blindSig, _ := ccw.BlindSignWrapper(sk, blindSignMats, egPub, pubs)
+		sig := ccw.UnblindWrapper(blindSig, egPriv)
+
+		b.StartTimer()
+		rsig := ccw.RandomizeWrapper(sig)
+		if rsig == nil {
+			panic("")
 		}
 	}
 }
