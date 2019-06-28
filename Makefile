@@ -13,6 +13,7 @@ NUM_VERIFIERS=2
 NUM_ISSUERS=3
 NUM_NODES=4
 NUM_PROVIDERS=2
+NUM_REDEEMERS=1
 # requires presence of appropriate keys
 THRESHOLD=3
 
@@ -80,6 +81,19 @@ build_verifiers:
 		done ;\
 	fi
 	docker build -t nym/verifier -f ./DOCKER/verifier/Dockerfile .
+
+
+build_redeemers:
+	@if ! [ -f build/redeemers/redeemer1/config.toml ]; then \
+		i=1; while [ "$$i" -le $(NUM_REDEEMERS) ]; do \
+			mkdir -p build/redeemers/redeemer$$i ;\
+			cp localnetdata/redeemers/configs/config$$i.toml build/redeemers/redeemer$$i/config.toml ;\
+			cp localnetdata/redeemers/keys/redeemer$$i.key build/redeemers/redeemer$$i/redeemer.key ;\
+ 			i=$$((i + 1));\
+		done ;\
+	fi
+	docker build -t nym/redeemer -f ./DOCKER/redeemer/Dockerfile .
+
 
 localnet-build:
 	make build_nym_nodes
