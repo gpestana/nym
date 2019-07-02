@@ -342,6 +342,8 @@ func (app *NymApplication) handleTokenRedemption(reqb []byte) types.ResponseDeli
 }
 
 func (app *NymApplication) handleTokenRedemptionConfirmationNotification(reqb []byte) types.ResponseDeliverTx {
+	// nothing fancy needs to happen here, basically accept notification, keep count and return
+	// the total count and threshold
 	req := &transaction.TokenRedemptionConfirmationNotification{}
 
 	if err := proto.Unmarshal(reqb, req); err != nil {
@@ -350,10 +352,45 @@ func (app *NymApplication) handleTokenRedemptionConfirmationNotification(reqb []
 
 	if checkResult := app.checkTokenRedemptionConfirmationNotificationTx(reqb); checkResult != code.OK {
 		app.log.Info("handleTokenRedemptionConfirmationNotification failed checkTx")
+		// it will be thrown if threshold was already reached but that's alright, we only need to ensure only
+		// single redeemer sends ethereum tx
 		return types.ResponseDeliverTx{Code: checkResult}
 	}
 
-	// TODO:
+	userAddress := ethcommon.BytesToAddress(req.UserAddress)
 
-	return types.ResponseDeliverTx{Code: code.OK}
+	// 'accept' the notification
+	newCount := app.storeRedeemerNotification(req.RedeemerPublicKey,
+		userAddress,
+		req.Nonce,
+		req.Amount,
+	)
+
+	app.log.Debug(fmt.Sprintf("Reached %v notifications out of required %v for: user %v amount %v nonce %v",
+		newCount,
+		app.state.redeemerThreshold,
+		userAddress.Hex(),
+		req.Amount,
+		req.Nonce,
+	))
+
+	// commit the transaction if threshold is reached
+	if newCount == app.state.redeemerThreshold {
+		app.log.Debug(fmt.Sprintf("Reached required threshold of %v for: user %v amount %v nonce %v",
+			app.state.redeemerThreshold,
+			userAddress.Hex(),
+			req.Amount,
+			req.Nonce,
+		))
+
+		// TODO: do we need to do anything more here?
+	}
+
+	thresholdB := make([]byte, 4)
+	binary.BigEndian.PutUint32(thresholdB, app.state.redeemerThreshold)
+
+	countB := make([]byte, 4)
+	binary.BigEndian.PutUint32(countB, newCount)
+
+	return types.ResponseDeliverTx{Code: code.OK, Data: append(thresholdB, countB...)}
 }
