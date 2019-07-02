@@ -31,6 +31,7 @@ type CoconutProperties struct {
 type SystemProperties struct {
 	WatcherThreshold  int               `json:"watcherThreshold"`
 	VerifierThreshold int               `json:"verifierThreshold"`
+	RedeemerThreshold int               `json:"redeemerThreshold"`
 	PipeAccount       ethcommon.Address `json:"pipeAccount"`
 	CoconutProperties CoconutProperties `json:"coconutProperties"`
 }

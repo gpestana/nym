@@ -78,6 +78,22 @@ func (app *NymApplication) loadVerifierThreshold() error {
 	return nil
 }
 
+func (app *NymApplication) storeRedeemerThreshold() {
+	thrb := make([]byte, 4)
+	binary.BigEndian.PutUint32(thrb, app.state.redeemerThreshold)
+	app.state.db.Set(tmconst.RedeemerThresholdKey, thrb)
+}
+
+func (app *NymApplication) loadRedeemerThreshold() error {
+	_, val := app.state.db.Get(tmconst.RedeemerThresholdKey)
+	if val == nil {
+		return ErrKeyDoesNotExist
+	}
+	app.state.redeemerThreshold = binary.BigEndian.Uint32(val)
+	app.log.Info(fmt.Sprintf("Loaded verifier threshold: %v", app.state.redeemerThreshold))
+	return nil
+}
+
 func (app *NymApplication) storePipeAccountAddress() {
 	app.state.db.Set(tmconst.PipeContractKey, app.state.pipeAccount[:])
 }

@@ -104,6 +104,9 @@ func NewNymApplication(dbType, dbDir string, logger log.Logger) *NymApplication 
 		if err := app.loadVerifierThreshold(); err != nil {
 			panic(fmt.Errorf("expected to have verifier threshold stored: %v", err))
 		}
+		if err := app.loadRedeemerThreshold(); err != nil {
+			panic(fmt.Errorf("expected to have verifier threshold stored: %v", err))
+		}
 		if err := app.loadPipeAccountAddress(); err != nil {
 			panic(fmt.Errorf("expected to have pipe account address stored: %v", err))
 		}
@@ -365,15 +368,26 @@ func (app *NymApplication) InitChain(req types.RequestInitChain) types.ResponseI
 		panic("Insufficient number of verifiers declared in the genesis block")
 	}
 
+	numRedeemers := len(genesisState.TokenRedeemers)
+	redeemerThreshold := genesisState.SystemProperties.RedeemerThreshold
+	// In future do not terminate here as it will be possible (TODO: actually implement it) to add redeemers in txs
+	if redeemerThreshold > numRedeemers {
+		app.log.Error(fmt.Sprintf("Only %v redeemers declared in the genesis block out of minimum %v",
+			numRedeemers, redeemerThreshold))
+		panic("Insufficient number of verifiers declared in the genesis block")
+	}
+
 	app.state.watcherThreshold = uint32(watcherThreshold)
 	app.state.verifierThreshold = uint32(verifierThreshold)
+	app.state.redeemerThreshold = uint32(redeemerThreshold)
 	app.state.pipeAccount = genesisState.SystemProperties.PipeAccount
 	app.storeWatcherThreshold()
 	app.storeVerifierThreshold()
+	app.storeRedeemerThreshold()
 	app.storePipeAccountAddress()
 
-	app.log.Info(fmt.Sprintf("Setting watcher threshold to %v, verifier threshold to %v and pipe contract address to %v",
-		watcherThreshold, verifierThreshold, app.state.pipeAccount.Hex()))
+	app.log.Info(fmt.Sprintf("Setting watcher threshold to %v, verifier threshold to %v, redeemer threshold to %v and pipe contract address to %v",
+		watcherThreshold, verifierThreshold, redeemerThreshold, app.state.pipeAccount.Hex()))
 
 	for _, watcher := range genesisState.EthereumWatchers {
 		app.storeWatcherKey(watcher)
@@ -384,6 +398,11 @@ func (app *NymApplication) InitChain(req types.RequestInitChain) types.ResponseI
 		app.storeVerifierKey(verifier)
 	}
 	app.log.Info("Stored verifier keys in the DB")
+
+	for _, redeemer := range genesisState.TokenRedeemers {
+		app.storeRedeemerKey(redeemer)
+	}
+	app.log.Info("Stored redeemer keys in the DB")
 
 	// import vk of IAs
 	numIAs := len(genesisState.Issuers)
