@@ -720,6 +720,8 @@ func CredentialVerificationRequestHandler(ctx context.Context, reqData HandlerDa
 		return response
 	}
 
+	// TODO: later change to send sync or even async as technically we don't need to know
+	// the resolution on this. We just need to send it.
 	res, err := verificationData.NymClient.Broadcast(tx)
 	if err != nil {
 		errMsg := fmt.Sprintf("Failed to send notification transaction: %v", err)
