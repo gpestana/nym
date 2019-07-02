@@ -44,6 +44,7 @@
     "systemProperties":{  
       "watcherThreshold":2,
       "verifierThreshold":2,
+      "redeemerThreshold":2,
       "pipeAccount":"0xb749305b3293477b4d6b498b22db5353c9acb3f1",
       "coconutProperties":{  
         "q":5,
@@ -102,6 +103,17 @@
       },
       {  
         "pub_key":"BANigUwYucmc9ZA7UCH9zttrApF75jV87vzMNEk2ewhsDTsjdXZhFkjGE8qkA7rs7WaU4VtXmxJBqCsGNa7/Nec="
+      }
+    ],
+    "redeemers":[
+      {
+        "pub_key":"BHUKLaSo9qAnli08HmDqNaiM3HkKiwRa6UoD6pI+xgHEozrheUSs7p0e6CphKJnJMTgUW7W+dp4Gs6rl21rTKp8="
+      },
+      {
+        "pub_key":"BOtjnyCjFT8LjI2i41n0qW5h51oLSEOR6fjJeMfrmnsqEsVycV+I+fFBzX8GsJztU+Z1v4FsdD8dZo+bAKLF68A="
+      },
+      {
+        "pub_key":"BEmDqAFglt3A2LeMKtxXIt11vK2SAm4Z72LJ6vR1nF7Aqiuf8Y65LP2AkFErDHtNl5KdYEBABe36KodVQEpCBM0="
       }
     ]
   }
