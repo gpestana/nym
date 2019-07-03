@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 )
 
 const (
@@ -51,11 +52,20 @@ type Redeemer struct {
 	// DataDir specifies path to a .db file holding relevant server-specific persistent data.
 	DataDir string
 
-	// BlockchainNodeAddresses specifies addresses of a blockchain nodes
+	// BlockchainNodeAddresses specifies addresses of Tendermint blockchain nodes
 	// to which the issuer should send all relevant requests.
 	// Note that only a single request will ever be sent, but multiple addresses are provided in case
 	// the particular node was unavailable.
 	BlockchainNodeAddresses []string
+
+	// PipeAccountKeyFile defines path to file containing ECDSA private key for the pipe account contract.
+	PipeAccountKeyFile string
+
+	// EthereumNodeAddress defines address of an Ethereum node to which transactions are sent.
+	EthereumNodeAddress string
+
+	// NymContract defined address of the ERC20 token Nym contract. It is expected to be provided in hex format.
+	NymContract ethcommon.Address
 }
 
 // Debug is the Nym redeemer debug configuration.

@@ -22,14 +22,15 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	monitor "github.com/nymtech/nym/common/tendermintmonitor"
+	ethclient "github.com/nymtech/nym/ethereum/client"
 	"github.com/nymtech/nym/logger"
 	"github.com/nymtech/nym/redeemer/config"
 	"github.com/nymtech/nym/server/storage"
@@ -52,6 +53,7 @@ type Redeemer struct {
 	monitor    *monitor.Monitor
 	store      *storage.Database
 	nymClient  *nymclient.Client
+	ethClient  *ethclient.Client
 	log        *logging.Logger
 	worker.Worker
 	haltedCh chan struct{}
@@ -116,12 +118,12 @@ func (r *Redeemer) worker() {
 				nonce,
 			)
 			if err != nil {
-				r.log.Warningf("Failed to create notification tx for: %v: %v", address, err)
+				r.log.Warningf("failed to create notification tx for: %v: %v", address, err)
 			}
 
 			res, err := r.nymClient.Broadcast(notification)
 			if err != nil {
-				r.log.Warningf("Failed to send notification tx for %v: %v", address, err)
+				r.log.Warningf("failed to send notification tx for %v: %v", address, err)
 			}
 
 			if res.CheckTx.Code == code.ALREADY_COMMITTED || res.DeliverTx.Code == code.ALREADY_COMMITTED {
@@ -209,23 +211,38 @@ func New(cfg *config.Config) (*Redeemer, error) {
 		return nil, fmt.Errorf("failed to load watcher's key: %v", err)
 	}
 
+	pipeAccountKey, err := crypto.LoadECDSA(cfg.Redeemer.PipeAccountKeyFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load pipe account key: %v", err)
+	}
+
 	nymClient, err := nymclient.New(cfg.Redeemer.BlockchainNodeAddresses, log)
 	if err != nil {
-		errStr := fmt.Sprintf("Failed to create a nymClient: %v", err)
-		redeemerLog.Error(errStr)
-		return nil, errors.New(errStr)
+		return nil, fmt.Errorf("failed to create a nymClient: %v", err)
+	}
+
+	pipeAccountAddress := ethcrypto.PubkeyToAddress(*pipeAccountKey.Public().(*ecdsa.PublicKey))
+	ethClientCfg := ethclient.NewConfig(
+		pipeAccountKey,
+		cfg.Redeemer.EthereumNodeAddress,
+		cfg.Redeemer.NymContract,
+		pipeAccountAddress,
+		log,
+	)
+
+	ethClient, err := ethclient.New(ethClientCfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create a ethClient: %v", err)
 	}
 
 	store, err := storage.New(dbName, cfg.Redeemer.DataDir)
 	if err != nil {
-		redeemerLog.Errorf("Failed to create a data store: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create a data store: %v", err)
 	}
 
 	mon, err := monitor.New(log, nymClient, store, fmt.Sprintf("Verifier%v", cfg.Redeemer.Identifier))
 	if err != nil {
-		redeemerLog.Errorf("Failed to spawn blockchain monitor")
-		return nil, err
+		return nil, fmt.Errorf("failed to spawn blockchain monitor")
 	}
 
 	r := &Redeemer{
@@ -234,6 +251,7 @@ func New(cfg *config.Config) (*Redeemer, error) {
 		monitor:    mon,
 		store:      store,
 		nymClient:  nymClient,
+		ethClient:  ethClient,
 		log:        redeemerLog,
 		haltedCh:   make(chan struct{}),
 	}
