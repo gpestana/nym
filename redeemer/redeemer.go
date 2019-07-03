@@ -20,6 +20,7 @@ package redeemer
 
 import (
 	"bytes"
+	"context"
 	"crypto/ecdsa"
 	"encoding/binary"
 	"fmt"
@@ -154,7 +155,22 @@ func (r *Redeemer) worker() {
 			r.log.Noticef("Threshold: %v, our count: %v", threshold, count)
 			if threshold == count {
 				r.log.Notice("Our notification was the thresholdth one. Going to call the Ethereum contract")
-				// TODO:
+				ctx, cancel := context.WithTimeout(context.Background(),
+					time.Duration(r.cfg.Debug.EthereumCallTimeout)*time.Millisecond,
+				)
+				// we can't defer cancel as we usually do as this function might posssibly never terminate
+
+				err := r.ethClient.TransferERC20Tokens(ctx, int64(amount), address)
+				if err != nil {
+					r.log.Errorf("Failed to send ERC20 tokens from the pipe account back to %v: %v", address, err)
+					// TODO: if this entity was to stay, this error would need to be somehow resolved,
+					// but in production we won't have to deal with redeemers, etc. so it's not much of an issue
+
+					cancel()
+					continue
+				}
+				// call cancel explicitly rather than defer due to previously described reason
+				cancel()
 			} else {
 				r.log.Notice("We haven't reached the threshold - another redeemer will need to call Ethereum contract")
 			}

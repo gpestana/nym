@@ -26,11 +26,11 @@ import (
 	"fmt"
 	"math/big"
 
-	token "github.com/nymtech/nym/ethereum/token"
-	"github.com/nymtech/nym/logger"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
+	token "github.com/nymtech/nym/ethereum/token"
+	"github.com/nymtech/nym/logger"
 	"gopkg.in/op/go-logging.v1"
 )
 
@@ -90,7 +90,6 @@ func (c *Client) QueryERC20Balance(ctx context.Context, address common.Address, 
 	return balance, nil
 }
 
-// TODO: rewrite to use token instance similarly to Balance query?
 // TransferERC20Tokens sends specified amount of ERC20 tokens to given account.
 func (c *Client) TransferERC20Tokens(ctx context.Context,
 	amount int64,

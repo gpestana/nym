@@ -31,6 +31,7 @@ import (
 const (
 	defaultLogLevel = "NOTICE"
 
+	defaultEthereumCallTimeout = 15 * 1000 // 15s
 	// defaultNumServerWorkers = 1
 )
 
@@ -76,6 +77,9 @@ type Debug struct {
 	// // NumServerWorkers specifies the number of concurrent worker instances
 	// // to use when processing verification requests.
 	// NumServerWorkers int
+
+	// EthereumCallTimeout defines timeout for calling the Ethereum contract to transfer tokens back from the pipe account.
+	EthereumCallTimeout int
 }
 
 func (dCfg *Debug) applyDefaults() {
@@ -85,6 +89,10 @@ func (dCfg *Debug) applyDefaults() {
 	// if dCfg.NumServerWorkers <= 0 {
 	// 	dCfg.NumServerWorkers = defaultNumServerWorkers
 	// }
+
+	if dCfg.EthereumCallTimeout <= 0 {
+		dCfg.EthereumCallTimeout = defaultEthereumCallTimeout
+	}
 }
 
 // Logging is the Nym redeemer logging configuration.
