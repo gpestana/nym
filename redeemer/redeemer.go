@@ -61,6 +61,37 @@ type Redeemer struct {
 	haltOnce sync.Once
 }
 
+func (r *Redeemer) notifyOfTxStatus(txHash ethcommon.Hash) {
+	ticker := time.NewTicker(time.Duration(r.cfg.Debug.TransactionStatusQueryInterval) * time.Millisecond)
+	ctxQuery, cancelQuery := context.WithTimeout(context.Background(),
+		time.Duration(r.cfg.Debug.TransactionStatusQueryTimeout)*time.Millisecond,
+	)
+	defer cancelQuery()
+	for {
+		select {
+		case <-ctxQuery.Done():
+			// TODO: this log is not thread safe...
+			r.log.Warning("Context timeout - we do no know if the tx suceeded or not")
+			return
+		case <-ticker.C:
+			status := r.ethClient.GetTransactionStatus(ctxQuery, txHash)
+			switch status {
+			case ethclient.TxStatusUnknown:
+				r.log.Warningf("Tx %v is in unknown state...", txHash.Hex())
+			case ethclient.TxStatusPending:
+				r.log.Infof("Tx %v is still pending", txHash.Hex())
+			case ethclient.TxStatusRejected:
+				r.log.Errorf("Tx %v was rejected!", txHash.Hex())
+				// TODO: what to do now with that information?
+				return
+			case ethclient.TxStatusAccepted:
+				r.log.Noticef("Tx %v was accepted", txHash.Hex())
+				return
+			}
+		}
+	}
+}
+
 func (r *Redeemer) worker() {
 	for {
 		select {
@@ -73,7 +104,7 @@ func (r *Redeemer) worker() {
 
 		height, nextBlock := r.monitor.GetLowestFullUnprocessedBlock()
 		if nextBlock == nil {
-			r.log.Info("No blocks to process")
+			r.log.Debug("No blocks to process")
 			select {
 			case <-r.HaltCh():
 				r.log.Debug("Returning from backoff select")
@@ -160,7 +191,7 @@ func (r *Redeemer) worker() {
 				)
 				// we can't defer cancel as we usually do as this function might posssibly never terminate
 
-				err := r.ethClient.TransferERC20Tokens(ctx, int64(amount), address)
+				txHash, err := r.ethClient.TransferERC20Tokens(ctx, int64(amount), address)
 				if err != nil {
 					r.log.Errorf("Failed to send ERC20 tokens from the pipe account back to %v: %v", address, err)
 					// TODO: if this entity was to stay, this error would need to be somehow resolved,
@@ -169,6 +200,10 @@ func (r *Redeemer) worker() {
 					cancel()
 					continue
 				}
+
+				// start a background goroutine to just monitor the tx status
+				// TODO: perhaps down the line do something more?
+				go r.notifyOfTxStatus(txHash)
 				// call cancel explicitly rather than defer due to previously described reason
 				cancel()
 			} else {

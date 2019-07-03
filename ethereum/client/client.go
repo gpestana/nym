@@ -28,6 +28,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	token "github.com/nymtech/nym/ethereum/token"
 	"github.com/nymtech/nym/logger"
@@ -54,9 +55,10 @@ const (
 type TxStatus byte
 
 const (
-	TxStatusAccepted TxStatus = 0
-	TxStatusRejected TxStatus = 1
-	TxStatusPending  TxStatus = 2
+	TxStatusUnknown  TxStatus = 0
+	TxStatusAccepted TxStatus = 1
+	TxStatusRejected TxStatus = 2
+	TxStatusPending  TxStatus = 3
 )
 
 // TODO: move to separate token-related package
@@ -80,14 +82,22 @@ func (c *Client) logAndReturnError(fmtString string, a ...interface{}) error {
 }
 
 // used to get status of transaction, pending, accepted, rejected, etc
-func (c *Client) GetTransactionStatus(ctx context.Context, txHash common.Hash) {
+func (c *Client) GetTransactionStatus(ctx context.Context, txHash common.Hash) TxStatus {
 	// TODO:
-	tx, isPending, err := c.ethClient.TransactionByHash(ctx, txHash)
-	c.log.Noticef("pending: %v, err: %v, tx: %+v", isPending, err, tx)
-
+	_, isPending, err := c.ethClient.TransactionByHash(ctx, txHash)
+	if isPending {
+		return TxStatusPending
+	}
 	receipt, err := c.ethClient.TransactionReceipt(ctx, txHash)
-	c.log.Noticef("err: %v, receipt: %+v", err, receipt)
-
+	// if tx is not pending we should be able to get a receipt
+	if receipt == nil || err != nil {
+		return TxStatusUnknown
+	}
+	if receipt.Status == types.ReceiptStatusSuccessful {
+		return TxStatusAccepted
+	} else {
+		return TxStatusRejected
+	}
 }
 
 // pending is used to decide whether to query pending balance

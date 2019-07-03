@@ -31,7 +31,9 @@ import (
 const (
 	defaultLogLevel = "NOTICE"
 
-	defaultEthereumCallTimeout = 15 * 1000 // 15s
+	defaultEthereumCallTimeout            = 15 * 1000 // 15s
+	defaultTransactionStatusQueryTimeout  = 90 * 1000 // 90s
+	defaultTransactionStatusQueryInterval = 5 * 1000  // 5s
 	// defaultNumServerWorkers = 1
 )
 
@@ -80,6 +82,12 @@ type Debug struct {
 
 	// EthereumCallTimeout defines timeout for calling the Ethereum contract to transfer tokens back from the pipe account.
 	EthereumCallTimeout int
+
+	// TransactionStatusQueryTimeout defines timeout for waiting to obtain status of particular transaction.
+	TransactionStatusQueryTimeout int
+
+	// TransactionStatusQueryInterval defines interval for querying for status of particular transaction.
+	TransactionStatusQueryInterval int
 }
 
 func (dCfg *Debug) applyDefaults() {
@@ -92,6 +100,12 @@ func (dCfg *Debug) applyDefaults() {
 
 	if dCfg.EthereumCallTimeout <= 0 {
 		dCfg.EthereumCallTimeout = defaultEthereumCallTimeout
+	}
+	if dCfg.TransactionStatusQueryTimeout <= 0 {
+		dCfg.TransactionStatusQueryTimeout = defaultTransactionStatusQueryTimeout
+	}
+	if dCfg.TransactionStatusQueryInterval <= 0 {
+		dCfg.TransactionStatusQueryInterval = defaultTransactionStatusQueryInterval
 	}
 }
 
