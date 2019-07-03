@@ -51,6 +51,14 @@ const (
 	defaultDecimals = 18 // TODO: move this one to erc20.constants?
 )
 
+type TxStatus byte
+
+const (
+	TxStatusAccepted TxStatus = 0
+	TxStatusRejected TxStatus = 1
+	TxStatusPending  TxStatus = 2
+)
+
 // TODO: move to separate token-related package
 func getTokenDenomination(decimals int64) *big.Int {
 	// return big.NewInt(int64(10) * *18)
@@ -72,8 +80,14 @@ func (c *Client) logAndReturnError(fmtString string, a ...interface{}) error {
 }
 
 // used to get status of transaction, pending, accepted, rejected, etc
-func (c *Client) GetTransactionStatus(ctx context.Context, txHash []byte) {
+func (c *Client) GetTransactionStatus(ctx context.Context, txHash common.Hash) {
 	// TODO:
+	tx, isPending, err := c.ethClient.TransactionByHash(ctx, txHash)
+	c.log.Noticef("pending: %v, err: %v, tx: %+v", isPending, err, tx)
+
+	receipt, err := c.ethClient.TransactionReceipt(ctx, txHash)
+	c.log.Noticef("err: %v, receipt: %+v", err, receipt)
+
 }
 
 // pending is used to decide whether to query pending balance
@@ -95,9 +109,9 @@ func (c *Client) TransferERC20Tokens(ctx context.Context,
 	amount int64,
 	targetAddress common.Address,
 	tokenDecimals ...int,
-) error {
+) (common.Hash, error) {
 	if amount <= 0 {
-		return c.logAndReturnError("TransferERC20Tokens: trying to transfer negative number of tokens")
+		return common.Hash{}, c.logAndReturnError("TransferERC20Tokens: trying to transfer negative number of tokens")
 	}
 
 	var decimals int64
@@ -117,11 +131,11 @@ func (c *Client) TransferERC20Tokens(ctx context.Context,
 
 	tx, err := c.nymTokenInstance.Transfer(auth, targetAddress, tokenAmount)
 	if err != nil {
-		return c.logAndReturnError("TransferERC20Tokens: Failed to send transaction: %v", err)
+		return common.Hash{}, c.logAndReturnError("TransferERC20Tokens: Failed to send transaction: %v", err)
 	}
 	c.log.Noticef("Sent Transaction with hash: %v", tx.Hash().Hex())
 
-	return nil
+	return tx.Hash(), nil
 }
 
 func (c *Client) connect(ctx context.Context, ethHost string) error {

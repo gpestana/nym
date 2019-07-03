@@ -135,7 +135,7 @@ func (c *Client) GetCurrentNymBalance() (uint64, error) {
 }
 
 func (c *Client) SendToPipeAccount(ctx context.Context, amount int64) error {
-	if err := c.ethClient.TransferERC20Tokens(ctx, amount, c.cfg.Nym.PipeAccount); err != nil {
+	if _, err := c.ethClient.TransferERC20Tokens(ctx, amount, c.cfg.Nym.PipeAccount); err != nil {
 		return err
 	}
 	return nil

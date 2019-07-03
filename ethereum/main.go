@@ -31,7 +31,7 @@ func main() {
 		panic(err)
 	}
 
-	if err := c.TransferERC20Tokens(context.TODO(), 1, pipeContract); err != nil {
+	if _, err := c.TransferERC20Tokens(context.TODO(), 1, pipeContract); err != nil {
 		panic(err)
 	}
 }
