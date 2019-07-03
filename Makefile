@@ -89,7 +89,7 @@ build_redeemers:
 			mkdir -p build/redeemers/redeemer$$i ;\
 			cp localnetdata/redeemers/configs/config$$i.toml build/redeemers/redeemer$$i/config.toml ;\
 			cp localnetdata/redeemers/keys/redeemer$$i.key build/redeemers/redeemer$$i/redeemer.key ;\
-			cp localnetdata/redeemers/keys/pipeaccount.key build/redeemers/redeemer$$i/pipeAccount/key ;\
+			cp localnetdata/redeemers/keys/pipeaccount.key build/redeemers/redeemer$$i/pipeAccount.key ;\
  			i=$$((i + 1));\
 		done ;\
 	fi
