@@ -34,7 +34,6 @@ import (
 	"github.com/nymtech/nym/tendermint/nymabci/transaction"
 	"github.com/tendermint/iavl"
 	"github.com/tendermint/tendermint/abci/types"
-	cmn "github.com/tendermint/tendermint/libs/common"
 	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/version"
@@ -140,9 +139,9 @@ func (app *NymApplication) SetOption(req types.RequestSetOption) types.ResponseS
 }
 
 // DeliverTx delivers a tx for full processing.
-func (app *NymApplication) DeliverTx(tx []byte) types.ResponseDeliverTx {
+func (app *NymApplication) DeliverTx(req types.RequestDeliverTx) types.ResponseDeliverTx {
 	app.log.Debug(fmt.Sprintf("DeliverTx; height: %v", app.state.db.Version()))
-
+	tx := req.Tx
 	txType := tx[0]
 	switch txType {
 	// currently for debug purposes to check status of given g^s
@@ -193,7 +192,7 @@ func (app *NymApplication) DeliverTx(tx []byte) types.ResponseDeliverTx {
 		app.log.Info(fmt.Sprintf("storing up %v", tx[1:]))
 		app.state.db.Set(tx[1:], []byte{1})
 
-		return types.ResponseDeliverTx{Code: code.OK, Tags: []cmn.KVPair{{Key: []byte{tx[1]}, Value: tx[1:]}}}
+		return types.ResponseDeliverTx{Code: code.OK}
 	default:
 		app.log.Error("Unknown tx")
 
@@ -204,9 +203,9 @@ func (app *NymApplication) DeliverTx(tx []byte) types.ResponseDeliverTx {
 }
 
 // CheckTx validates tx in the mempool to discard obviously invalid ones so they would not be included in the block.
-func (app *NymApplication) CheckTx(tx []byte) types.ResponseCheckTx {
+func (app *NymApplication) CheckTx(req types.RequestCheckTx) types.ResponseCheckTx {
 	app.log.Debug(fmt.Sprintf("CheckTx; height: %v", app.state.db.Version()))
-
+	tx := req.Tx
 	txType := tx[0]
 
 	switch txType {
