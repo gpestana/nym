@@ -1,5 +1,9 @@
 # CoconutGo Changelog
 
+## 0.10.3
+
+* Changed `Tags` field in Tx struct inside Tendermint monitor to `Events` to simplify code and to be more consistent with the actual Tendermint
+
 ## 0.10.2
 
 * Updated all used dependencies to most recent versions
