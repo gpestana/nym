@@ -165,8 +165,13 @@ func (app *NymApplication) handleCredentialRequest(reqb []byte) types.ResponseDe
 	copy(key[i:], req.CryptoMaterials.EgPub.Gamma)
 	return types.ResponseDeliverTx{
 		Code: code.OK,
-		Tags: []cmn.KVPair{
-			{Key: key, Value: cryptoMaterialsBytes},
+		Events: []types.Event{
+			{
+				Type: "TODO:FOO",
+				Attributes: []cmn.KVPair{
+					{Key: key, Value: cryptoMaterialsBytes},
+				},
+			},
 		},
 	}
 }
@@ -217,12 +222,17 @@ func (app *NymApplication) handleDepositCredential(reqb []byte) types.ResponseDe
 	copy(key[i:], req.CryptoMaterials.Theta.Zeta)
 	return types.ResponseDeliverTx{
 		Code: code.OK,
-		Tags: []cmn.KVPair{
-			// while it is not crucial we have unique keys here, verifiers will need to be able to
-			// send a transaction back "confirming" status of this data and this will require an unique key field.
-			// So we might as well use the same system already
-			// [ Prefix || Provider || uint64(value) || Zeta(g^s) --- required crypto materials ]
-			{Key: key, Value: cryptoMaterialsBytes},
+		Events: []types.Event{
+			{
+				Type: "TODO:FOO",
+				Attributes: []cmn.KVPair{
+					// while it is not crucial we have unique keys here, verifiers will need to be able to
+					// send a transaction back "confirming" status of this data and this will require an unique key field.
+					// So we might as well use the same system already
+					// [ Prefix || Provider || uint64(value) || Zeta(g^s) --- required crypto materials ]
+					{Key: key, Value: cryptoMaterialsBytes},
+				},
+			},
 		},
 	}
 }
@@ -331,12 +341,17 @@ func (app *NymApplication) handleTokenRedemption(reqb []byte) types.ResponseDeli
 	copy(key[i:], req.Nonce)
 	return types.ResponseDeliverTx{
 		Code: code.OK,
-		Tags: []cmn.KVPair{
-			// in this dummy implementation we don't really need to attach much information,
-			// only just enough to identify this particular transaction because no processing on redeemer side is required
-			// [ Prefix || User || Amount || Nonce --- nil? ]
-			// TODO: resolve https://github.com/nymtech/nym/issues/7#issue-461004937 and put the data more nicely in here
-			{Key: key, Value: nil},
+		Events: []types.Event{
+			{
+				Type: "TODO:FOO",
+				Attributes: []cmn.KVPair{
+					// in this dummy implementation we don't really need to attach much information,
+					// only just enough to identify this particular transaction because no processing on redeemer side is required
+					// [ Prefix || User || Amount || Nonce --- nil? ]
+					// TODO: resolve https://github.com/nymtech/nym/issues/7#issue-461004937 and put the data more nicely in here
+					{Key: key, Value: nil},
+				},
+			},
 		},
 	}
 }
