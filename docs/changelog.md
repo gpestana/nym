@@ -1,5 +1,10 @@
 # CoconutGo Changelog
 
+## 0.10.2
+
+* Updated all used dependencies to most recent versions
+* Fixed code using Tendermint due to breaking API changes present in version 0.32.0 of Tendermint
+
 ## 0.10.1
 
 * Included Redeemers in docker-compose file
