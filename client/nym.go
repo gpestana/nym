@@ -203,6 +203,28 @@ func (c *Client) WaitForBalanceChange(ctx context.Context, expectedBalance uint6
 	}
 }
 
+// RedeemTokens allows to move specified number of Nym tokens back into ERC20
+func (c *Client) RedeemTokens(ctx context.Context, amount uint64) error {
+	tx, err := transaction.CreateNewTokenRedemptionRequest(c.privateKey, amount)
+	if err != nil {
+		return c.logAndReturnError("RedeemTokens: Failed to create redemption request: %v", err)
+	}
+	res, err := c.nymClient.Broadcast(tx)
+	if err != nil {
+		return c.logAndReturnError("RedeemTokens: Failed to send redemption request: %v", err)
+	}
+	if res.CheckTx.Code != code.OK || res.DeliverTx.Code != code.OK {
+		// TODO: once we include Logs field, return those
+		return c.logAndReturnError("RedeemTokens: Failed to send redemption request: checkTx code: %v (%v) deliverTx code: %v (%v)",
+			res.CheckTx.Code,
+			code.ToString(res.CheckTx.Code),
+			res.DeliverTx.Code,
+			code.ToString(res.DeliverTx.Code),
+		)
+	}
+	return nil
+}
+
 // LookUpIssuedCredential allows to recover a previously issued credential given knowledge of height on which we
 // sent the materials and the elGamal keypair associated with the request.
 func (c *Client) LookUpIssuedCredential(height int64,

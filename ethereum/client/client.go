@@ -98,9 +98,8 @@ func (c *Client) GetTransactionStatus(ctx context.Context, txHash common.Hash) T
 	}
 	if receipt.Status == types.ReceiptStatusSuccessful {
 		return TxStatusAccepted
-	} else {
-		return TxStatusRejected
 	}
+	return TxStatusRejected
 }
 
 // pending is used to decide whether to query pending balance

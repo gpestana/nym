@@ -18,8 +18,6 @@ package main
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"encoding/binary"
 	"flag"
 	"fmt"
 	"os"
@@ -27,7 +25,6 @@ import (
 	"syscall"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	cclient "github.com/nymtech/nym/client"
 	"github.com/nymtech/nym/client/config"
@@ -35,10 +32,6 @@ import (
 	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
 	"github.com/nymtech/nym/logger"
 	"github.com/nymtech/nym/nym/token"
-	tmclient "github.com/nymtech/nym/tendermint/client"
-	"github.com/nymtech/nym/tendermint/nymabci/code"
-	"github.com/nymtech/nym/tendermint/nymabci/query"
-	"github.com/nymtech/nym/tendermint/nymabci/transaction"
 	"gopkg.in/op/go-logging.v1"
 )
 
@@ -98,81 +91,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Failed to spawn client instance: %v\n", err)
 		os.Exit(-1)
 	}
-	// testRedeem(cc)
 	nymFlow(cc)
-}
-
-func testRedeem(cc *cclient.Client) {
-	log, err := logger.New("", "DEBUG", false)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to create a logger: %v", err))
-	}
-
-	tmclient, err := tmclient.New(tendermintABCIAddresses, log)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to create a tmclient: %v", err))
-	}
-
-	pk, err := ethcrypto.GenerateKey()
-	if err != nil {
-		panic(err)
-	}
-
-	newAccReq, err := transaction.CreateNewAccountRequest(pk, []byte("foo"))
-	if err != nil {
-		panic(err)
-	}
-
-	res, err := tmclient.Broadcast(newAccReq)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("Created new account. Code: %v, additional data: %v\n",
-		code.ToString(res.DeliverTx.Code),
-		string(res.DeliverTx.Data),
-	)
-
-	debugAcc, lerr := ethcrypto.LoadECDSA("tendermint/debugAccount.key")
-	if lerr != nil {
-		panic(lerr)
-	}
-
-	newAccAddress := ethcrypto.PubkeyToAddress(*pk.Public().(*ecdsa.PublicKey))
-	debugAccAddress := ethcrypto.PubkeyToAddress(*debugAcc.Public().(*ecdsa.PublicKey))
-
-	queryRes, err := tmclient.Query(query.QueryCheckBalancePath, debugAccAddress[:])
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println("Debug Account Balance: ", binary.BigEndian.Uint64(queryRes.Response.Value))
-
-	// transfer some funds to the new account
-	transferReq, err := transaction.CreateNewTransferRequest(debugAcc, newAccAddress, 42)
-	if err != nil {
-		panic(err)
-	}
-
-	// add some funds
-	res, err = tmclient.Broadcast(transferReq)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("Transferred funds from debug to new account. Code: %v, additional data: %v\n",
-		code.ToString(res.DeliverTx.Code),
-		string(res.DeliverTx.Data),
-	)
-
-	tx, err := transaction.CreateNewTokenRedemptionRequest(pk, 2)
-	if err != nil {
-		panic(err)
-	}
-
-	res, err = tmclient.Broadcast(tx)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(res)
 }
 
 func checkNymBalance(cc *cclient.Client, log *logging.Logger) uint64 {
@@ -222,7 +141,7 @@ func nymFlow(cc *cclient.Client) {
 
 	// we wait for both operations to get finalized
 	cc.WaitForERC20BalanceChangeWrapper(context.TODO(), currentERC20Balance-uint64(tokenValue))
-	cc.WaitForBalanceIncrease(context.TODO(), currentNymBalance+uint64(tokenValue))
+	cc.WaitForBalanceChange(context.TODO(), currentNymBalance+uint64(tokenValue))
 	log.Noticef("We sent %v to the pipe account", tokenValue)
 
 	// and we see both balances changed accordingly
@@ -251,7 +170,7 @@ func nymFlow(cc *cclient.Client) {
 	log.Noticef("Obtained Credential: %v %v\n", cred.Sig1().ToString(), cred.Sig2().ToString())
 
 	// see that our balance changed
-	checkNymBalance(cc, log)
+	bal := checkNymBalance(cc, log)
 
 	log.Info("Going to spend the obtained credential at some service provider")
 	didSucceed, err := cc.SpendCredential(token, cred, provider1IP, ethcommon.HexToAddress(provider1Address), nil)
@@ -264,6 +183,23 @@ func nymFlow(cc *cclient.Client) {
 		log.Error("For some reason, we failed to spend the credential - please refer to the provider's logs for details")
 	}
 
-	log.Warning("Going to test token redemption back to ERC20 (temporarily on completely new and fresh account until properly implemented")
-	testRedeem(cc)
+	if bal > 1 {
+		log.Noticef("Going to redeem 1 token [In actual deployment this will be performed by Service Providers only]")
+		erc20bal, _ := checkERC20NymBalance(cc, log)
+		if err := cc.RedeemTokens(context.TODO(), uint64(1)); err != nil {
+			panic(err)
+		}
+
+		if err := cc.WaitForBalanceChange(context.TODO(), bal-1); err != nil {
+			panic(err)
+		}
+
+		if err := cc.WaitForERC20BalanceChangeWrapper(context.TODO(), erc20bal+1); err != nil {
+			panic(err)
+		}
+
+		checkNymBalance(cc, log)
+		checkERC20NymBalance(cc, log)
+	}
+
 }

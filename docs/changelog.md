@@ -1,8 +1,13 @@
 # CoconutGo Changelog
 
+## 0.10.4
+
+* Added token redemption to sample client
+
 ## 0.10.3
 
 * Changed `Tags` field in Tx struct inside Tendermint monitor to `Events` to simplify code and to be more consistent with the actual Tendermint
+* Added a recover call GetServerResponses()
 
 ## 0.10.2
 
