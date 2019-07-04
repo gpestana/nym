@@ -18,22 +18,28 @@ package main
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"encoding/binary"
 	"flag"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/nymtech/nym/logger"
-	"gopkg.in/op/go-logging.v1"
-
 	ethcommon "github.com/ethereum/go-ethereum/common"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	cclient "github.com/nymtech/nym/client"
 	"github.com/nymtech/nym/client/config"
 	"github.com/nymtech/nym/crypto/bpgroup"
 	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
+	"github.com/nymtech/nym/logger"
 	"github.com/nymtech/nym/nym/token"
+	tmclient "github.com/nymtech/nym/tendermint/client"
+	"github.com/nymtech/nym/tendermint/nymabci/code"
+	"github.com/nymtech/nym/tendermint/nymabci/query"
+	"github.com/nymtech/nym/tendermint/nymabci/transaction"
+	"gopkg.in/op/go-logging.v1"
 )
 
 const provider1IP = "127.0.0.1:4100"
@@ -92,12 +98,83 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Failed to spawn client instance: %v\n", err)
 		os.Exit(-1)
 	}
-
-	nymFlow(cc)
+	testRedeem(cc)
+	// nymFlow(cc)
 }
 
-func transferToPipe(cc *cclient.Client) {
+func testRedeem(cc *cclient.Client) {
+	log, err := logger.New("", "DEBUG", false)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to create a logger: %v", err))
+	}
 
+	tmclient, err := tmclient.New(tendermintABCIAddresses, log)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to create a tmclient: %v", err))
+	}
+
+	pk, err := ethcrypto.GenerateKey()
+	if err != nil {
+		panic(err)
+	}
+
+	newAccReq, err := transaction.CreateNewAccountRequest(pk, []byte("foo"))
+	if err != nil {
+		panic(err)
+	}
+
+	res, err := tmclient.Broadcast(newAccReq)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Created new account. Code: %v, additional data: %v\n",
+		code.ToString(res.DeliverTx.Code),
+		string(res.DeliverTx.Data),
+	)
+
+	debugAcc, lerr := ethcrypto.LoadECDSA("tendermint/debugAccount.key")
+	if lerr != nil {
+		panic(lerr)
+	}
+
+	newAccAddress := ethcrypto.PubkeyToAddress(*pk.Public().(*ecdsa.PublicKey))
+	debugAccAddress := ethcrypto.PubkeyToAddress(*debugAcc.Public().(*ecdsa.PublicKey))
+
+	queryRes, err := tmclient.Query(query.QueryCheckBalancePath, debugAccAddress[:])
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Debug Account Balance: ", binary.BigEndian.Uint64(queryRes.Response.Value))
+
+	// transfer some funds to the new account
+	transferReq, err := transaction.CreateNewTransferRequest(debugAcc, newAccAddress, 42)
+	if err != nil {
+		panic(err)
+	}
+
+	// add some funds
+	res, err = tmclient.Broadcast(transferReq)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Transferred funds from debug to new account. Code: %v, additional data: %v\n",
+		code.ToString(res.DeliverTx.Code),
+		string(res.DeliverTx.Data),
+	)
+
+	tx, err := transaction.CreateNewTokenRedemptionRequest(pk, 2)
+	if err != nil {
+		panic(err)
+	}
+
+	res, err = tmclient.Broadcast(tx)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(res)
+
+	// TODO: wait for ERC20 increase?
 }
 
 func checkNymBalance(cc *cclient.Client, log *logging.Logger) uint64 {
