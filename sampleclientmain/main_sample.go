@@ -98,8 +98,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Failed to spawn client instance: %v\n", err)
 		os.Exit(-1)
 	}
-	testRedeem(cc)
-	// nymFlow(cc)
+	// testRedeem(cc)
+	nymFlow(cc)
 }
 
 func testRedeem(cc *cclient.Client) {
@@ -173,8 +173,6 @@ func testRedeem(cc *cclient.Client) {
 		panic(err)
 	}
 	fmt.Println(res)
-
-	// TODO: wait for ERC20 increase?
 }
 
 func checkNymBalance(cc *cclient.Client, log *logging.Logger) uint64 {
@@ -265,4 +263,7 @@ func nymFlow(cc *cclient.Client) {
 	} else {
 		log.Error("For some reason, we failed to spend the credential - please refer to the provider's logs for details")
 	}
+
+	log.Warning("Going to test token redemption back to ERC20 (temporarily on completely new and fresh account until properly implemented")
+	testRedeem(cc)
 }
