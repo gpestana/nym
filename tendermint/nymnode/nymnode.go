@@ -134,6 +134,9 @@ func CreateNymNode(cfgFile, dataRoot string, createEmptyBlocks bool, emptyBlocks
 		return nil, err
 	}
 
+	// FIXME: temporary workaround
+	cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
+
 	node, err := tmNode.NewNode(cfg,
 		privval.LoadOrGenFilePV(cfg.PrivValidatorKeyFile(), cfg.PrivValidatorStateFile()),
 		nodeKey,
