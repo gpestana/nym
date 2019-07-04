@@ -146,6 +146,7 @@ func (c *Client) WaitForERC20BalanceChangeWrapper(ctx context.Context, expectedB
 }
 
 // TODO: perhaps wait for N blocks to be more certain of it?
+// TODO: only works under assumption given client is ONLY communicating with us
 func (c *Client) waitForERC20BalanceChange(ctx context.Context, expectedBalance uint64) error {
 	c.log.Info("Waiting for our transaction to reach the Ethereum chain")
 	// TODO: make ticker interval configurable in config.toml file?
@@ -180,7 +181,8 @@ func (c *Client) waitForERC20BalanceChange(ctx context.Context, expectedBalance 
 }
 
 // // actually we don't need this method at all - when we broadcast the data we wait for it to be included
-func (c *Client) WaitForBalanceIncrease(ctx context.Context, expectedBalance uint64) error {
+// TODO: only works under assumption given client is ONLY communicating with us
+func (c *Client) WaitForBalanceChange(ctx context.Context, expectedBalance uint64) error {
 	c.log.Info("Waiting for our transaction to reach Tendermint chain")
 	retryTicker := time.NewTicker(2 * time.Second)
 
