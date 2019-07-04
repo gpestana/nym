@@ -73,62 +73,6 @@ services:
       localnet:
         ipv4_address: 192.167.10.5
 
-  watcher1:
-    # below two are for debug purposes only
-    stdin_open: true
-    tty: true
-    container_name: watcher1
-    image: "nym/ethereum-watcher"
-    volumes:
-      - ./build/ethereum-watchers/watcher1:/ethereum-watcher:Z
-    depends_on:
-      - node0
-    networks:
-      localnet:
-        ipv4_address: 192.167.12.1 
-
-  watcher2:
-    # below two are for debug purposes only
-    stdin_open: true
-    tty: true
-    container_name: watcher2
-    image: "nym/ethereum-watcher"
-    volumes:
-      - ./build/ethereum-watchers/watcher2:/ethereum-watcher:Z
-    depends_on:
-      - node1
-    networks:
-      localnet:
-        ipv4_address: 192.167.12.2 
-
-  watcher3:
-    # below two are for debug purposes only
-    stdin_open: true
-    tty: true
-    container_name: watcher3
-    image: "nym/ethereum-watcher"
-    volumes:
-      - ./build/ethereum-watchers/watcher3:/ethereum-watcher:Z
-    depends_on:
-      - node2
-    networks:
-      localnet:
-        ipv4_address: 192.167.12.3
-
-  watcher4:
-    # below two are for debug purposes only
-    stdin_open: true
-    tty: true
-    container_name: watcher4
-    image: "nym/ethereum-watcher"
-    volumes:
-      - ./build/ethereum-watchers/watcher4:/ethereum-watcher:Z
-    depends_on:
-      - node3
-    networks:
-      localnet:
-        ipv4_address: 192.167.12.4
-
   issuer1:
     # below two are for debug purposes only
     stdin_open: true
@@ -191,6 +135,62 @@ services:
     networks:
       localnet:
         ipv4_address: 192.167.11.3
+
+  watcher1:
+    # below two are for debug purposes only
+    stdin_open: true
+    tty: true
+    container_name: watcher1
+    image: "nym/ethereum-watcher"
+    volumes:
+      - ./build/ethereum-watchers/watcher1:/ethereum-watcher:Z
+    depends_on:
+      - node0
+    networks:
+      localnet:
+        ipv4_address: 192.167.12.1 
+
+  watcher2:
+    # below two are for debug purposes only
+    stdin_open: true
+    tty: true
+    container_name: watcher2
+    image: "nym/ethereum-watcher"
+    volumes:
+      - ./build/ethereum-watchers/watcher2:/ethereum-watcher:Z
+    depends_on:
+      - node1
+    networks:
+      localnet:
+        ipv4_address: 192.167.12.2 
+
+  watcher3:
+    # below two are for debug purposes only
+    stdin_open: true
+    tty: true
+    container_name: watcher3
+    image: "nym/ethereum-watcher"
+    volumes:
+      - ./build/ethereum-watchers/watcher3:/ethereum-watcher:Z
+    depends_on:
+      - node2
+    networks:
+      localnet:
+        ipv4_address: 192.167.12.3
+
+  watcher4:
+    # below two are for debug purposes only
+    stdin_open: true
+    tty: true
+    container_name: watcher4
+    image: "nym/ethereum-watcher"
+    volumes:
+      - ./build/ethereum-watchers/watcher4:/ethereum-watcher:Z
+    depends_on:
+      - node3
+    networks:
+      localnet:
+        ipv4_address: 192.167.12.4
 
   provider1:
     # below two are for debug purposes only
@@ -267,6 +267,60 @@ services:
     networks:
       localnet:
         ipv4_address: 192.167.14.2
+
+  redeemer1:
+    # below two are for debug purposes only
+    stdin_open: true
+    tty: true
+    container_name: redeemer1
+    image: "nym/redeemer"
+    command: "-f /redeemer/config.toml"
+    volumes:
+      - ./build/redeemers/redeemer1:/redeemer:Z
+    depends_on:
+      - node0
+      - node1
+      - node2
+      - node3
+    networks:
+      localnet:
+        ipv4_address: 192.167.15.1
+
+  redeemer2:
+    # below two are for debug purposes only
+    stdin_open: true
+    tty: true
+    container_name: redeemer2
+    image: "nym/redeemer"
+    command: "-f /redeemer/config.toml"
+    volumes:
+      - ./build/redeemers/redeemer2:/redeemer:Z
+    depends_on:
+      - node0
+      - node1
+      - node2
+      - node3
+    networks:
+      localnet:
+        ipv4_address: 192.167.15.2
+
+  redeemer3:
+    # below two are for debug purposes only
+    stdin_open: true
+    tty: true
+    container_name: redeemer3
+    image: "nym/redeemer"
+    command: "-f /redeemer/config.toml"
+    volumes:
+      - ./build/redeemers/redeemer3:/redeemer:Z
+    depends_on:
+      - node0
+      - node1
+      - node2
+      - node3
+    networks:
+      localnet:
+        ipv4_address: 192.167.15.3
 
 networks:
   localnet:

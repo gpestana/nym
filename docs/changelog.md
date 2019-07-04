@@ -1,5 +1,9 @@
 # CoconutGo Changelog
 
+## 0.10.1
+
+* Included Redeemers in docker-compose file
+
 ## 0.10.0
 
 * Introduced Redeemer entity that monitors Tendermint chain for any requests to move tokens back into ERC20. When threshold number of them agrees on a request, only one of them calls the ERC20 smartcontract
