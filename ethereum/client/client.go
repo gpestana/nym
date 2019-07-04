@@ -85,6 +85,9 @@ func (c *Client) logAndReturnError(fmtString string, a ...interface{}) error {
 func (c *Client) GetTransactionStatus(ctx context.Context, txHash common.Hash) TxStatus {
 	// TODO:
 	_, isPending, err := c.ethClient.TransactionByHash(ctx, txHash)
+	if err != nil {
+		return TxStatusUnknown
+	}
 	if isPending {
 		return TxStatusPending
 	}
