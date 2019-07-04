@@ -135,7 +135,7 @@ func (c *Client) GetCurrentNymBalance() (uint64, error) {
 }
 
 func (c *Client) SendToPipeAccount(ctx context.Context, amount int64) error {
-	if err := c.ethClient.TransferERC20Tokens(ctx, amount, c.cfg.Nym.PipeAccount); err != nil {
+	if _, err := c.ethClient.TransferERC20Tokens(ctx, amount, c.cfg.Nym.PipeAccount); err != nil {
 		return err
 	}
 	return nil
@@ -146,6 +146,7 @@ func (c *Client) WaitForERC20BalanceChangeWrapper(ctx context.Context, expectedB
 }
 
 // TODO: perhaps wait for N blocks to be more certain of it?
+// TODO: only works under assumption given client is ONLY communicating with us
 func (c *Client) waitForERC20BalanceChange(ctx context.Context, expectedBalance uint64) error {
 	c.log.Info("Waiting for our transaction to reach the Ethereum chain")
 	// TODO: make ticker interval configurable in config.toml file?
@@ -180,7 +181,8 @@ func (c *Client) waitForERC20BalanceChange(ctx context.Context, expectedBalance 
 }
 
 // // actually we don't need this method at all - when we broadcast the data we wait for it to be included
-func (c *Client) WaitForBalanceIncrease(ctx context.Context, expectedBalance uint64) error {
+// TODO: only works under assumption given client is ONLY communicating with us
+func (c *Client) WaitForBalanceChange(ctx context.Context, expectedBalance uint64) error {
 	c.log.Info("Waiting for our transaction to reach Tendermint chain")
 	retryTicker := time.NewTicker(2 * time.Second)
 
@@ -199,6 +201,28 @@ func (c *Client) WaitForBalanceIncrease(ctx context.Context, expectedBalance uin
 			return errors.New("operation was cancelled")
 		}
 	}
+}
+
+// RedeemTokens allows to move specified number of Nym tokens back into ERC20
+func (c *Client) RedeemTokens(ctx context.Context, amount uint64) error {
+	tx, err := transaction.CreateNewTokenRedemptionRequest(c.privateKey, amount)
+	if err != nil {
+		return c.logAndReturnError("RedeemTokens: Failed to create redemption request: %v", err)
+	}
+	res, err := c.nymClient.Broadcast(tx)
+	if err != nil {
+		return c.logAndReturnError("RedeemTokens: Failed to send redemption request: %v", err)
+	}
+	if res.CheckTx.Code != code.OK || res.DeliverTx.Code != code.OK {
+		// TODO: once we include Logs field, return those
+		return c.logAndReturnError("RedeemTokens: Failed to send redemption request: checkTx code: %v (%v) deliverTx code: %v (%v)",
+			res.CheckTx.Code,
+			code.ToString(res.CheckTx.Code),
+			res.DeliverTx.Code,
+			code.ToString(res.DeliverTx.Code),
+		)
+	}
+	return nil
 }
 
 // LookUpIssuedCredential allows to recover a previously issued credential given knowledge of height on which we
@@ -323,7 +347,7 @@ func (c *Client) sendCredentialRequest(token *token.Token, egPub *elgamal.Public
 	pubM, _ := token.GetPublicAndPrivateSlices()
 	bsm := coconut.NewBlindSignMaterials(lambda, egPub, pubM)
 
-	req, err := transaction.CreateCredentialRequest(c.privateKey, c.cfg.Nym.PipeAccount, bsm, token.Value())
+	req, err := transaction.CreateNewCredentialRequest(c.privateKey, c.cfg.Nym.PipeAccount, bsm, token.Value())
 	if err != nil {
 		return -1, c.logAndReturnError("sendCredentialRequest: Failed to create request: %v", err)
 	}

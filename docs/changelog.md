@@ -1,5 +1,32 @@
 # CoconutGo Changelog
 
+## 0.10.4
+
+* Added token redemption to sample client
+
+## 0.10.3
+
+* Changed `Tags` field in Tx struct inside Tendermint monitor to `Events` to simplify code and to be more consistent with the actual Tendermint
+* Added a recover call GetServerResponses()
+
+## 0.10.2
+
+* Updated all used dependencies to most recent versions
+* Fixed code using Tendermint due to breaking API changes present in version 0.32.0 of Tendermint
+
+## 0.10.1
+
+* Included Redeemers in docker-compose file
+
+## 0.10.0
+
+* Introduced Redeemer entity that monitors Tendermint chain for any requests to move tokens back into ERC20. When threshold number of them agrees on a request, only one of them calls the ERC20 smartcontract
+* Changed all local import paths due to repository switch
+* Decreased levels of logging in multiple locations to make outputs more readable
+* Changed default address of the pipe account
+* Increased default polling rate of Ethereum watchers
+* Additional minor fixes and changes
+
 ## 0.9.1
 
 * Sample client cleanup + description of what is actually happening

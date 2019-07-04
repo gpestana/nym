@@ -12,7 +12,7 @@ import (
 	duration "github.com/golang/protobuf/ptypes/duration"
 	empty "github.com/golang/protobuf/ptypes/empty"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
-	_ "google.golang.org/genproto/googleapis/longrunning"
+	longrunning "google.golang.org/genproto/googleapis/longrunning"
 	field_mask "google.golang.org/genproto/protobuf/field_mask"
 	grpc "google.golang.org/grpc"
 )
@@ -29,24 +29,36 @@ var _ = math.Inf
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
 // An enum that specifies the job attributes that are returned in the
-// [MatchingJob.Job][] in [SearchJobsResponse][google.cloud.talent.v4beta1.SearchJobsResponse] or [Job][google.cloud.talent.v4beta1.Job] objects in
-// [ListJobsResponse][google.cloud.talent.v4beta1.ListJobsResponse].
+// [MatchingJob.job][google.cloud.talent.v4beta1.SearchJobsResponse.MatchingJob.job]
+// or [ListJobsResponse.jobs][google.cloud.talent.v4beta1.ListJobsResponse.jobs]
+// fields.
 type JobView int32
 
 const (
 	// Default value.
 	JobView_JOB_VIEW_UNSPECIFIED JobView = 0
 	// A ID only view of job, with following attributes:
-	// [Job.name][google.cloud.talent.v4beta1.Job.name], [Job.requisition_id][google.cloud.talent.v4beta1.Job.requisition_id], [Job.language_code][google.cloud.talent.v4beta1.Job.language_code].
+	// [Job.name][google.cloud.talent.v4beta1.Job.name],
+	// [Job.requisition_id][google.cloud.talent.v4beta1.Job.requisition_id],
+	// [Job.language_code][google.cloud.talent.v4beta1.Job.language_code].
 	JobView_JOB_VIEW_ID_ONLY JobView = 1
 	// A minimal view of the job, with the following attributes:
-	// [Job.name][google.cloud.talent.v4beta1.Job.name], [Job.requisition_id][google.cloud.talent.v4beta1.Job.requisition_id], [Job.job_title][],
-	// [Job.company][google.cloud.talent.v4beta1.Job.company], [Job.DerivedInfo.locations][google.cloud.talent.v4beta1.Job.DerivedInfo.locations], [Job.language_code][google.cloud.talent.v4beta1.Job.language_code].
+	// [Job.name][google.cloud.talent.v4beta1.Job.name],
+	// [Job.requisition_id][google.cloud.talent.v4beta1.Job.requisition_id],
+	// [Job.title][google.cloud.talent.v4beta1.Job.title],
+	// [Job.company][google.cloud.talent.v4beta1.Job.company],
+	// [Job.DerivedInfo.locations][google.cloud.talent.v4beta1.Job.DerivedInfo.locations],
+	// [Job.language_code][google.cloud.talent.v4beta1.Job.language_code].
 	JobView_JOB_VIEW_MINIMAL JobView = 2
 	// A small view of the job, with the following attributes in the search
-	// results: [Job.name][google.cloud.talent.v4beta1.Job.name], [Job.requisition_id][google.cloud.talent.v4beta1.Job.requisition_id], [Job.job_title][],
-	// [Job.company][google.cloud.talent.v4beta1.Job.company], [Job.DerivedInfo.locations][google.cloud.talent.v4beta1.Job.DerivedInfo.locations], [Job.visibility][google.cloud.talent.v4beta1.Job.visibility],
-	// [Job.language_code][google.cloud.talent.v4beta1.Job.language_code], [Job.description][google.cloud.talent.v4beta1.Job.description].
+	// results: [Job.name][google.cloud.talent.v4beta1.Job.name],
+	// [Job.requisition_id][google.cloud.talent.v4beta1.Job.requisition_id],
+	// [Job.title][google.cloud.talent.v4beta1.Job.title],
+	// [Job.company][google.cloud.talent.v4beta1.Job.company],
+	// [Job.DerivedInfo.locations][google.cloud.talent.v4beta1.Job.DerivedInfo.locations],
+	// [Job.visibility][google.cloud.talent.v4beta1.Job.visibility],
+	// [Job.language_code][google.cloud.talent.v4beta1.Job.language_code],
+	// [Job.description][google.cloud.talent.v4beta1.Job.description].
 	JobView_JOB_VIEW_SMALL JobView = 3
 	// All available attributes are included in the search results.
 	JobView_JOB_VIEW_FULL JobView = 4
@@ -155,7 +167,8 @@ func (SearchJobsRequest_DiversificationLevel) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_0dfa8e10f7799e35, []int{7, 1}
 }
 
-// The importance level for [CustomRankingInfo.ranking_expression][google.cloud.talent.v4beta1.SearchJobsRequest.CustomRankingInfo.ranking_expression].
+// The importance level for
+// [CustomRankingInfo.ranking_expression][google.cloud.talent.v4beta1.SearchJobsRequest.CustomRankingInfo.ranking_expression].
 type SearchJobsRequest_CustomRankingInfo_ImportanceLevel int32
 
 const (
@@ -219,9 +232,7 @@ func (SearchJobsRequest_CustomRankingInfo_ImportanceLevel) EnumDescriptor() ([]b
 //
 // Create job request.
 type CreateJobRequest struct {
-	// Required.
-	//
-	// The resource name of the tenant under which the job is created.
+	// Required. The resource name of the tenant under which the job is created.
 	//
 	// The format is "projects/{project_id}/tenants/{tenant_id}", for example,
 	// "projects/api-test-project/tenant/foo".
@@ -229,9 +240,7 @@ type CreateJobRequest struct {
 	// Tenant id is optional and a default tenant is created if unspecified, for
 	// example, "projects/api-test-project".
 	Parent string `protobuf:"bytes,1,opt,name=parent,proto3" json:"parent,omitempty"`
-	// Required.
-	//
-	// The Job to be created.
+	// Required. The Job to be created.
 	Job                  *Job     `protobuf:"bytes,2,opt,name=job,proto3" json:"job,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -281,9 +290,7 @@ func (m *CreateJobRequest) GetJob() *Job {
 //
 // Get job request.
 type GetJobRequest struct {
-	// Required.
-	//
-	// The resource name of the job to retrieve.
+	// Required. The resource name of the job to retrieve.
 	//
 	// The format is
 	// "projects/{project_id}/tenants/{tenant_id}/jobs/{job_id}", for
@@ -333,15 +340,15 @@ func (m *GetJobRequest) GetName() string {
 //
 // Update job request.
 type UpdateJobRequest struct {
-	// Required.
-	//
-	// The Job to be updated.
+	// Required. The Job to be updated.
 	Job *Job `protobuf:"bytes,1,opt,name=job,proto3" json:"job,omitempty"`
 	// Optional but strongly recommended to be provided for the best service
 	// experience.
 	//
-	// If [update_mask][google.cloud.talent.v4beta1.UpdateJobRequest.update_mask] is provided, only the specified fields in
-	// [job][google.cloud.talent.v4beta1.UpdateJobRequest.job] are updated. Otherwise all the fields are updated.
+	// If [update_mask][google.cloud.talent.v4beta1.UpdateJobRequest.update_mask]
+	// is provided, only the specified fields in
+	// [job][google.cloud.talent.v4beta1.UpdateJobRequest.job] are updated.
+	// Otherwise all the fields are updated.
 	//
 	// A field mask to restrict the fields that are updated. Only
 	// top level fields of [Job][google.cloud.talent.v4beta1.Job] are supported.
@@ -394,9 +401,7 @@ func (m *UpdateJobRequest) GetUpdateMask() *field_mask.FieldMask {
 //
 // Delete job request.
 type DeleteJobRequest struct {
-	// Required.
-	//
-	// The resource name of the job to be deleted.
+	// Required. The resource name of the job to be deleted.
 	//
 	// The format is
 	// "projects/{project_id}/tenants/{tenant_id}/jobs/{job_id}", for
@@ -446,9 +451,7 @@ func (m *DeleteJobRequest) GetName() string {
 //
 // Batch delete jobs request.
 type BatchDeleteJobsRequest struct {
-	// Required.
-	//
-	// The resource name of the tenant under which the job is created.
+	// Required. The resource name of the tenant under which the job is created.
 	//
 	// The format is "projects/{project_id}/tenants/{tenant_id}", for example,
 	// "projects/api-test-project/tenant/foo".
@@ -456,9 +459,7 @@ type BatchDeleteJobsRequest struct {
 	// Tenant id is optional and the default tenant is used if unspecified, for
 	// example, "projects/api-test-project".
 	Parent string `protobuf:"bytes,1,opt,name=parent,proto3" json:"parent,omitempty"`
-	// Required.
-	//
-	// The filter string specifies the jobs to be deleted.
+	// Required. The filter string specifies the jobs to be deleted.
 	//
 	// Supported operator: =, AND
 	//
@@ -518,9 +519,7 @@ func (m *BatchDeleteJobsRequest) GetFilter() string {
 //
 // List jobs request.
 type ListJobsRequest struct {
-	// Required.
-	//
-	// The resource name of the tenant under which the job is created.
+	// Required. The resource name of the tenant under which the job is created.
 	//
 	// The format is "projects/{project_id}/tenants/{tenant_id}", for example,
 	// "projects/api-test-project/tenant/foo".
@@ -528,9 +527,7 @@ type ListJobsRequest struct {
 	// Tenant id is optional and the default tenant is used if unspecified, for
 	// example, "projects/api-test-project".
 	Parent string `protobuf:"bytes,1,opt,name=parent,proto3" json:"parent,omitempty"`
-	// Required.
-	//
-	// The filter string specifies the jobs to be enumerated.
+	// Required. The filter string specifies the jobs to be enumerated.
 	//
 	// Supported operator: =, AND
 	//
@@ -549,24 +546,22 @@ type ListJobsRequest struct {
 	// * companyName = "projects/api-test-project/tenants/foo/companies/bar" AND
 	// status = "EXPIRED"
 	Filter string `protobuf:"bytes,2,opt,name=filter,proto3" json:"filter,omitempty"`
-	// Optional.
-	//
-	// The starting point of a query result.
+	// Optional. The starting point of a query result.
 	PageToken string `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
-	// Optional.
+	// Optional. The maximum number of jobs to be returned per page of results.
 	//
-	// The maximum number of jobs to be returned per page of results.
-	//
-	// If [job_view][google.cloud.talent.v4beta1.ListJobsRequest.job_view] is set to [JobView.JOB_VIEW_ID_ONLY][google.cloud.talent.v4beta1.JobView.JOB_VIEW_ID_ONLY], the maximum allowed
-	// page size is 1000. Otherwise, the maximum allowed page size is 100.
+	// If [job_view][google.cloud.talent.v4beta1.ListJobsRequest.job_view] is set
+	// to
+	// [JobView.JOB_VIEW_ID_ONLY][google.cloud.talent.v4beta1.JobView.JOB_VIEW_ID_ONLY],
+	// the maximum allowed page size is 1000. Otherwise, the maximum allowed page
+	// size is 100.
 	//
 	// Default is 100 if empty or a number < 1 is specified.
 	PageSize int32 `protobuf:"varint,4,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
-	// Optional.
-	//
-	// The desired job attributes returned for jobs in the
-	// search response. Defaults to [JobView.JOB_VIEW_FULL][google.cloud.talent.v4beta1.JobView.JOB_VIEW_FULL] if no value is
-	// specified.
+	// Optional. The desired job attributes returned for jobs in the
+	// search response. Defaults to
+	// [JobView.JOB_VIEW_FULL][google.cloud.talent.v4beta1.JobView.JOB_VIEW_FULL]
+	// if no value is specified.
 	JobView              JobView  `protobuf:"varint,5,opt,name=job_view,json=jobView,proto3,enum=google.cloud.talent.v4beta1.JobView" json:"job_view,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -702,9 +697,7 @@ func (m *ListJobsResponse) GetMetadata() *ResponseMetadata {
 //
 // The Request body of the `SearchJobs` call.
 type SearchJobsRequest struct {
-	// Required.
-	//
-	// The resource name of the tenant to search within.
+	// Required. The resource name of the tenant to search within.
 	//
 	// The format is "projects/{project_id}/tenants/{tenant_id}", for example,
 	// "projects/api-test-project/tenant/foo".
@@ -712,34 +705,26 @@ type SearchJobsRequest struct {
 	// Tenant id is optional and the default tenant is used if unspecified, for
 	// example, "projects/api-test-project".
 	Parent string `protobuf:"bytes,1,opt,name=parent,proto3" json:"parent,omitempty"`
-	// Optional.
+	// Optional. Mode of a search.
 	//
-	// Mode of a search.
-	//
-	// Defaults to [SearchMode.JOB_SEARCH][google.cloud.talent.v4beta1.SearchJobsRequest.SearchMode.JOB_SEARCH].
+	// Defaults to
+	// [SearchMode.JOB_SEARCH][google.cloud.talent.v4beta1.SearchJobsRequest.SearchMode.JOB_SEARCH].
 	SearchMode SearchJobsRequest_SearchMode `protobuf:"varint,2,opt,name=search_mode,json=searchMode,proto3,enum=google.cloud.talent.v4beta1.SearchJobsRequest_SearchMode" json:"search_mode,omitempty"`
-	// Required.
-	//
-	// The meta information collected about the job searcher, used to improve the
-	// search quality of the service.. The identifiers, (such as `user_id`) are
-	// provided by users, and must be unique and consistent.
+	// Required. The meta information collected about the job searcher, used to
+	// improve the search quality of the service. The identifiers (such as
+	// `user_id`) are provided by users, and must be unique and consistent.
 	RequestMetadata *RequestMetadata `protobuf:"bytes,3,opt,name=request_metadata,json=requestMetadata,proto3" json:"request_metadata,omitempty"`
-	// Optional.
-	//
-	// Query used to search against jobs, such as keyword, location filters, etc.
+	// Optional. Query used to search against jobs, such as keyword, location
+	// filters, etc.
 	JobQuery *JobQuery `protobuf:"bytes,4,opt,name=job_query,json=jobQuery,proto3" json:"job_query,omitempty"`
-	// Optional.
-	//
-	// Controls whether to broaden the search when it produces sparse results.
-	// Broadened queries append results to the end of the matching results
-	// list.
+	// Optional. Controls whether to broaden the search when it produces sparse
+	// results. Broadened queries append results to the end of the matching
+	// results list.
 	//
 	// Defaults to false.
 	EnableBroadening bool `protobuf:"varint,5,opt,name=enable_broadening,json=enableBroadening,proto3" json:"enable_broadening,omitempty"`
-	// Optional.
-	//
-	// Controls if the search job request requires the return of a precise
-	// count of the first 300 results. Setting this to `true` ensures
+	// Optional. Controls if the search job request requires the return of a
+	// precise count of the first 300 results. Setting this to `true` ensures
 	// consistency in the number of results per page. Best practice is to set this
 	// value to true if a client allows users to jump directly to a
 	// non-sequential search results page.
@@ -748,9 +733,8 @@ type SearchJobsRequest struct {
 	//
 	// Defaults to false.
 	RequirePreciseResultSize bool `protobuf:"varint,6,opt,name=require_precise_result_size,json=requirePreciseResultSize,proto3" json:"require_precise_result_size,omitempty"`
-	// Optional.
-	//
-	// An expression specifies a histogram request against matching jobs.
+	// Optional. An expression specifies a histogram request against matching
+	// jobs.
 	//
 	// Expression syntax is an aggregation function call with histogram facets and
 	// other options.
@@ -782,178 +766,199 @@ type SearchJobsRequest struct {
 	//
 	// Job histogram facets:
 	//
-	// * company_id: histogram by [Job.distributor_company_id][].
-	// * company_display_name: histogram by [Job.company_display_name][google.cloud.talent.v4beta1.Job.company_display_name].
-	// * employment_type: histogram by [Job.employment_types][google.cloud.talent.v4beta1.Job.employment_types], for example,
-	// "FULL_TIME", "PART_TIME".
-	// * company_size: histogram by [CompanySize][google.cloud.talent.v4beta1.CompanySize], for example, "SMALL",
-	// "MEDIUM", "BIG".
-	// * publish_time_in_month: histogram by the [Job.publish_time][] in months.
-	// Must specify list of numeric buckets in spec.
-	// * publish_time_in_year: histogram by the [Job.publish_time][] in years.
-	// Must specify list of numeric buckets in spec.
-	// * degree_type: histogram by the [Job.degree_type][], for example,
-	// "Bachelors", "Masters".
-	// * job_level: histogram by the [Job.job_level][google.cloud.talent.v4beta1.Job.job_level], for example, "Entry
-	// Level".
+	// * company_display_name: histogram by
+	// [Job.company_display_name][google.cloud.talent.v4beta1.Job.company_display_name].
+	// * employment_type: histogram by
+	// [Job.employment_types][google.cloud.talent.v4beta1.Job.employment_types],
+	// for example,
+	//   "FULL_TIME", "PART_TIME".
+	// * company_size: histogram by
+	// [CompanySize][google.cloud.talent.v4beta1.CompanySize], for example,
+	// "SMALL", "MEDIUM", "BIG".
+	// * publish_time_in_month: histogram by the
+	// [Job.posting_publish_time][google.cloud.talent.v4beta1.Job.posting_publish_time]
+	//   in months.
+	//   Must specify list of numeric buckets in spec.
+	// * publish_time_in_year: histogram by the
+	// [Job.posting_publish_time][google.cloud.talent.v4beta1.Job.posting_publish_time]
+	//   in years.
+	//   Must specify list of numeric buckets in spec.
+	// * degree_types: histogram by the
+	// [Job.degree_types][google.cloud.talent.v4beta1.Job.degree_types], for
+	// example,
+	//   "Bachelors", "Masters".
+	// * job_level: histogram by the
+	// [Job.job_level][google.cloud.talent.v4beta1.Job.job_level], for example,
+	// "Entry
+	//   Level".
 	// * country: histogram by the country code of jobs, for example, "US", "FR".
 	// * admin1: histogram by the admin1 code of jobs, which is a global
-	// placeholder referring to the state, province, or the particular term a
-	// country uses to define the geographic structure below the country level,
-	// for example, "CA", "IL".
+	//   placeholder referring to the state, province, or the particular term a
+	//   country uses to define the geographic structure below the country level,
+	//   for example, "CA", "IL".
 	// * city: histogram by a combination of the "city name, admin1 code". For
-	// example,  "Mountain View, CA", "New York, NY".
+	//   example,  "Mountain View, CA", "New York, NY".
 	// * admin1_country: histogram by a combination of the "admin1 code, country",
-	// for example, "CA, US", "IL, US".
+	//   for example, "CA, US", "IL, US".
 	// * city_coordinate: histogram by the city center's GPS coordinates (latitude
-	// and longitude), for example, 37.4038522,-122.0987765. Since the coordinates
-	// of a city center can change, customers may need to refresh them
-	// periodically.
-	// * locale: histogram by the [Job.language_code][google.cloud.talent.v4beta1.Job.language_code], for example, "en-US",
-	// "fr-FR".
-	// * language: histogram by the language subtag of the [Job.language_code][google.cloud.talent.v4beta1.Job.language_code],
-	// for example, "en", "fr".
-	// * category: histogram by the [JobCategory][google.cloud.talent.v4beta1.JobCategory], for example,
-	// "COMPUTER_AND_IT", "HEALTHCARE".
-	// * base_compensation_unit: histogram by the [CompensationUnit][] of base
-	// salary, for example, "WEEKLY", "MONTHLY".
+	//   and longitude), for example, 37.4038522,-122.0987765. Since the
+	//   coordinates of a city center can change, customers may need to refresh
+	//   them periodically.
+	// * locale: histogram by the
+	// [Job.language_code][google.cloud.talent.v4beta1.Job.language_code], for
+	// example, "en-US",
+	//   "fr-FR".
+	// * language: histogram by the language subtag of the
+	// [Job.language_code][google.cloud.talent.v4beta1.Job.language_code],
+	//   for example, "en", "fr".
+	// * category: histogram by the
+	// [JobCategory][google.cloud.talent.v4beta1.JobCategory], for example,
+	//   "COMPUTER_AND_IT", "HEALTHCARE".
+	// * base_compensation_unit: histogram by the
+	//   [CompensationInfo.CompensationUnit][google.cloud.talent.v4beta1.CompensationInfo.CompensationUnit]
+	//   of base salary, for example, "WEEKLY", "MONTHLY".
 	// * base_compensation: histogram by the base salary. Must specify list of
-	// numeric buckets to group results by.
+	//   numeric buckets to group results by.
 	// * annualized_base_compensation: histogram by the base annualized salary.
-	// Must specify list of numeric buckets to group results by.
+	//   Must specify list of numeric buckets to group results by.
 	// * annualized_total_compensation: histogram by the total annualized salary.
-	// Must specify list of numeric buckets to group results by.
-	// * string_custom_attribute: histogram by string [Job.custom_attributes][google.cloud.talent.v4beta1.Job.custom_attributes].
-	// Values can be accessed via square bracket notations like
-	// string_custom_attribute["key1"].
-	// * numeric_custom_attribute: histogram by numeric [Job.custom_attributes][google.cloud.talent.v4beta1.Job.custom_attributes].
-	// Values can be accessed via square bracket notations like
-	// numeric_custom_attribute["key1"]. Must specify list of numeric buckets to
-	// group results by.
+	//   Must specify list of numeric buckets to group results by.
+	// * string_custom_attribute: histogram by string
+	// [Job.custom_attributes][google.cloud.talent.v4beta1.Job.custom_attributes].
+	//   Values can be accessed via square bracket notations like
+	//   string_custom_attribute["key1"].
+	// * numeric_custom_attribute: histogram by numeric
+	// [Job.custom_attributes][google.cloud.talent.v4beta1.Job.custom_attributes].
+	//   Values can be accessed via square bracket notations like
+	//   numeric_custom_attribute["key1"]. Must specify list of numeric buckets to
+	//   group results by.
 	//
 	// Example expressions:
-	// * count(admin1)
-	// * count(base_compensation, [bucket(1000, 10000), bucket(10000, 100000),
-	// bucket(100000, MAX)])
-	// * count(string_custom_attribute["some-string-custom-attribute"])
-	// * count(numeric_custom_attribute["some-numeric-custom-attribute"],
-	// [bucket(MIN, 0, "negative"), bucket(0, MAX, "non-negative"])
+	//
+	// * `count(admin1)`
+	// * `count(base_compensation, [bucket(1000, 10000), bucket(10000, 100000),
+	// bucket(100000, MAX)])`
+	// * `count(string_custom_attribute["some-string-custom-attribute"])`
+	// * `count(numeric_custom_attribute["some-numeric-custom-attribute"],
+	//   [bucket(MIN, 0, "negative"), bucket(0, MAX, "non-negative"])`
 	HistogramQueries []*HistogramQuery `protobuf:"bytes,7,rep,name=histogram_queries,json=histogramQueries,proto3" json:"histogram_queries,omitempty"`
-	// Optional.
-	//
-	// The desired job attributes returned for jobs in the
-	// search response. Defaults to [JobView.SMALL][] if no value is specified.
+	// Optional. The desired job attributes returned for jobs in the search
+	// response. Defaults to
+	// [JobView.JOB_VIEW_SMALL][google.cloud.talent.v4beta1.JobView.JOB_VIEW_SMALL]
+	// if no value is specified.
 	JobView JobView `protobuf:"varint,8,opt,name=job_view,json=jobView,proto3,enum=google.cloud.talent.v4beta1.JobView" json:"job_view,omitempty"`
-	// Optional.
-	//
-	// An integer that specifies the current offset (that is, starting result
-	// location, amongst the jobs deemed by the API as relevant) in search
-	// results. This field is only considered if [page_token][google.cloud.talent.v4beta1.SearchJobsRequest.page_token] is unset.
+	// Optional. An integer that specifies the current offset (that is, starting
+	// result location, amongst the jobs deemed by the API as relevant) in search
+	// results. This field is only considered if
+	// [page_token][google.cloud.talent.v4beta1.SearchJobsRequest.page_token] is
+	// unset.
 	//
 	// For example, 0 means to  return results starting from the first matching
 	// job, and 10 means to return from the 11th job. This can be used for
 	// pagination, (for example, pageSize = 10 and offset = 10 means to return
 	// from the second page).
 	Offset int32 `protobuf:"varint,9,opt,name=offset,proto3" json:"offset,omitempty"`
-	// Optional.
-	//
-	// A limit on the number of jobs returned in the search results.
+	// Optional. A limit on the number of jobs returned in the search results.
 	// Increasing this value above the default value of 10 can increase search
 	// response time. The value can be between 1 and 100.
 	PageSize int32 `protobuf:"varint,10,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
-	// Optional.
-	//
-	// The token specifying the current offset within
-	// search results. See [SearchJobsResponse.next_page_token][google.cloud.talent.v4beta1.SearchJobsResponse.next_page_token] for
-	// an explanation of how to obtain the next set of query results.
+	// Optional. The token specifying the current offset within
+	// search results. See
+	// [SearchJobsResponse.next_page_token][google.cloud.talent.v4beta1.SearchJobsResponse.next_page_token]
+	// for an explanation of how to obtain the next set of query results.
 	PageToken string `protobuf:"bytes,11,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
-	// Optional.
-	//
-	// The criteria determining how search results are sorted. Default is
-	// "relevance desc".
+	// Optional. The criteria determining how search results are sorted. Default
+	// is
+	// `"relevance desc"`.
 	//
 	// Supported options are:
 	//
-	// * "relevance desc": By relevance descending, as determined by the API
-	// algorithms. Relevance thresholding of query results is only available
-	// with this ordering.
-	// * "posting`_`publish`_`time desc": By [Job.posting_publish_time][google.cloud.talent.v4beta1.Job.posting_publish_time]
+	// * `"relevance desc"`: By relevance descending, as determined by the API
+	//   algorithms. Relevance thresholding of query results is only available
+	//   with this ordering.
+	// * `"posting_publish_time desc"`: By
+	// [Job.posting_publish_time][google.cloud.talent.v4beta1.Job.posting_publish_time]
+	//   descending.
+	// * `"posting_update_time desc"`: By
+	// [Job.posting_update_time][google.cloud.talent.v4beta1.Job.posting_update_time]
+	//   descending.
+	// * `"title"`: By [Job.title][google.cloud.talent.v4beta1.Job.title]
+	// ascending.
+	// * `"title desc"`: By [Job.title][google.cloud.talent.v4beta1.Job.title]
 	// descending.
-	// * "posting`_`update`_`time desc": By [Job.posting_update_time][google.cloud.talent.v4beta1.Job.posting_update_time]
-	// descending.
-	// * "title": By [Job.title][google.cloud.talent.v4beta1.Job.title] ascending.
-	// * "title desc": By [Job.title][google.cloud.talent.v4beta1.Job.title] descending.
-	// * "annualized`_`base`_`compensation": By job's
-	// [CompensationInfo.annualized_base_compensation_range][google.cloud.talent.v4beta1.CompensationInfo.annualized_base_compensation_range] ascending. Jobs
-	// whose annualized base compensation is unspecified are put at the end of
-	// search results.
-	// * "annualized`_`base`_`compensation desc": By job's
-	// [CompensationInfo.annualized_base_compensation_range][google.cloud.talent.v4beta1.CompensationInfo.annualized_base_compensation_range] descending. Jobs
-	// whose annualized base compensation is unspecified are put at the end of
-	// search results.
-	// * "annualized`_`total`_`compensation": By job's
-	// [CompensationInfo.annualized_total_compensation_range][google.cloud.talent.v4beta1.CompensationInfo.annualized_total_compensation_range] ascending. Jobs
-	// whose annualized base compensation is unspecified are put at the end of
-	// search results.
-	// * "annualized`_`total`_`compensation desc": By job's
-	// [CompensationInfo.annualized_total_compensation_range][google.cloud.talent.v4beta1.CompensationInfo.annualized_total_compensation_range] descending. Jobs
-	// whose annualized base compensation is unspecified are put at the end of
-	// search results.
-	// * "custom`_`ranking desc": By the relevance score adjusted to the
-	// [SearchJobsRequest.custom_ranking_info.ranking_expression][] with weight
-	// factor assigned by
-	// [SearchJobsRequest.custom_ranking_info.importance_level][] in descending
-	// order.
-	// * "location`_`distance": By the distance between the location on jobs and
-	//  locations specified in the
-	// [SearchJobsRequest.job_query.location_filters][].
-	// When this order is selected, the
-	// [SearchJobsRequest.job_query.location_filters][] must not be empty. When
-	// a job has multiple locations, the location closest to one of the locations
-	// specified in the location filter will be used to calculate location
-	// distance. Distance is calculated by the distance between two lat/long
-	// coordinates, with a precision of 10e-4 degrees (11.3 meters).
-	// Jobs that don't have locations specified will be ranked below jobs having
-	// locations.
-	// Diversification strategy is still applied unless explicitly disabled in
-	// [SearchJobsRequest.diversification_level][google.cloud.talent.v4beta1.SearchJobsRequest.diversification_level].
+	// * `"annualized_base_compensation"`: By job's
+	//   [CompensationInfo.annualized_base_compensation_range][google.cloud.talent.v4beta1.CompensationInfo.annualized_base_compensation_range]
+	//   ascending. Jobs whose annualized base compensation is unspecified are put
+	//   at the end of search results.
+	// * `"annualized_base_compensation desc"`: By job's
+	//   [CompensationInfo.annualized_base_compensation_range][google.cloud.talent.v4beta1.CompensationInfo.annualized_base_compensation_range]
+	//   descending. Jobs whose annualized base compensation is unspecified are
+	//   put at the end of search results.
+	// * `"annualized_total_compensation"`: By job's
+	//   [CompensationInfo.annualized_total_compensation_range][google.cloud.talent.v4beta1.CompensationInfo.annualized_total_compensation_range]
+	//   ascending. Jobs whose annualized base compensation is unspecified are put
+	//   at the end of search results.
+	// * `"annualized_total_compensation desc"`: By job's
+	//   [CompensationInfo.annualized_total_compensation_range][google.cloud.talent.v4beta1.CompensationInfo.annualized_total_compensation_range]
+	//   descending. Jobs whose annualized base compensation is unspecified are
+	//   put at the end of search results.
+	// * `"custom_ranking desc"`: By the relevance score adjusted to the
+	//   [SearchJobsRequest.CustomRankingInfo.ranking_expression][google.cloud.talent.v4beta1.SearchJobsRequest.CustomRankingInfo.ranking_expression]
+	//   with weight factor assigned by
+	//   [SearchJobsRequest.CustomRankingInfo.importance_level][google.cloud.talent.v4beta1.SearchJobsRequest.CustomRankingInfo.importance_level]
+	//   in descending order.
+	// * Location sorting: Use the special syntax to order jobs by distance:<br>
+	//   `"distance_from('Hawaii')"`: Order by distance from Hawaii.<br>
+	//   `"distance_from(19.89, 155.5)"`: Order by distance from a coordinate.<br>
+	//   `"distance_from('Hawaii'), distance_from('Puerto Rico')"`: Order by
+	//   multiple locations. See details below.<br>
+	//   `"distance_from('Hawaii'), distance_from(19.89, 155.5)"`: Order by
+	//   multiple locations. See details below.<br>
+	//   The string can have a maximum of 256 characters. When multiple distance
+	//   centers are provided, a job that is close to any of the distance centers
+	//   would have a high rank. When a job has multiple locations, the job
+	//   location closest to one of the distance centers will be used. Jobs that
+	//   don't have locations will be ranked at the bottom. Distance is calculated
+	//   with a precision of 11.3 meters (37.4 feet). Diversification strategy is
+	//   still applied unless explicitly disabled in
+	//   [diversification_level][google.cloud.talent.v4beta1.SearchJobsRequest.diversification_level].
 	OrderBy string `protobuf:"bytes,12,opt,name=order_by,json=orderBy,proto3" json:"order_by,omitempty"`
-	// Optional.
-	//
-	// Controls whether highly similar jobs are returned next to each other in
-	// the search results. Jobs are identified as highly similar based on
+	// Optional. Controls whether highly similar jobs are returned next to each
+	// other in the search results. Jobs are identified as highly similar based on
 	// their titles, job categories, and locations. Highly similar results are
 	// clustered so that only one representative job of the cluster is
 	// displayed to the job seeker higher up in the results, with the other jobs
 	// being displayed lower down in the results.
 	//
-	// Defaults to [DiversificationLevel.SIMPLE][google.cloud.talent.v4beta1.SearchJobsRequest.DiversificationLevel.SIMPLE] if no value
-	// is specified.
+	// Defaults to
+	// [DiversificationLevel.SIMPLE][google.cloud.talent.v4beta1.SearchJobsRequest.DiversificationLevel.SIMPLE]
+	// if no value is specified.
 	DiversificationLevel SearchJobsRequest_DiversificationLevel `protobuf:"varint,13,opt,name=diversification_level,json=diversificationLevel,proto3,enum=google.cloud.talent.v4beta1.SearchJobsRequest_DiversificationLevel" json:"diversification_level,omitempty"`
-	// Optional.
-	//
-	// Controls over how job documents get ranked on top of existing relevance
-	// score (determined by API algorithm).
+	// Optional. Controls over how job documents get ranked on top of existing
+	// relevance score (determined by API algorithm).
 	CustomRankingInfo *SearchJobsRequest_CustomRankingInfo `protobuf:"bytes,14,opt,name=custom_ranking_info,json=customRankingInfo,proto3" json:"custom_ranking_info,omitempty"`
-	// Optional.
-	//
-	// Controls whether to disable exact keyword match on [Job.job_title][],
-	// [Job.description][google.cloud.talent.v4beta1.Job.description], [Job.company_display_name][google.cloud.talent.v4beta1.Job.company_display_name], [Job.locations][0],
-	// [Job.qualifications][google.cloud.talent.v4beta1.Job.qualifications]. When disable keyword match is turned off, a
-	// keyword match returns jobs that do not match given category filters when
-	// there are matching keywords. For example, for the query "program manager,"
-	// a result is returned even if the job posting has the title "software
-	// developer," which doesn't fall into "program manager" ontology, but does
-	// have "program manager" appearing in its description.
+	// Optional. Controls whether to disable exact keyword match on
+	// [Job.title][google.cloud.talent.v4beta1.Job.title],
+	// [Job.description][google.cloud.talent.v4beta1.Job.description],
+	// [Job.company_display_name][google.cloud.talent.v4beta1.Job.company_display_name],
+	// [Job.addresses][google.cloud.talent.v4beta1.Job.addresses],
+	// [Job.qualifications][google.cloud.talent.v4beta1.Job.qualifications]. When
+	// disable keyword match is turned off, a keyword match returns jobs that do
+	// not match given category filters when there are matching keywords. For
+	// example, for the query "program manager," a result is returned even if the
+	// job posting has the title "software developer," which doesn't fall into
+	// "program manager" ontology, but does have "program manager" appearing in
+	// its description.
 	//
 	// For queries like "cloud" that don't contain title or
 	// location specific ontology, jobs with "cloud" keyword matches are returned
 	// regardless of this flag's value.
 	//
-	// Please use [Company.keyword_searchable_custom_fields][] or
-	// [Company.keyword_searchable_custom_attributes][] if company specific
-	// globally matched custom field/attribute string values is needed. Enabling
-	// keyword match improves recall of subsequent search requests.
+	// Use
+	// [Company.keyword_searchable_job_custom_attributes][google.cloud.talent.v4beta1.Company.keyword_searchable_job_custom_attributes]
+	// if company-specific globally matched custom field/attribute string values
+	// are needed. Enabling keyword match improves recall of subsequent search
+	// requests.
 	//
 	// Defaults to false.
 	DisableKeywordMatch  bool     `protobuf:"varint,16,opt,name=disable_keyword_match,json=disableKeywordMatch,proto3" json:"disable_keyword_match,omitempty"`
@@ -1094,27 +1099,27 @@ func (m *SearchJobsRequest) GetDisableKeywordMatch() bool {
 
 // Input only.
 //
-// Custom ranking information for [SearchJobsRequest][google.cloud.talent.v4beta1.SearchJobsRequest].
+// Custom ranking information for
+// [SearchJobsRequest][google.cloud.talent.v4beta1.SearchJobsRequest].
 type SearchJobsRequest_CustomRankingInfo struct {
-	// Required.
-	//
-	// Controls over how important the score of
-	// [CustomRankingInfo.ranking_expression][google.cloud.talent.v4beta1.SearchJobsRequest.CustomRankingInfo.ranking_expression] gets applied to job's final
-	// ranking position.
+	// Required. Controls over how important the score of
+	// [CustomRankingInfo.ranking_expression][google.cloud.talent.v4beta1.SearchJobsRequest.CustomRankingInfo.ranking_expression]
+	// gets applied to job's final ranking position.
 	//
 	// An error is thrown if not specified.
 	ImportanceLevel SearchJobsRequest_CustomRankingInfo_ImportanceLevel `protobuf:"varint,1,opt,name=importance_level,json=importanceLevel,proto3,enum=google.cloud.talent.v4beta1.SearchJobsRequest_CustomRankingInfo_ImportanceLevel" json:"importance_level,omitempty"`
-	// Required.
-	//
-	// Controls over how job documents get ranked on top of existing relevance
-	// score (determined by API algorithm). The product of ranking expression
-	// and relevance score is used to determine job's final ranking position.
+	// Required. Controls over how job documents get ranked on top of existing
+	// relevance score (determined by API algorithm). The product of ranking
+	// expression and relevance score is used to determine job's final ranking
+	// position.
 	//
 	// The syntax for this expression is a subset of Google SQL syntax.
 	//
 	// Supported operators are: +, -, *, /, where the left and right side of
-	// the operator is either a numeric [Job.custom_attributes][google.cloud.talent.v4beta1.Job.custom_attributes] key,
-	// integer/double value or an expression that can be evaluated to a number.
+	// the operator is either a numeric
+	// [Job.custom_attributes][google.cloud.talent.v4beta1.Job.custom_attributes]
+	// key, integer/double value or an expression that can be evaluated to a
+	// number.
 	//
 	// Parenthesis are supported to adjust calculation precedence. The
 	// expression must be < 100 characters in length.
@@ -1170,7 +1175,8 @@ func (m *SearchJobsRequest_CustomRankingInfo) GetRankingExpression() string {
 //
 // Response for SearchJob method.
 type SearchJobsResponse struct {
-	// The Job entities that match the specified [SearchJobsRequest][google.cloud.talent.v4beta1.SearchJobsRequest].
+	// The Job entities that match the specified
+	// [SearchJobsRequest][google.cloud.talent.v4beta1.SearchJobsRequest].
 	MatchingJobs []*SearchJobsResponse_MatchingJob `protobuf:"bytes,1,rep,name=matching_jobs,json=matchingJobs,proto3" json:"matching_jobs,omitempty"`
 	// The histogram results that match with specified
 	// [SearchJobsRequest.histogram_queries][google.cloud.talent.v4beta1.SearchJobsRequest.histogram_queries].
@@ -1179,17 +1185,21 @@ type SearchJobsResponse struct {
 	// This field is empty if there are no more results.
 	NextPageToken string `protobuf:"bytes,3,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
 	// The location filters that the service applied to the specified query. If
-	// any filters are lat-lng based, the [JobLocation.location_type][] is
-	// [JobLocation.LocationType#LOCATION_TYPE_UNSPECIFIED][].
+	// any filters are lat-lng based, the
+	// [Location.location_type][google.cloud.talent.v4beta1.Location.location_type]
+	// is
+	// [Location.LocationType.LOCATION_TYPE_UNSPECIFIED][google.cloud.talent.v4beta1.Location.LocationType.LOCATION_TYPE_UNSPECIFIED].
 	LocationFilters []*Location `protobuf:"bytes,4,rep,name=location_filters,json=locationFilters,proto3" json:"location_filters,omitempty"`
 	// An estimation of the number of jobs that match the specified query.
 	//
 	// This number isn't guaranteed to be accurate. For accurate results,
-	// see [enable_precise_result_size][].
+	// see
+	// [SearchJobsRequest.require_precise_result_size][google.cloud.talent.v4beta1.SearchJobsRequest.require_precise_result_size].
 	EstimatedTotalSize int32 `protobuf:"varint,5,opt,name=estimated_total_size,json=estimatedTotalSize,proto3" json:"estimated_total_size,omitempty"`
 	// The precise result count, which is available only if the client set
-	// [enable_precise_result_size][] to `true`, or if the response
-	// is the last page of results. Otherwise, the value is `-1`.
+	// [SearchJobsRequest.require_precise_result_size][google.cloud.talent.v4beta1.SearchJobsRequest.require_precise_result_size]
+	// to `true`, or if the response is the last page of results. Otherwise, the
+	// value is `-1`.
 	TotalSize int32 `protobuf:"varint,6,opt,name=total_size,json=totalSize,proto3" json:"total_size,omitempty"`
 	// Additional information for the API invocation, such as the request
 	// tracking id.
@@ -1299,21 +1309,26 @@ func (m *SearchJobsResponse) GetSpellCorrection() *SpellingCorrection {
 
 // Output only.
 //
-// Job entry with metadata inside [SearchJobsResponse][google.cloud.talent.v4beta1.SearchJobsResponse].
+// Job entry with metadata inside
+// [SearchJobsResponse][google.cloud.talent.v4beta1.SearchJobsResponse].
 type SearchJobsResponse_MatchingJob struct {
-	// Job resource that matches the specified [SearchJobsRequest][google.cloud.talent.v4beta1.SearchJobsRequest].
+	// Job resource that matches the specified
+	// [SearchJobsRequest][google.cloud.talent.v4beta1.SearchJobsRequest].
 	Job *Job `protobuf:"bytes,1,opt,name=job,proto3" json:"job,omitempty"`
 	// A summary of the job with core information that's displayed on the search
 	// results listing page.
 	JobSummary string `protobuf:"bytes,2,opt,name=job_summary,json=jobSummary,proto3" json:"job_summary,omitempty"`
-	// Contains snippets of text from the [Job.job_title][] field most
-	// closely matching a search query's keywords, if available. The matching
-	// query keywords are enclosed in HTML bold tags.
+	// Contains snippets of text from the
+	// [Job.title][google.cloud.talent.v4beta1.Job.title] field most closely
+	// matching a search query's keywords, if available. The matching query
+	// keywords are enclosed in HTML bold tags.
 	JobTitleSnippet string `protobuf:"bytes,3,opt,name=job_title_snippet,json=jobTitleSnippet,proto3" json:"job_title_snippet,omitempty"`
-	// Contains snippets of text from the [Job.description][google.cloud.talent.v4beta1.Job.description] and similar
-	// fields that most closely match a search query's keywords, if available.
-	// All HTML tags in the original fields are stripped when returned in this
-	// field, and matching query keywords are enclosed in HTML bold tags.
+	// Contains snippets of text from the
+	// [Job.description][google.cloud.talent.v4beta1.Job.description] and
+	// similar fields that most closely match a search query's keywords, if
+	// available. All HTML tags in the original fields are stripped when
+	// returned in this field, and matching query keywords are enclosed in HTML
+	// bold tags.
 	SearchTextSnippet string `protobuf:"bytes,4,opt,name=search_text_snippet,json=searchTextSnippet,proto3" json:"search_text_snippet,omitempty"`
 	// Commute information which is generated based on specified
 	//  [CommuteFilter][google.cloud.talent.v4beta1.CommuteFilter].
@@ -1438,6 +1453,144 @@ func (m *SearchJobsResponse_CommuteInfo) GetTravelDuration() *duration.Duration 
 	return nil
 }
 
+// Request to create a batch of jobs.
+type BatchCreateJobsRequest struct {
+	// Required. The resource name of the tenant under which the job is created.
+	//
+	// The format is "projects/{project_id}/tenants/{tenant_id}", for example,
+	// "projects/api-test-project/tenant/foo".
+	//
+	// Tenant id is optional and a default tenant is created if unspecified, for
+	// example, "projects/api-test-project".
+	Parent string `protobuf:"bytes,1,opt,name=parent,proto3" json:"parent,omitempty"`
+	// Required. The jobs to be created.
+	Jobs                 []*Job   `protobuf:"bytes,2,rep,name=jobs,proto3" json:"jobs,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *BatchCreateJobsRequest) Reset()         { *m = BatchCreateJobsRequest{} }
+func (m *BatchCreateJobsRequest) String() string { return proto.CompactTextString(m) }
+func (*BatchCreateJobsRequest) ProtoMessage()    {}
+func (*BatchCreateJobsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0dfa8e10f7799e35, []int{9}
+}
+
+func (m *BatchCreateJobsRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_BatchCreateJobsRequest.Unmarshal(m, b)
+}
+func (m *BatchCreateJobsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_BatchCreateJobsRequest.Marshal(b, m, deterministic)
+}
+func (m *BatchCreateJobsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BatchCreateJobsRequest.Merge(m, src)
+}
+func (m *BatchCreateJobsRequest) XXX_Size() int {
+	return xxx_messageInfo_BatchCreateJobsRequest.Size(m)
+}
+func (m *BatchCreateJobsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_BatchCreateJobsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_BatchCreateJobsRequest proto.InternalMessageInfo
+
+func (m *BatchCreateJobsRequest) GetParent() string {
+	if m != nil {
+		return m.Parent
+	}
+	return ""
+}
+
+func (m *BatchCreateJobsRequest) GetJobs() []*Job {
+	if m != nil {
+		return m.Jobs
+	}
+	return nil
+}
+
+// Request to update a batch of jobs.
+type BatchUpdateJobsRequest struct {
+	// Required. The resource name of the tenant under which the job is created.
+	//
+	// The format is "projects/{project_id}/tenants/{tenant_id}", for example,
+	// "projects/api-test-project/tenant/foo".
+	//
+	// Tenant id is optional and the default tenant is used if unspecified, for
+	// example, "projects/api-test-project".
+	Parent string `protobuf:"bytes,1,opt,name=parent,proto3" json:"parent,omitempty"`
+	// Required. The jobs to be updated.
+	Jobs []*Job `protobuf:"bytes,2,rep,name=jobs,proto3" json:"jobs,omitempty"`
+	// Optional but strongly recommended to be provided for the best service
+	// experience, also increase latency when checking status of batch operation.
+	//
+	// If
+	// [update_mask][google.cloud.talent.v4beta1.BatchUpdateJobsRequest.update_mask]
+	// is provided, only the specified fields in
+	// [Job][google.cloud.talent.v4beta1.Job] are updated. Otherwise all the
+	// fields are updated.
+	//
+	// A field mask to restrict the fields that are updated. Only
+	// top level fields of [Job][google.cloud.talent.v4beta1.Job] are supported.
+	//
+	// If
+	// [update_mask][google.cloud.talent.v4beta1.BatchUpdateJobsRequest.update_mask]
+	// is provided, The [Job][google.cloud.talent.v4beta1.Job] inside
+	// [JobResult][] will only contains fields that is updated, plus the Id of the
+	// Job. Otherwise,  [Job][google.cloud.talent.v4beta1.Job] will include all
+	// fields, which can yield a very large response.
+	UpdateMask           *field_mask.FieldMask `protobuf:"bytes,3,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
+	XXX_unrecognized     []byte                `json:"-"`
+	XXX_sizecache        int32                 `json:"-"`
+}
+
+func (m *BatchUpdateJobsRequest) Reset()         { *m = BatchUpdateJobsRequest{} }
+func (m *BatchUpdateJobsRequest) String() string { return proto.CompactTextString(m) }
+func (*BatchUpdateJobsRequest) ProtoMessage()    {}
+func (*BatchUpdateJobsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_0dfa8e10f7799e35, []int{10}
+}
+
+func (m *BatchUpdateJobsRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_BatchUpdateJobsRequest.Unmarshal(m, b)
+}
+func (m *BatchUpdateJobsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_BatchUpdateJobsRequest.Marshal(b, m, deterministic)
+}
+func (m *BatchUpdateJobsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BatchUpdateJobsRequest.Merge(m, src)
+}
+func (m *BatchUpdateJobsRequest) XXX_Size() int {
+	return xxx_messageInfo_BatchUpdateJobsRequest.Size(m)
+}
+func (m *BatchUpdateJobsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_BatchUpdateJobsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_BatchUpdateJobsRequest proto.InternalMessageInfo
+
+func (m *BatchUpdateJobsRequest) GetParent() string {
+	if m != nil {
+		return m.Parent
+	}
+	return ""
+}
+
+func (m *BatchUpdateJobsRequest) GetJobs() []*Job {
+	if m != nil {
+		return m.Jobs
+	}
+	return nil
+}
+
+func (m *BatchUpdateJobsRequest) GetUpdateMask() *field_mask.FieldMask {
+	if m != nil {
+		return m.UpdateMask
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterEnum("google.cloud.talent.v4beta1.JobView", JobView_name, JobView_value)
 	proto.RegisterEnum("google.cloud.talent.v4beta1.SearchJobsRequest_SearchMode", SearchJobsRequest_SearchMode_name, SearchJobsRequest_SearchMode_value)
@@ -1455,6 +1608,8 @@ func init() {
 	proto.RegisterType((*SearchJobsResponse)(nil), "google.cloud.talent.v4beta1.SearchJobsResponse")
 	proto.RegisterType((*SearchJobsResponse_MatchingJob)(nil), "google.cloud.talent.v4beta1.SearchJobsResponse.MatchingJob")
 	proto.RegisterType((*SearchJobsResponse_CommuteInfo)(nil), "google.cloud.talent.v4beta1.SearchJobsResponse.CommuteInfo")
+	proto.RegisterType((*BatchCreateJobsRequest)(nil), "google.cloud.talent.v4beta1.BatchCreateJobsRequest")
+	proto.RegisterType((*BatchUpdateJobsRequest)(nil), "google.cloud.talent.v4beta1.BatchUpdateJobsRequest")
 }
 
 func init() {
@@ -1462,124 +1617,133 @@ func init() {
 }
 
 var fileDescriptor_0dfa8e10f7799e35 = []byte{
-	// 1861 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x58, 0x4b, 0x73, 0x1b, 0xc7,
-	0x11, 0xce, 0x82, 0x2f, 0xa0, 0x41, 0x12, 0xcb, 0x11, 0x2d, 0xc1, 0xa0, 0x13, 0x53, 0xab, 0x48,
-	0xc5, 0x40, 0x21, 0x60, 0xc3, 0x4e, 0xa5, 0x62, 0x95, 0x2b, 0xc1, 0x63, 0x69, 0xae, 0x02, 0x90,
-	0xc8, 0x02, 0x94, 0x14, 0x1e, 0xb4, 0x5e, 0x00, 0x03, 0x70, 0xc9, 0xc5, 0xce, 0x7a, 0x77, 0x40,
-	0x89, 0x76, 0x74, 0x49, 0x7e, 0x42, 0x8e, 0xa9, 0xf2, 0x21, 0xe7, 0x1c, 0x72, 0xc8, 0x2d, 0xa9,
-	0x54, 0xa5, 0x2a, 0xf7, 0x1c, 0x7c, 0xcc, 0x2d, 0x95, 0x7f, 0x90, 0x3f, 0x90, 0x9a, 0xd9, 0xd9,
-	0xc5, 0x43, 0x10, 0x1e, 0x56, 0xf9, 0xb6, 0xd3, 0xfd, 0x75, 0x4f, 0x77, 0x4f, 0x4f, 0xf7, 0xf4,
-	0xc2, 0x61, 0x8f, 0x90, 0x9e, 0x8d, 0xf3, 0x6d, 0x9b, 0x0c, 0x3a, 0x79, 0x6a, 0xda, 0xd8, 0xa1,
-	0xf9, 0xeb, 0x8f, 0x5b, 0x98, 0x9a, 0x1f, 0xe6, 0x2f, 0x49, 0xcb, 0xf0, 0xb1, 0x77, 0x6d, 0xb5,
-	0x71, 0xce, 0xf5, 0x08, 0x25, 0x68, 0x2f, 0x80, 0xe7, 0x38, 0x3c, 0x17, 0xc0, 0x73, 0x02, 0x9e,
-	0x79, 0x4f, 0xe8, 0x32, 0x5d, 0x2b, 0x6f, 0x3a, 0x0e, 0xa1, 0x26, 0xb5, 0x88, 0xe3, 0x07, 0xa2,
-	0x99, 0x83, 0x59, 0x3b, 0xb5, 0x49, 0xbf, 0x4f, 0x1c, 0x81, 0xfc, 0xd1, 0x2c, 0x64, 0xd7, 0xb2,
-	0x29, 0xf6, 0x42, 0xa5, 0x0f, 0x67, 0x41, 0x2f, 0x2c, 0x9f, 0x92, 0x9e, 0x67, 0xf6, 0x05, 0xf8,
-	0xfe, 0x1c, 0x5f, 0x05, 0xec, 0x9e, 0x80, 0xd9, 0xc4, 0xe9, 0x79, 0x03, 0xc7, 0xb1, 0x9c, 0x5e,
-	0x9e, 0xb8, 0xd8, 0x1b, 0xf3, 0xe6, 0x07, 0x02, 0xc4, 0x57, 0xad, 0x41, 0x37, 0xdf, 0x19, 0x04,
-	0x00, 0xc1, 0xdf, 0x9b, 0xe4, 0xe3, 0xbe, 0x4b, 0x6f, 0x04, 0x73, 0x7f, 0x92, 0xd9, 0xb5, 0xb0,
-	0xdd, 0x31, 0xfa, 0xa6, 0x7f, 0x15, 0x20, 0x94, 0xe7, 0x20, 0x97, 0x3d, 0x6c, 0x52, 0xfc, 0x98,
-	0xb4, 0x74, 0xfc, 0xc5, 0x00, 0xfb, 0x14, 0xdd, 0x86, 0x75, 0xd7, 0xf4, 0xb0, 0x43, 0xd3, 0xd2,
-	0xbe, 0x74, 0x90, 0xd0, 0xc5, 0x0a, 0x15, 0x60, 0xe5, 0x92, 0xb4, 0xd2, 0xb1, 0x7d, 0xe9, 0x20,
-	0x59, 0xd8, 0xcf, 0xcd, 0x38, 0xa1, 0x1c, 0xd3, 0xc6, 0xc0, 0xca, 0x3d, 0xd8, 0xfa, 0x0c, 0xd3,
-	0x11, 0xe5, 0x08, 0x56, 0x1d, 0xb3, 0x8f, 0x85, 0x6a, 0xfe, 0xad, 0xfc, 0x4e, 0x02, 0xf9, 0xcc,
-	0xed, 0x8c, 0x5b, 0x21, 0x76, 0x93, 0x96, 0xd8, 0x0d, 0x3d, 0x82, 0xe4, 0x80, 0xeb, 0xe1, 0x2e,
-	0x0a, 0x4b, 0x33, 0xa1, 0x6c, 0x18, 0x85, 0xdc, 0x11, 0x8b, 0x42, 0xcd, 0xf4, 0xaf, 0x74, 0x08,
-	0xe0, 0xec, 0x5b, 0x79, 0x00, 0x72, 0x05, 0xdb, 0x78, 0xcc, 0x88, 0x69, 0xd6, 0x1e, 0xc3, 0xed,
-	0x92, 0x49, 0xdb, 0x17, 0x11, 0xd8, 0x9f, 0x17, 0xb8, 0xdb, 0xb0, 0x1e, 0x64, 0x13, 0xb7, 0x28,
-	0xa1, 0x8b, 0x95, 0xf2, 0x77, 0x09, 0x52, 0x55, 0xcb, 0xa7, 0x6f, 0xa1, 0x03, 0x7d, 0x1f, 0xc0,
-	0x35, 0x7b, 0xd8, 0xa0, 0xe4, 0x0a, 0x3b, 0xe9, 0x15, 0xce, 0x4b, 0x30, 0x4a, 0x93, 0x11, 0xd0,
-	0x1e, 0xf0, 0x85, 0xe1, 0x5b, 0x5f, 0xe2, 0xf4, 0xea, 0xbe, 0x74, 0xb0, 0xa6, 0xc7, 0x19, 0xa1,
-	0x61, 0x7d, 0x89, 0xd1, 0xcf, 0x21, 0xce, 0x6e, 0xde, 0xb5, 0x85, 0x5f, 0xa4, 0xd7, 0xf6, 0xa5,
-	0x83, 0xed, 0xc2, 0x0f, 0xe7, 0xc5, 0xf9, 0x89, 0x85, 0x5f, 0xe8, 0x1b, 0x97, 0xc1, 0x87, 0xf2,
-	0x57, 0x09, 0xe4, 0xa1, 0x03, 0xbe, 0x4b, 0x1c, 0x1f, 0xa3, 0x8f, 0x61, 0xf5, 0x92, 0xb4, 0xfc,
-	0xb4, 0xb4, 0xbf, 0xb2, 0xd0, 0xc9, 0x71, 0x34, 0x7a, 0x00, 0x29, 0x07, 0xbf, 0xa4, 0xc6, 0x88,
-	0x33, 0x81, 0xa3, 0x5b, 0x8c, 0x5c, 0x8f, 0x1c, 0xd2, 0x20, 0xde, 0xc7, 0xd4, 0xec, 0x98, 0xd4,
-	0xe4, 0xde, 0x26, 0x0b, 0x87, 0x33, 0x77, 0x08, 0xcd, 0xaa, 0x09, 0x21, 0x3d, 0x12, 0x57, 0xbe,
-	0x4e, 0xc2, 0x4e, 0x03, 0x9b, 0x5e, 0xfb, 0x62, 0x91, 0x03, 0x38, 0x87, 0xa4, 0xcf, 0xc1, 0x46,
-	0x9f, 0x74, 0x30, 0x37, 0x6e, 0xbb, 0xf0, 0xb3, 0x99, 0x7b, 0xbf, 0xa6, 0x5c, 0x50, 0x6a, 0xa4,
-	0x83, 0x75, 0xf0, 0xa3, 0x6f, 0xf4, 0x14, 0x64, 0x2f, 0x40, 0x18, 0x13, 0xce, 0xfd, 0x78, 0x8e,
-	0x73, 0x5c, 0x28, 0xf2, 0x2d, 0xe5, 0x8d, 0x13, 0x50, 0x09, 0x12, 0xec, 0x84, 0xbf, 0x18, 0x60,
-	0xef, 0x86, 0x1f, 0x7f, 0xb2, 0x70, 0x7f, 0xde, 0x81, 0xfc, 0x8a, 0x81, 0x75, 0x96, 0x19, 0xfc,
-	0x0b, 0x3d, 0x84, 0x1d, 0xec, 0x98, 0x2d, 0x1b, 0x1b, 0x2d, 0x8f, 0x98, 0x1d, 0xcc, 0xea, 0x14,
-	0x4f, 0x97, 0xb8, 0x2e, 0x07, 0x8c, 0x52, 0x44, 0x47, 0x9f, 0xc2, 0x1e, 0xb3, 0xc1, 0xf2, 0xb0,
-	0xe1, 0x7a, 0xb8, 0x6d, 0xf9, 0xd8, 0xf0, 0xb0, 0x3f, 0xb0, 0x69, 0x90, 0x81, 0xeb, 0x5c, 0x2c,
-	0x2d, 0x20, 0xf5, 0x00, 0xa1, 0x73, 0x00, 0xcf, 0xc8, 0x67, 0xb0, 0x13, 0x15, 0x53, 0x6e, 0xb5,
-	0x85, 0xfd, 0xf4, 0x06, 0x4f, 0xa4, 0x87, 0x33, 0xed, 0x3e, 0x0e, 0xa5, 0x02, 0xeb, 0xe5, 0x8b,
-	0xd1, 0xb5, 0x85, 0xfd, 0xb1, 0x5c, 0x8f, 0x7f, 0x8b, 0x5c, 0x67, 0x79, 0x41, 0xba, 0x5d, 0x1f,
-	0xd3, 0x74, 0x82, 0x5f, 0x23, 0xb1, 0x1a, 0xbf, 0x61, 0x30, 0x71, 0xc3, 0xc6, 0x6f, 0x67, 0x72,
-	0xf2, 0x76, 0xbe, 0x0b, 0x71, 0xe2, 0x75, 0xb0, 0x67, 0xb4, 0x6e, 0xd2, 0x9b, 0x9c, 0xb9, 0xc1,
-	0xd7, 0xa5, 0x1b, 0xf4, 0x12, 0xde, 0xe9, 0x58, 0xd7, 0xd8, 0xf3, 0xad, 0xae, 0xd5, 0xe6, 0x05,
-	0xdf, 0xb0, 0xf1, 0x35, 0xb6, 0xd3, 0x5b, 0xdc, 0xf8, 0xf2, 0x92, 0x89, 0x57, 0x19, 0xd7, 0x55,
-	0x65, 0xaa, 0xf4, 0xdd, 0xce, 0x14, 0x2a, 0x72, 0xe1, 0x56, 0x7b, 0xe0, 0x53, 0xd2, 0x37, 0x3c,
-	0xd3, 0xb9, 0xb2, 0x9c, 0x9e, 0x61, 0x39, 0x5d, 0x92, 0xde, 0xe6, 0xd9, 0xf3, 0x8b, 0x25, 0xf7,
-	0x2d, 0x73, 0x4d, 0x7a, 0xa0, 0x48, 0x73, 0xba, 0x44, 0xdf, 0x69, 0x4f, 0x92, 0x50, 0x81, 0xf9,
-	0xea, 0xf3, 0x14, 0xbb, 0xc2, 0x37, 0x2f, 0x88, 0xc7, 0x5a, 0x14, 0x6d, 0x5f, 0xa4, 0x65, 0x9e,
-	0x2e, 0xb7, 0x04, 0xf3, 0x97, 0x01, 0xaf, 0xc6, 0x58, 0x99, 0xbf, 0xc4, 0x60, 0xe7, 0x35, 0xe5,
-	0xe8, 0x2b, 0x90, 0xad, 0xbe, 0x4b, 0x3c, 0x6a, 0x3a, 0x6d, 0x2c, 0x02, 0x26, 0xf1, 0x80, 0xd5,
-	0xdf, 0xd6, 0xf0, 0x9c, 0x16, 0x29, 0x0e, 0xa2, 0x97, 0xb2, 0xc6, 0x09, 0xe8, 0x10, 0x50, 0x18,
-	0x31, 0xfc, 0xd2, 0xf5, 0xb0, 0xef, 0x5b, 0x24, 0xac, 0x62, 0x3b, 0x82, 0xa3, 0x46, 0x0c, 0xc5,
-	0x87, 0xd4, 0x84, 0x4a, 0xb4, 0x0f, 0xef, 0x69, 0xb5, 0xfa, 0xa9, 0xde, 0x2c, 0x9e, 0x94, 0x55,
-	0xa3, 0xaa, 0x3e, 0x51, 0xab, 0xc6, 0xd9, 0x49, 0xa3, 0xae, 0x96, 0xb5, 0x23, 0x4d, 0xad, 0xc8,
-	0xdf, 0x43, 0x71, 0x58, 0x3d, 0x39, 0x3d, 0x51, 0x65, 0x09, 0x6d, 0xc0, 0x4a, 0xf5, 0xf4, 0xa9,
-	0x1c, 0x63, 0xa4, 0x9a, 0x56, 0xad, 0xc8, 0x2b, 0x08, 0x60, 0xbd, 0xa6, 0x56, 0xb4, 0xb3, 0x9a,
-	0xbc, 0xca, 0xa8, 0xc7, 0xda, 0x67, 0xc7, 0xf2, 0x1a, 0x4a, 0xc2, 0x86, 0xfa, 0xac, 0xa9, 0xab,
-	0x35, 0x55, 0x5e, 0x57, 0x74, 0x80, 0x61, 0x0d, 0x42, 0x7b, 0x70, 0xa7, 0xa1, 0x16, 0xf5, 0xf2,
-	0xb1, 0x51, 0x3b, 0xad, 0xa8, 0x13, 0x5b, 0x6d, 0x03, 0x3c, 0x3e, 0x2d, 0x19, 0x01, 0x40, 0x96,
-	0xd0, 0x1d, 0xb8, 0x75, 0xa4, 0x16, 0x9b, 0x67, 0xba, 0x5a, 0x31, 0x46, 0x18, 0x31, 0xe5, 0x29,
-	0xec, 0x4e, 0x4b, 0x2f, 0x74, 0x1f, 0xee, 0x56, 0xb4, 0x27, 0xaa, 0xde, 0xd0, 0x8e, 0xb4, 0x72,
-	0xb1, 0xa9, 0x9d, 0x9e, 0x4c, 0x75, 0x69, 0x13, 0xe2, 0x15, 0xad, 0x51, 0x2c, 0x55, 0xd5, 0x8a,
-	0x2c, 0x31, 0x1f, 0x1a, 0x5a, 0xad, 0x5e, 0x55, 0xe5, 0x98, 0xf2, 0xaf, 0x38, 0xa0, 0xd1, 0x93,
-	0x11, 0x0d, 0xe6, 0x73, 0xd8, 0xe2, 0xe9, 0xc1, 0x02, 0x3d, 0xd2, 0x69, 0x1e, 0x2d, 0x7c, 0xc2,
-	0x81, 0x9e, 0x5c, 0x4d, 0x28, 0x61, 0x4d, 0x68, 0xb3, 0x3f, 0x5c, 0xf8, 0xc8, 0x82, 0x3b, 0xe3,
-	0x65, 0xe8, 0x46, 0x54, 0x31, 0x3f, 0x1d, 0xe3, 0x7b, 0x7d, 0xb8, 0x4c, 0x31, 0xe2, 0x92, 0xfa,
-	0x3b, 0x17, 0x53, 0xa8, 0x53, 0xfb, 0xde, 0xca, 0xb4, 0xbe, 0x57, 0x07, 0xd9, 0x26, 0xa2, 0x10,
-	0x88, 0xa7, 0x69, 0x7a, 0x95, 0xdb, 0x32, 0xbb, 0xa0, 0x57, 0x85, 0x90, 0x9e, 0x0a, 0xc5, 0x8f,
-	0x02, 0x69, 0xf4, 0x01, 0xec, 0x62, 0x9f, 0x5a, 0x7d, 0x93, 0xe2, 0x8e, 0x41, 0x09, 0x35, 0xed,
-	0xa0, 0x86, 0xad, 0xf1, 0x1a, 0x86, 0x22, 0x5e, 0x93, 0xb1, 0xc2, 0x6a, 0x36, 0x82, 0x5b, 0xe7,
-	0xb8, 0x04, 0x8d, 0xd8, 0xa3, 0xad, 0x79, 0xe3, 0xad, 0x5a, 0x33, 0x7a, 0x04, 0x19, 0xd1, 0x6c,
-	0x70, 0x47, 0x1c, 0x00, 0x3b, 0x69, 0xa3, 0x4d, 0x06, 0x0e, 0xe5, 0xf5, 0x7b, 0x4d, 0xbf, 0x13,
-	0x21, 0x78, 0x40, 0xd9, 0xc1, 0x95, 0x19, 0x1b, 0x9d, 0x83, 0xec, 0xbb, 0xd8, 0xb6, 0x8d, 0x36,
-	0xf1, 0x3c, 0xdc, 0x66, 0x3e, 0xf3, 0x9a, 0x9d, 0x2c, 0xe4, 0x67, 0xa7, 0x08, 0x13, 0xb2, 0x9c,
-	0x5e, 0x39, 0x12, 0xd3, 0x53, 0x5c, 0xd1, 0x90, 0x90, 0xf9, 0x3a, 0x06, 0xc9, 0x91, 0xbc, 0xf9,
-	0x56, 0xaf, 0xd4, 0xf7, 0x21, 0xc9, 0x07, 0x9e, 0x41, 0xbf, 0x6f, 0x7a, 0x37, 0xa2, 0x40, 0xc0,
-	0x25, 0x69, 0x35, 0x02, 0x0a, 0xca, 0xc2, 0x0e, 0x03, 0x50, 0x8b, 0xda, 0xd8, 0xf0, 0x1d, 0xcb,
-	0x75, 0x31, 0x15, 0x59, 0x91, 0xba, 0x24, 0xad, 0x26, 0xa3, 0x37, 0x02, 0x32, 0xca, 0xc1, 0x2d,
-	0xf1, 0x2c, 0xa1, 0x2c, 0x8d, 0x42, 0xf4, 0x6a, 0x50, 0x75, 0x02, 0x56, 0x13, 0xbf, 0xa4, 0x21,
-	0xfe, 0x39, 0x6c, 0xb2, 0x19, 0x68, 0x40, 0x71, 0x50, 0xd6, 0xd7, 0xb8, 0xe5, 0x4b, 0xdf, 0x9d,
-	0x72, 0xa0, 0x83, 0x57, 0xf4, 0x64, 0x7b, 0xb8, 0xc8, 0xfc, 0x41, 0x82, 0xe4, 0x08, 0x13, 0x1d,
-	0xc3, 0x26, 0xf3, 0x25, 0x4c, 0x3e, 0x11, 0xa9, 0x05, 0x73, 0x96, 0xc5, 0x29, 0x5c, 0xa0, 0x12,
-	0xa4, 0xa8, 0x67, 0x5e, 0x63, 0xdb, 0x08, 0x47, 0x20, 0xf1, 0xc0, 0x7f, 0xf7, 0xb5, 0x07, 0x7e,
-	0x45, 0x00, 0xf4, 0xed, 0x40, 0x22, 0x5c, 0x67, 0xaf, 0x61, 0x43, 0x34, 0x76, 0x94, 0x86, 0x5d,
-	0x56, 0xc5, 0x9e, 0x68, 0xea, 0xd3, 0x89, 0x82, 0xb4, 0x0b, 0x72, 0xc4, 0xd1, 0x2a, 0xc6, 0xe9,
-	0x49, 0xf5, 0xd7, 0xb2, 0x34, 0x46, 0xad, 0x69, 0x27, 0x5a, 0xad, 0x58, 0x95, 0x63, 0x08, 0xc1,
-	0x76, 0x44, 0x6d, 0xd4, 0x8a, 0xd5, 0xaa, 0xbc, 0x82, 0x76, 0x60, 0x2b, 0xa2, 0x1d, 0x9d, 0x55,
-	0xab, 0xf2, 0x6a, 0xe1, 0x3f, 0x9b, 0x00, 0x8f, 0x49, 0xab, 0x11, 0xcc, 0xb8, 0xe8, 0x6f, 0x12,
-	0x24, 0xa2, 0xb1, 0x0b, 0xcd, 0xbe, 0x25, 0x93, 0xe3, 0x59, 0x66, 0x6e, 0x96, 0x29, 0xcf, 0x7f,
-	0xfb, 0xcd, 0x7f, 0x7f, 0x1f, 0x7b, 0xa6, 0x3c, 0x8c, 0x86, 0xce, 0xaf, 0x82, 0x47, 0xec, 0xa7,
-	0xae, 0x47, 0x2e, 0x71, 0x9b, 0xfa, 0xf9, 0x6c, 0x9e, 0x62, 0xc7, 0x74, 0xd8, 0xd7, 0x2b, 0x36,
-	0x92, 0xfa, 0x9f, 0x48, 0xd9, 0xf3, 0x07, 0xca, 0xdd, 0x19, 0x12, 0x11, 0x0e, 0xfd, 0x59, 0x82,
-	0xf5, 0x60, 0xaa, 0x43, 0xd9, 0x99, 0xc6, 0x8c, 0x8d, 0x7e, 0x0b, 0x18, 0xfe, 0x8c, 0x1b, 0xae,
-	0xa3, 0x11, 0xc3, 0xd9, 0xc8, 0x35, 0xd5, 0x6c, 0x6e, 0x4d, 0x3e, 0xfb, 0xea, 0xfc, 0x1e, 0xba,
-	0xfb, 0x66, 0xb8, 0x00, 0xa1, 0x7f, 0x4a, 0x90, 0x88, 0x46, 0xcc, 0x39, 0x11, 0x9f, 0x1c, 0x45,
-	0x17, 0x30, 0xbc, 0xcb, 0x0d, 0xff, 0xbc, 0x90, 0x1f, 0x5a, 0xc2, 0xe6, 0xfc, 0xb9, 0xc6, 0xb3,
-	0xa8, 0x67, 0x0b, 0xf7, 0x67, 0x4b, 0x0d, 0xb1, 0xe8, 0x4f, 0x12, 0x24, 0xa2, 0xb9, 0x73, 0x8e,
-	0x1b, 0x93, 0xc3, 0x6c, 0xe6, 0xf6, 0x6b, 0xf7, 0x44, 0xed, 0xbb, 0xf4, 0x26, 0x8c, 0x7a, 0x76,
-	0xb9, 0xa8, 0x67, 0x17, 0x88, 0xfa, 0x3f, 0x24, 0x88, 0x87, 0xf3, 0x21, 0x9a, 0x3d, 0xca, 0x4c,
-	0xcc, 0xc1, 0x99, 0xc3, 0x05, 0xd1, 0x41, 0x3d, 0x9a, 0x96, 0x39, 0x73, 0x53, 0x7e, 0x3c, 0x73,
-	0xde, 0x90, 0xef, 0xe8, 0x1b, 0x09, 0x52, 0x13, 0xf3, 0x3e, 0xfa, 0x68, 0xa6, 0x71, 0xd3, 0xff,
-	0x0e, 0xbc, 0x31, 0xfc, 0x3e, 0x37, 0xbd, 0xaf, 0xfc, 0x74, 0x99, 0xdb, 0xda, 0x1a, 0xee, 0xc1,
-	0x72, 0x28, 0xaf, 0x1c, 0xce, 0xbf, 0xb9, 0x23, 0x32, 0xe8, 0xdf, 0x52, 0xf8, 0x10, 0xe4, 0x0e,
-	0xe5, 0x96, 0x7b, 0x1d, 0x67, 0xf2, 0x4b, 0xf6, 0x0b, 0xc5, 0xe6, 0x4e, 0x76, 0x95, 0xc2, 0x32,
-	0x4e, 0x06, 0xdd, 0x8b, 0xf9, 0x77, 0xa8, 0x1c, 0xcc, 0xf7, 0x2f, 0x82, 0xa3, 0xff, 0x49, 0xa3,
-	0x0f, 0xc7, 0x23, 0xe2, 0x15, 0x6d, 0xec, 0xd1, 0xef, 0xde, 0xcb, 0xdf, 0x70, 0x2f, 0xaf, 0x95,
-	0x4f, 0x96, 0xf7, 0x32, 0x34, 0x92, 0x79, 0xfb, 0x13, 0xe5, 0x83, 0x45, 0xbd, 0x1d, 0x11, 0x2b,
-	0xbd, 0x82, 0xf7, 0xdb, 0xa4, 0x3f, 0xcb, 0xe6, 0x52, 0x6a, 0xd8, 0x84, 0xea, 0x2c, 0x0b, 0xeb,
-	0xd2, 0x79, 0x51, 0xe0, 0x7b, 0xc4, 0x36, 0x9d, 0x5e, 0x8e, 0x78, 0xbd, 0x7c, 0x0f, 0x3b, 0x3c,
-	0x47, 0xf3, 0x01, 0xcb, 0x74, 0x2d, 0x7f, 0xea, 0xbf, 0xcc, 0x47, 0xc1, 0xf2, 0x8f, 0xb1, 0x95,
-	0x72, 0xb3, 0xd1, 0x5a, 0xe7, 0x32, 0x1f, 0xfd, 0x3f, 0x00, 0x00, 0xff, 0xff, 0x2c, 0xe3, 0x18,
-	0x53, 0xea, 0x15, 0x00, 0x00,
+	// 2016 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x59, 0xcd, 0x6f, 0x1b, 0xd7,
+	0x11, 0xef, 0x52, 0x5f, 0xd4, 0xd0, 0x12, 0x57, 0x4f, 0x8a, 0xc5, 0x50, 0x49, 0x23, 0xaf, 0x6b,
+	0x43, 0x95, 0x23, 0x32, 0x61, 0x52, 0x14, 0xb5, 0x11, 0xb4, 0x14, 0xb9, 0x8a, 0xe8, 0x92, 0x92,
+	0xba, 0x94, 0x6c, 0x57, 0x07, 0x6f, 0x96, 0xe4, 0x23, 0xb5, 0xd2, 0x72, 0xdf, 0x66, 0xf7, 0x51,
+	0xb2, 0x92, 0xfa, 0xd2, 0xfe, 0x03, 0x05, 0x7a, 0x2c, 0x90, 0x43, 0x7b, 0xed, 0xa1, 0x87, 0xde,
+	0x5a, 0x14, 0x28, 0xd0, 0x53, 0x2f, 0x05, 0x9a, 0x63, 0xd1, 0x5b, 0xff, 0x83, 0xfe, 0x03, 0xc5,
+	0xfb, 0xd8, 0xe5, 0x87, 0x68, 0x7e, 0xd8, 0xf0, 0x8d, 0x6f, 0xe6, 0x37, 0xf3, 0x66, 0xe6, 0xcd,
+	0x9b, 0x37, 0xb3, 0x84, 0x9d, 0x16, 0x21, 0x2d, 0x07, 0x67, 0xeb, 0x0e, 0xe9, 0x34, 0xb2, 0xd4,
+	0x72, 0xb0, 0x4b, 0xb3, 0x97, 0x9f, 0xd6, 0x30, 0xb5, 0x3e, 0xce, 0x9e, 0x93, 0x9a, 0x19, 0x60,
+	0xff, 0xd2, 0xae, 0xe3, 0x8c, 0xe7, 0x13, 0x4a, 0xd0, 0x86, 0x80, 0x67, 0x38, 0x3c, 0x23, 0xe0,
+	0x19, 0x09, 0x4f, 0xbf, 0x27, 0x75, 0x59, 0x9e, 0x9d, 0xb5, 0x5c, 0x97, 0x50, 0x8b, 0xda, 0xc4,
+	0x0d, 0x84, 0x68, 0x7a, 0xbd, 0x87, 0x5b, 0x77, 0x6c, 0x26, 0x28, 0x18, 0x5b, 0xa3, 0x4c, 0xa8,
+	0x93, 0x76, 0x9b, 0xb8, 0x12, 0xf9, 0xfd, 0x51, 0xc8, 0xa6, 0xed, 0x50, 0xec, 0x87, 0xbb, 0x3d,
+	0x18, 0x05, 0x3d, 0xb3, 0x03, 0x4a, 0x5a, 0xbe, 0xd5, 0x96, 0xe0, 0x7b, 0x63, 0x82, 0x20, 0x61,
+	0x77, 0x25, 0xcc, 0x21, 0x6e, 0xcb, 0xef, 0xb8, 0xae, 0xed, 0xb6, 0xb2, 0xc4, 0xc3, 0x7e, 0x9f,
+	0x9b, 0xdf, 0x95, 0x20, 0xbe, 0xaa, 0x75, 0x9a, 0xd9, 0x46, 0x47, 0x00, 0x24, 0x7f, 0x63, 0x90,
+	0x8f, 0xdb, 0x1e, 0xbd, 0x96, 0xcc, 0xcd, 0x41, 0x66, 0xd3, 0xc6, 0x4e, 0xc3, 0x6c, 0x5b, 0xc1,
+	0x85, 0x40, 0x68, 0xcf, 0x41, 0x2d, 0xf8, 0xd8, 0xa2, 0xf8, 0x31, 0xa9, 0x19, 0xf8, 0xcb, 0x0e,
+	0x0e, 0x28, 0xba, 0x0d, 0xf3, 0x9e, 0xe5, 0x63, 0x97, 0xa6, 0x94, 0x4d, 0x65, 0x6b, 0xd1, 0x90,
+	0x2b, 0x94, 0x83, 0x99, 0x73, 0x52, 0x4b, 0xc5, 0x36, 0x95, 0xad, 0x44, 0x6e, 0x33, 0x33, 0xe2,
+	0xe8, 0x32, 0x4c, 0x1b, 0x03, 0x6b, 0x77, 0x61, 0xe9, 0x73, 0x4c, 0x7b, 0x94, 0x23, 0x98, 0x75,
+	0xad, 0x36, 0x96, 0xaa, 0xf9, 0x6f, 0xed, 0x57, 0x0a, 0xa8, 0x27, 0x5e, 0xa3, 0xdf, 0x0a, 0xb9,
+	0x9b, 0x32, 0xc5, 0x6e, 0xe8, 0x11, 0x24, 0x3a, 0x5c, 0x0f, 0x77, 0x51, 0x5a, 0x9a, 0x0e, 0x65,
+	0xc3, 0x28, 0x64, 0xf6, 0x58, 0x14, 0x2a, 0x56, 0x70, 0x61, 0x80, 0x80, 0xb3, 0xdf, 0xda, 0x7d,
+	0x50, 0x8b, 0xd8, 0xc1, 0x7d, 0x46, 0x0c, 0xb3, 0x76, 0x1f, 0x6e, 0xef, 0x5a, 0xb4, 0x7e, 0x16,
+	0x81, 0x83, 0x71, 0x81, 0xbb, 0x0d, 0xf3, 0x22, 0x9b, 0xb8, 0x45, 0x8b, 0x86, 0x5c, 0x69, 0x7f,
+	0x55, 0x20, 0x59, 0xb6, 0x03, 0xfa, 0x06, 0x3a, 0xd0, 0xfb, 0x00, 0x9e, 0xd5, 0xc2, 0x26, 0x25,
+	0x17, 0xd8, 0x4d, 0xcd, 0x70, 0xde, 0x22, 0xa3, 0x1c, 0x33, 0x02, 0xda, 0x00, 0xbe, 0x30, 0x03,
+	0xfb, 0x2b, 0x9c, 0x9a, 0xdd, 0x54, 0xb6, 0xe6, 0x8c, 0x38, 0x23, 0x54, 0xed, 0xaf, 0x30, 0xfa,
+	0x31, 0xc4, 0xd9, 0x95, 0xbc, 0xb4, 0xf1, 0x55, 0x6a, 0x6e, 0x53, 0xd9, 0x5a, 0xce, 0x7d, 0x6f,
+	0x5c, 0x9c, 0x9f, 0xd8, 0xf8, 0xca, 0x58, 0x38, 0x17, 0x3f, 0xb4, 0x3f, 0x2b, 0xa0, 0x76, 0x1d,
+	0x08, 0x3c, 0xe2, 0x06, 0x18, 0x7d, 0x0a, 0xb3, 0xe7, 0xa4, 0x16, 0xa4, 0x94, 0xcd, 0x99, 0x89,
+	0x4e, 0x8e, 0xa3, 0xd1, 0x7d, 0x48, 0xba, 0xf8, 0x05, 0x35, 0x7b, 0x9c, 0x11, 0x8e, 0x2e, 0x31,
+	0xf2, 0x51, 0xe4, 0x50, 0x09, 0xe2, 0x6d, 0x4c, 0xad, 0x86, 0x45, 0x2d, 0xee, 0x6d, 0x22, 0xb7,
+	0x33, 0x72, 0x87, 0xd0, 0xac, 0x8a, 0x14, 0x32, 0x22, 0x71, 0xed, 0x9b, 0x04, 0xac, 0x54, 0xb1,
+	0xe5, 0xd7, 0xcf, 0x26, 0x39, 0x80, 0x53, 0x48, 0x04, 0x1c, 0x6c, 0xb6, 0x49, 0x03, 0x73, 0xe3,
+	0x96, 0x73, 0x3f, 0x1a, 0xb9, 0xf7, 0x0d, 0xe5, 0x92, 0x52, 0x21, 0x0d, 0x6c, 0x40, 0x10, 0xfd,
+	0x46, 0x4f, 0x41, 0xf5, 0x05, 0xc2, 0x1c, 0x70, 0xee, 0xc3, 0x31, 0xce, 0x71, 0xa1, 0xc8, 0xb7,
+	0xa4, 0xdf, 0x4f, 0x40, 0xbb, 0xb0, 0xc8, 0x4e, 0xf8, 0xcb, 0x0e, 0xf6, 0xaf, 0xf9, 0xf1, 0x27,
+	0x72, 0xf7, 0xc6, 0x1d, 0xc8, 0xcf, 0x18, 0xd8, 0x60, 0x99, 0xc1, 0x7f, 0xa1, 0x07, 0xb0, 0x82,
+	0x5d, 0xab, 0xe6, 0x60, 0xb3, 0xe6, 0x13, 0xab, 0x81, 0x59, 0x9d, 0xe2, 0xe9, 0x12, 0x37, 0x54,
+	0xc1, 0xd8, 0x8d, 0xe8, 0xe8, 0x33, 0xd8, 0x60, 0x36, 0xd8, 0x3e, 0x36, 0x3d, 0x1f, 0xd7, 0xed,
+	0x00, 0x9b, 0x3e, 0x0e, 0x3a, 0x0e, 0x15, 0x19, 0x38, 0xcf, 0xc5, 0x52, 0x12, 0x72, 0x24, 0x10,
+	0x06, 0x07, 0xf0, 0x8c, 0x7c, 0x06, 0x2b, 0x51, 0x31, 0xe5, 0x56, 0xdb, 0x38, 0x48, 0x2d, 0xf0,
+	0x44, 0x7a, 0x30, 0xd2, 0xee, 0xfd, 0x50, 0x4a, 0x58, 0xaf, 0x9e, 0xf5, 0xae, 0x6d, 0x1c, 0xf4,
+	0xe5, 0x7a, 0xfc, 0x35, 0x72, 0x9d, 0xe5, 0x05, 0x69, 0x36, 0x03, 0x4c, 0x53, 0x8b, 0xfc, 0x1a,
+	0xc9, 0x55, 0xff, 0x0d, 0x83, 0x81, 0x1b, 0xd6, 0x7f, 0x3b, 0x13, 0x83, 0xb7, 0xf3, 0x5d, 0x88,
+	0x13, 0xbf, 0x81, 0x7d, 0xb3, 0x76, 0x9d, 0xba, 0xc5, 0x99, 0x0b, 0x7c, 0xbd, 0x7b, 0x8d, 0x5e,
+	0xc0, 0x3b, 0x0d, 0xfb, 0x12, 0xfb, 0x81, 0xdd, 0xb4, 0xeb, 0xbc, 0xe0, 0x9b, 0x0e, 0xbe, 0xc4,
+	0x4e, 0x6a, 0x89, 0x1b, 0x5f, 0x98, 0x32, 0xf1, 0x8a, 0xfd, 0xba, 0xca, 0x4c, 0x95, 0xb1, 0xd6,
+	0x18, 0x42, 0x45, 0x1e, 0xac, 0xd6, 0x3b, 0x01, 0x25, 0x6d, 0xd3, 0xb7, 0xdc, 0x0b, 0xdb, 0x6d,
+	0x99, 0xb6, 0xdb, 0x24, 0xa9, 0x65, 0x9e, 0x3d, 0x3f, 0x99, 0x72, 0xdf, 0x02, 0xd7, 0x64, 0x08,
+	0x45, 0x25, 0xb7, 0x49, 0x8c, 0x95, 0xfa, 0x20, 0x09, 0xe5, 0x98, 0xaf, 0x01, 0x4f, 0xb1, 0x0b,
+	0x7c, 0x7d, 0x45, 0x7c, 0xf6, 0x44, 0xd1, 0xfa, 0x59, 0x4a, 0xe5, 0xe9, 0xb2, 0x2a, 0x99, 0x3f,
+	0x15, 0xbc, 0x0a, 0x63, 0xa5, 0xff, 0x14, 0x83, 0x95, 0x1b, 0xca, 0xd1, 0xd7, 0xa0, 0xda, 0x6d,
+	0x8f, 0xf8, 0xd4, 0x72, 0xeb, 0x58, 0x06, 0x4c, 0xe1, 0x01, 0x3b, 0x7a, 0x53, 0xc3, 0x33, 0xa5,
+	0x48, 0xb1, 0x88, 0x5e, 0xd2, 0xee, 0x27, 0xa0, 0x1d, 0x40, 0x61, 0xc4, 0xf0, 0x0b, 0xcf, 0xc7,
+	0x41, 0x60, 0x93, 0xb0, 0x8a, 0xad, 0x48, 0x8e, 0x1e, 0x31, 0xb4, 0x00, 0x92, 0x03, 0x2a, 0xd1,
+	0x26, 0xbc, 0x57, 0xaa, 0x1c, 0x1d, 0x1a, 0xc7, 0xf9, 0x83, 0x82, 0x6e, 0x96, 0xf5, 0x27, 0x7a,
+	0xd9, 0x3c, 0x39, 0xa8, 0x1e, 0xe9, 0x85, 0xd2, 0x5e, 0x49, 0x2f, 0xaa, 0xdf, 0x41, 0x71, 0x98,
+	0x3d, 0x38, 0x3c, 0xd0, 0x55, 0x05, 0x2d, 0xc0, 0x4c, 0xf9, 0xf0, 0xa9, 0x1a, 0x63, 0xa4, 0x4a,
+	0xa9, 0x5c, 0x54, 0x67, 0x10, 0xc0, 0x7c, 0x45, 0x2f, 0x96, 0x4e, 0x2a, 0xea, 0x2c, 0xa3, 0xee,
+	0x97, 0x3e, 0xdf, 0x57, 0xe7, 0x50, 0x02, 0x16, 0xf4, 0x67, 0xc7, 0x86, 0x5e, 0xd1, 0xd5, 0x79,
+	0xcd, 0x00, 0xe8, 0xd6, 0x20, 0xb4, 0x01, 0xeb, 0x55, 0x3d, 0x6f, 0x14, 0xf6, 0xcd, 0xca, 0x61,
+	0x51, 0x1f, 0xd8, 0x6a, 0x19, 0xe0, 0xf1, 0xe1, 0xae, 0x29, 0x00, 0xaa, 0x82, 0xd6, 0x61, 0x75,
+	0x4f, 0xcf, 0x1f, 0x9f, 0x18, 0x7a, 0xd1, 0xec, 0x61, 0xc4, 0xb4, 0xa7, 0xb0, 0x36, 0x2c, 0xbd,
+	0xd0, 0x3d, 0xb8, 0x53, 0x2c, 0x3d, 0xd1, 0x8d, 0x6a, 0x69, 0xaf, 0x54, 0xc8, 0x1f, 0x97, 0x0e,
+	0x0f, 0x86, 0xba, 0x74, 0x0b, 0xe2, 0xc5, 0x52, 0x35, 0xbf, 0x5b, 0xd6, 0x8b, 0xaa, 0xc2, 0x7c,
+	0xa8, 0x96, 0x2a, 0x47, 0x65, 0x5d, 0x8d, 0x69, 0xff, 0x8c, 0x03, 0xea, 0x3d, 0x19, 0xf9, 0xc0,
+	0x7c, 0x01, 0x4b, 0x3c, 0x3d, 0x58, 0xa0, 0x7b, 0x5e, 0x9a, 0x47, 0x13, 0x9f, 0xb0, 0xd0, 0x93,
+	0xa9, 0x48, 0x25, 0xec, 0x11, 0xba, 0xd5, 0xee, 0x2e, 0x02, 0x64, 0xc3, 0x7a, 0x7f, 0x19, 0xba,
+	0x96, 0x55, 0x2c, 0x48, 0xc5, 0xf8, 0x5e, 0x1f, 0x4f, 0x53, 0x8c, 0xb8, 0xa4, 0xf1, 0xce, 0xd9,
+	0x10, 0xea, 0xd0, 0x77, 0x6f, 0x66, 0xd8, 0xbb, 0x77, 0x04, 0xaa, 0x43, 0x64, 0x21, 0x90, 0xad,
+	0x69, 0x6a, 0x96, 0xdb, 0x32, 0xba, 0xa0, 0x97, 0xa5, 0x90, 0x91, 0x0c, 0xc5, 0xf7, 0x84, 0x34,
+	0xfa, 0x08, 0xd6, 0x70, 0x40, 0xed, 0xb6, 0x45, 0x71, 0xc3, 0xa4, 0x84, 0x5a, 0x8e, 0xa8, 0x61,
+	0x73, 0xbc, 0x86, 0xa1, 0x88, 0x77, 0xcc, 0x58, 0x61, 0x35, 0xeb, 0xc1, 0xcd, 0x73, 0xdc, 0x22,
+	0x8d, 0xd8, 0xbd, 0x4f, 0xf3, 0xc2, 0x1b, 0x3d, 0xcd, 0xe8, 0x11, 0xa4, 0xe5, 0x63, 0x83, 0x1b,
+	0xf2, 0x00, 0xd8, 0x49, 0x9b, 0x75, 0xd2, 0x71, 0x29, 0xaf, 0xdf, 0x73, 0xc6, 0x7a, 0x84, 0xe0,
+	0x01, 0x65, 0x07, 0x57, 0x60, 0x6c, 0x74, 0x0a, 0x6a, 0xe0, 0x61, 0xc7, 0x31, 0xeb, 0xc4, 0xf7,
+	0x71, 0x9d, 0xf9, 0xcc, 0x6b, 0x76, 0x22, 0x97, 0x1d, 0x9d, 0x22, 0x4c, 0xc8, 0x76, 0x5b, 0x85,
+	0x48, 0xcc, 0x48, 0x72, 0x45, 0x5d, 0x42, 0xfa, 0x9b, 0x18, 0x24, 0x7a, 0xf2, 0xe6, 0xb5, 0xba,
+	0xd4, 0x0f, 0x20, 0xc1, 0x27, 0xa1, 0x4e, 0xbb, 0x6d, 0xf9, 0xd7, 0xb2, 0x40, 0xc0, 0x39, 0xa9,
+	0x55, 0x05, 0x05, 0x6d, 0xc3, 0x0a, 0x03, 0x50, 0x9b, 0x3a, 0xd8, 0x0c, 0x5c, 0xdb, 0xf3, 0x30,
+	0x95, 0x59, 0x91, 0x3c, 0x27, 0xb5, 0x63, 0x46, 0xaf, 0x0a, 0x32, 0xca, 0xc0, 0xaa, 0x6c, 0x4b,
+	0x28, 0x4b, 0xa3, 0x10, 0x3d, 0x2b, 0xaa, 0x8e, 0x60, 0x1d, 0xe3, 0x17, 0x34, 0xc4, 0x3f, 0x87,
+	0x5b, 0x6c, 0x06, 0xea, 0x50, 0x2c, 0xca, 0xfa, 0x1c, 0xb7, 0x7c, 0xea, 0xbb, 0x53, 0x10, 0x3a,
+	0x78, 0x45, 0x4f, 0xd4, 0xbb, 0x8b, 0xf4, 0x6f, 0x15, 0x48, 0xf4, 0x30, 0xd1, 0x3e, 0xdc, 0x62,
+	0xbe, 0x84, 0xc9, 0x27, 0x23, 0x35, 0x61, 0xce, 0xb2, 0x38, 0x85, 0x0b, 0xb4, 0x0b, 0x49, 0xea,
+	0x5b, 0x97, 0xd8, 0x31, 0xc3, 0x11, 0x48, 0x36, 0xf8, 0xef, 0xde, 0x68, 0xf0, 0x8b, 0x12, 0x60,
+	0x2c, 0x0b, 0x89, 0x70, 0xad, 0x35, 0x65, 0xef, 0x1e, 0xcd, 0x3c, 0x63, 0xdb, 0xbe, 0xb0, 0x9b,
+	0x8d, 0x4d, 0xd3, 0xcd, 0x6a, 0xbf, 0x57, 0xe4, 0x46, 0xd1, 0x58, 0xf3, 0x76, 0x36, 0x1a, 0x9c,
+	0x78, 0x66, 0xa6, 0x99, 0x78, 0xb6, 0x2f, 0x61, 0x41, 0xb6, 0x39, 0x28, 0x05, 0x6b, 0xac, 0xa6,
+	0x3f, 0x29, 0xe9, 0x4f, 0x07, 0xca, 0xf3, 0x1a, 0xa8, 0x11, 0xa7, 0x54, 0x34, 0x0f, 0x0f, 0xca,
+	0x3f, 0x57, 0x95, 0x3e, 0x6a, 0xa5, 0x74, 0x50, 0xaa, 0xe4, 0xcb, 0x6a, 0x0c, 0x21, 0x58, 0x8e,
+	0xa8, 0xd5, 0x4a, 0xbe, 0x5c, 0x56, 0x67, 0xd0, 0x0a, 0x2c, 0x45, 0xb4, 0xbd, 0x93, 0x72, 0x59,
+	0x9d, 0xcd, 0xfd, 0x7a, 0x05, 0xe0, 0x31, 0xa9, 0x55, 0xc5, 0xa7, 0x00, 0xf4, 0x17, 0x05, 0x16,
+	0xa3, 0x03, 0x41, 0xa3, 0x6b, 0xc6, 0xe0, 0xb0, 0x9a, 0x1e, 0x1b, 0x28, 0xed, 0xf9, 0x2f, 0xbf,
+	0xfd, 0xef, 0x6f, 0x62, 0xcf, 0xb4, 0x07, 0xd1, 0x08, 0xfe, 0xb5, 0x08, 0xf9, 0x67, 0x9e, 0x4f,
+	0xce, 0x71, 0x9d, 0x06, 0xd9, 0xed, 0x2c, 0xc5, 0xae, 0xe5, 0xb2, 0x5f, 0x2f, 0xd9, 0x80, 0x1e,
+	0x3c, 0x54, 0xb6, 0x4f, 0xef, 0x6b, 0x77, 0x46, 0x48, 0x44, 0x38, 0xf4, 0x47, 0x05, 0xe6, 0xc5,
+	0x8c, 0x8b, 0xb6, 0x47, 0x1a, 0xd3, 0x37, 0x08, 0x4f, 0x60, 0xf8, 0x33, 0x6e, 0xb8, 0x81, 0x7a,
+	0x0c, 0x67, 0x03, 0xe8, 0x50, 0xb3, 0xb9, 0x35, 0xd9, 0xed, 0x97, 0xa7, 0x77, 0xd1, 0x9d, 0x57,
+	0xc3, 0x25, 0x08, 0xfd, 0x5d, 0x81, 0xc5, 0x28, 0x33, 0xc7, 0x44, 0x7c, 0x70, 0x30, 0x9f, 0xc0,
+	0xf0, 0x26, 0x37, 0xfc, 0x8b, 0x5c, 0xb6, 0x6b, 0xc9, 0x39, 0xa9, 0x65, 0xc6, 0x1a, 0xcf, 0xa2,
+	0xbe, 0x9d, 0xbb, 0x37, 0x5a, 0xaa, 0x8b, 0x45, 0x7f, 0x50, 0x60, 0x31, 0x9a, 0xc2, 0xc7, 0xb8,
+	0x31, 0x38, 0xda, 0xa7, 0x6f, 0xdf, 0xb8, 0x24, 0x7a, 0xdb, 0xa3, 0xd7, 0x61, 0xd4, 0xb7, 0xa7,
+	0x8b, 0xfa, 0xf6, 0x04, 0x51, 0xff, 0x9b, 0x02, 0xf1, 0x70, 0x5a, 0x46, 0xa3, 0x07, 0xbb, 0x81,
+	0xaf, 0x02, 0xe9, 0x9d, 0x09, 0xd1, 0xa2, 0x3a, 0x0f, 0xcb, 0x9c, 0xb1, 0x29, 0xdf, 0x9f, 0x39,
+	0xaf, 0xc8, 0x77, 0xf4, 0xad, 0x02, 0xc9, 0x81, 0xaf, 0x1f, 0xe8, 0x93, 0x91, 0xc6, 0x0d, 0xff,
+	0x56, 0xf2, 0xca, 0xf0, 0x07, 0xdc, 0xf4, 0xb6, 0xf6, 0xc3, 0x69, 0x6e, 0x6b, 0xad, 0xbb, 0x07,
+	0xcb, 0xa1, 0xac, 0xb6, 0x33, 0xfe, 0xe6, 0xf6, 0xc8, 0xa0, 0x7f, 0x2b, 0x61, 0x5b, 0xcc, 0x1d,
+	0xca, 0x4c, 0x37, 0x2b, 0xa4, 0xb3, 0x53, 0xbe, 0x9e, 0x9a, 0xc3, 0x9d, 0x6c, 0x6a, 0xb9, 0x69,
+	0x9c, 0x14, 0x6f, 0x39, 0xf3, 0x6f, 0x47, 0xdb, 0x1a, 0xef, 0x5f, 0x04, 0x47, 0xff, 0x53, 0x7a,
+	0xdb, 0xe8, 0x3d, 0xe2, 0xe7, 0x1d, 0xec, 0xd3, 0xb7, 0xef, 0xe5, 0x2f, 0xb8, 0x97, 0x97, 0xda,
+	0xc3, 0xe9, 0xbd, 0x0c, 0x8d, 0x64, 0xde, 0xfe, 0x40, 0xfb, 0x68, 0x52, 0x6f, 0x7b, 0xc4, 0xd0,
+	0x7f, 0xc2, 0x4c, 0xed, 0xbe, 0xf5, 0x93, 0x64, 0xea, 0x8d, 0xce, 0x20, 0xfd, 0x7e, 0x28, 0xd4,
+	0xf3, 0x9d, 0x36, 0x73, 0x18, 0x7e, 0xa7, 0xd5, 0x2e, 0xb9, 0x97, 0xde, 0x6b, 0x24, 0xac, 0xd8,
+	0x8a, 0xb9, 0x98, 0x9b, 0x38, 0x61, 0x23, 0x99, 0xae, 0x7f, 0xdd, 0x16, 0x63, 0x12, 0xff, 0x6e,
+	0x34, 0x24, 0x6f, 0xcf, 0x3f, 0xb1, 0xd5, 0x74, 0xfe, 0x45, 0x32, 0x69, 0xe7, 0x1f, 0xf9, 0x55,
+	0x46, 0x97, 0xd6, 0x59, 0x9e, 0x1d, 0x64, 0xea, 0xa4, 0xfd, 0xaf, 0x7c, 0xf5, 0x8c, 0x52, 0x2f,
+	0x78, 0x98, 0xcd, 0x5e, 0x5d, 0x5d, 0x0d, 0x30, 0xb3, 0x56, 0x87, 0x9e, 0x89, 0xcf, 0xee, 0x3b,
+	0x9e, 0x63, 0xd1, 0x26, 0xf1, 0xdb, 0x1f, 0x8e, 0x83, 0xb3, 0x4d, 0x76, 0x5f, 0xc2, 0x07, 0x75,
+	0xd2, 0x1e, 0x15, 0xbe, 0xdd, 0x64, 0xb7, 0x65, 0x39, 0x62, 0x35, 0xeb, 0x48, 0x39, 0xcd, 0x4b,
+	0x7c, 0x8b, 0x38, 0x96, 0xdb, 0xca, 0x10, 0xbf, 0x95, 0x6d, 0x61, 0x97, 0x57, 0xb4, 0x6c, 0x77,
+	0xab, 0xa1, 0xff, 0x03, 0x3c, 0x12, 0xcb, 0xdf, 0xc5, 0x66, 0x0a, 0xc7, 0xd5, 0xda, 0x3c, 0x97,
+	0xf9, 0xe4, 0xff, 0x01, 0x00, 0x00, 0xff, 0xff, 0x68, 0x28, 0x11, 0x54, 0x3f, 0x19, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -1616,23 +1780,31 @@ type JobServiceClient interface {
 	ListJobs(ctx context.Context, in *ListJobsRequest, opts ...grpc.CallOption) (*ListJobsResponse, error)
 	// Deletes a list of [Job][google.cloud.talent.v4beta1.Job]s by filter.
 	BatchDeleteJobs(ctx context.Context, in *BatchDeleteJobsRequest, opts ...grpc.CallOption) (*empty.Empty, error)
-	// Searches for jobs using the provided [SearchJobsRequest][google.cloud.talent.v4beta1.SearchJobsRequest].
+	// Searches for jobs using the provided
+	// [SearchJobsRequest][google.cloud.talent.v4beta1.SearchJobsRequest].
 	//
-	// This call constrains the [visibility][google.cloud.talent.v4beta1.Job.visibility] of jobs
-	// present in the database, and only returns jobs that the caller has
-	// permission to search against.
+	// This call constrains the
+	// [visibility][google.cloud.talent.v4beta1.Job.visibility] of jobs present in
+	// the database, and only returns jobs that the caller has permission to
+	// search against.
 	SearchJobs(ctx context.Context, in *SearchJobsRequest, opts ...grpc.CallOption) (*SearchJobsResponse, error)
-	// Searches for jobs using the provided [SearchJobsRequest][google.cloud.talent.v4beta1.SearchJobsRequest].
+	// Searches for jobs using the provided
+	// [SearchJobsRequest][google.cloud.talent.v4beta1.SearchJobsRequest].
 	//
 	// This API call is intended for the use case of targeting passive job
 	// seekers (for example, job seekers who have signed up to receive email
 	// alerts about potential job opportunities), and has different algorithmic
 	// adjustments that are targeted to passive job seekers.
 	//
-	// This call constrains the [visibility][google.cloud.talent.v4beta1.Job.visibility] of jobs
-	// present in the database, and only returns jobs the caller has
-	// permission to search against.
+	// This call constrains the
+	// [visibility][google.cloud.talent.v4beta1.Job.visibility] of jobs present in
+	// the database, and only returns jobs the caller has permission to search
+	// against.
 	SearchJobsForAlert(ctx context.Context, in *SearchJobsRequest, opts ...grpc.CallOption) (*SearchJobsResponse, error)
+	// Begins executing a batch create jobs operation.
+	BatchCreateJobs(ctx context.Context, in *BatchCreateJobsRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
+	// Begins executing a batch update jobs operation.
+	BatchUpdateJobs(ctx context.Context, in *BatchUpdateJobsRequest, opts ...grpc.CallOption) (*longrunning.Operation, error)
 }
 
 type jobServiceClient struct {
@@ -1715,6 +1887,24 @@ func (c *jobServiceClient) SearchJobsForAlert(ctx context.Context, in *SearchJob
 	return out, nil
 }
 
+func (c *jobServiceClient) BatchCreateJobs(ctx context.Context, in *BatchCreateJobsRequest, opts ...grpc.CallOption) (*longrunning.Operation, error) {
+	out := new(longrunning.Operation)
+	err := c.cc.Invoke(ctx, "/google.cloud.talent.v4beta1.JobService/BatchCreateJobs", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *jobServiceClient) BatchUpdateJobs(ctx context.Context, in *BatchUpdateJobsRequest, opts ...grpc.CallOption) (*longrunning.Operation, error) {
+	out := new(longrunning.Operation)
+	err := c.cc.Invoke(ctx, "/google.cloud.talent.v4beta1.JobService/BatchUpdateJobs", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // JobServiceServer is the server API for JobService service.
 type JobServiceServer interface {
 	// Creates a new job.
@@ -1739,23 +1929,31 @@ type JobServiceServer interface {
 	ListJobs(context.Context, *ListJobsRequest) (*ListJobsResponse, error)
 	// Deletes a list of [Job][google.cloud.talent.v4beta1.Job]s by filter.
 	BatchDeleteJobs(context.Context, *BatchDeleteJobsRequest) (*empty.Empty, error)
-	// Searches for jobs using the provided [SearchJobsRequest][google.cloud.talent.v4beta1.SearchJobsRequest].
+	// Searches for jobs using the provided
+	// [SearchJobsRequest][google.cloud.talent.v4beta1.SearchJobsRequest].
 	//
-	// This call constrains the [visibility][google.cloud.talent.v4beta1.Job.visibility] of jobs
-	// present in the database, and only returns jobs that the caller has
-	// permission to search against.
+	// This call constrains the
+	// [visibility][google.cloud.talent.v4beta1.Job.visibility] of jobs present in
+	// the database, and only returns jobs that the caller has permission to
+	// search against.
 	SearchJobs(context.Context, *SearchJobsRequest) (*SearchJobsResponse, error)
-	// Searches for jobs using the provided [SearchJobsRequest][google.cloud.talent.v4beta1.SearchJobsRequest].
+	// Searches for jobs using the provided
+	// [SearchJobsRequest][google.cloud.talent.v4beta1.SearchJobsRequest].
 	//
 	// This API call is intended for the use case of targeting passive job
 	// seekers (for example, job seekers who have signed up to receive email
 	// alerts about potential job opportunities), and has different algorithmic
 	// adjustments that are targeted to passive job seekers.
 	//
-	// This call constrains the [visibility][google.cloud.talent.v4beta1.Job.visibility] of jobs
-	// present in the database, and only returns jobs the caller has
-	// permission to search against.
+	// This call constrains the
+	// [visibility][google.cloud.talent.v4beta1.Job.visibility] of jobs present in
+	// the database, and only returns jobs the caller has permission to search
+	// against.
 	SearchJobsForAlert(context.Context, *SearchJobsRequest) (*SearchJobsResponse, error)
+	// Begins executing a batch create jobs operation.
+	BatchCreateJobs(context.Context, *BatchCreateJobsRequest) (*longrunning.Operation, error)
+	// Begins executing a batch update jobs operation.
+	BatchUpdateJobs(context.Context, *BatchUpdateJobsRequest) (*longrunning.Operation, error)
 }
 
 func RegisterJobServiceServer(s *grpc.Server, srv JobServiceServer) {
@@ -1906,6 +2104,42 @@ func _JobService_SearchJobsForAlert_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _JobService_BatchCreateJobs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BatchCreateJobsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(JobServiceServer).BatchCreateJobs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/google.cloud.talent.v4beta1.JobService/BatchCreateJobs",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(JobServiceServer).BatchCreateJobs(ctx, req.(*BatchCreateJobsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _JobService_BatchUpdateJobs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(BatchUpdateJobsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(JobServiceServer).BatchUpdateJobs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/google.cloud.talent.v4beta1.JobService/BatchUpdateJobs",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(JobServiceServer).BatchUpdateJobs(ctx, req.(*BatchUpdateJobsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _JobService_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "google.cloud.talent.v4beta1.JobService",
 	HandlerType: (*JobServiceServer)(nil),
@@ -1941,6 +2175,14 @@ var _JobService_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SearchJobsForAlert",
 			Handler:    _JobService_SearchJobsForAlert_Handler,
+		},
+		{
+			MethodName: "BatchCreateJobs",
+			Handler:    _JobService_BatchCreateJobs_Handler,
+		},
+		{
+			MethodName: "BatchUpdateJobs",
+			Handler:    _JobService_BatchUpdateJobs_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

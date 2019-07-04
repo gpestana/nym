@@ -82,15 +82,15 @@ func (p *Processor) worker() {
 		nextBlock.Lock()
 
 		for i, tx := range nextBlock.Txs {
-			if tx.Code != code.OK || len(tx.Tags) == 0 ||
-				!bytes.HasPrefix(tx.Tags[0].Key, tmconst.CredentialRequestKeyPrefix) {
+			if tx.Code != code.OK || len(tx.Events) == 0 ||
+				!bytes.HasPrefix(tx.Events[0].Attributes[0].Key, tmconst.CredentialRequestKeyPrefix) {
 				p.log.Infof("Tx %v at height %v is not sign request", i, height)
 				continue
 			}
 
 			blindSignMaterials := &coconut.ProtoBlindSignMaterials{}
 
-			err := proto.Unmarshal(tx.Tags[0].Value, blindSignMaterials)
+			err := proto.Unmarshal(tx.Events[0].Attributes[0].Value, blindSignMaterials)
 			if err != nil {
 				p.log.Errorf("Error while unmarshalling tags: %v", err)
 				continue

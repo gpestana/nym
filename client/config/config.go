@@ -32,14 +32,14 @@ import (
 const (
 	defaultLogLevel = "NOTICE"
 
-	defaultConnectTimeout    = 5 * 1000  // 5 sec.
+	defaultConnectTimeout    = 15 * 1000 // 15 sec.
 	defaultRequestTimeout    = 30 * 1000 // 30 sec.
 	defaultMaxRequests       = 3
 	noLimitMaxRequests       = 16
 	defaultMaximumAttributes = 5
 
 	defaultLookUpBackoff         = 10 * 1000 // 10 sec.
-	defaultNumberOfLookUpRetries = 3
+	defaultNumberOfLookUpRetries = 5
 )
 
 // nolint: gochecknoglobals

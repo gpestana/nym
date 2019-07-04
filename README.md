@@ -11,4 +11,4 @@ The implementation is based on the [existing Python version](https://github.com/
 
 Nym uses a [Tendermint](https://tendermint.com/) blockchain to keep track of credential issuance and prevent double-spending of credentials, and contains server-side to support querying of credentials. There is client-side code to re-randomize credentials.
 
-For more information, see the [documentation](https://github.com/nymtech/docs/tree/master/content).
+For more information, see the [documentation](https://github.com/nymtech/docs/).

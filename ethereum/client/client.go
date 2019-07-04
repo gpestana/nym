@@ -26,11 +26,12 @@ import (
 	"fmt"
 	"math/big"
 
-	token "github.com/nymtech/nym/ethereum/token"
-	"github.com/nymtech/nym/logger"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	token "github.com/nymtech/nym/ethereum/token"
+	"github.com/nymtech/nym/logger"
 	"gopkg.in/op/go-logging.v1"
 )
 
@@ -49,6 +50,15 @@ type Client struct {
 const (
 	// Nym specific
 	defaultDecimals = 18 // TODO: move this one to erc20.constants?
+)
+
+type TxStatus byte
+
+const (
+	TxStatusUnknown  TxStatus = 0
+	TxStatusAccepted TxStatus = 1
+	TxStatusRejected TxStatus = 2
+	TxStatusPending  TxStatus = 3
 )
 
 // TODO: move to separate token-related package
@@ -72,8 +82,24 @@ func (c *Client) logAndReturnError(fmtString string, a ...interface{}) error {
 }
 
 // used to get status of transaction, pending, accepted, rejected, etc
-func (c *Client) GetTransactionStatus(ctx context.Context, txHash []byte) {
+func (c *Client) GetTransactionStatus(ctx context.Context, txHash common.Hash) TxStatus {
 	// TODO:
+	_, isPending, err := c.ethClient.TransactionByHash(ctx, txHash)
+	if err != nil {
+		return TxStatusUnknown
+	}
+	if isPending {
+		return TxStatusPending
+	}
+	receipt, err := c.ethClient.TransactionReceipt(ctx, txHash)
+	// if tx is not pending we should be able to get a receipt
+	if receipt == nil || err != nil {
+		return TxStatusUnknown
+	}
+	if receipt.Status == types.ReceiptStatusSuccessful {
+		return TxStatusAccepted
+	}
+	return TxStatusRejected
 }
 
 // pending is used to decide whether to query pending balance
@@ -90,15 +116,14 @@ func (c *Client) QueryERC20Balance(ctx context.Context, address common.Address, 
 	return balance, nil
 }
 
-// TODO: rewrite to use token instance similarly to Balance query?
 // TransferERC20Tokens sends specified amount of ERC20 tokens to given account.
 func (c *Client) TransferERC20Tokens(ctx context.Context,
 	amount int64,
 	targetAddress common.Address,
 	tokenDecimals ...int,
-) error {
+) (common.Hash, error) {
 	if amount <= 0 {
-		return c.logAndReturnError("TransferERC20Tokens: trying to transfer negative number of tokens")
+		return common.Hash{}, c.logAndReturnError("TransferERC20Tokens: trying to transfer negative number of tokens")
 	}
 
 	var decimals int64
@@ -118,11 +143,11 @@ func (c *Client) TransferERC20Tokens(ctx context.Context,
 
 	tx, err := c.nymTokenInstance.Transfer(auth, targetAddress, tokenAmount)
 	if err != nil {
-		return c.logAndReturnError("TransferERC20Tokens: Failed to send transaction: %v", err)
+		return common.Hash{}, c.logAndReturnError("TransferERC20Tokens: Failed to send transaction: %v", err)
 	}
 	c.log.Noticef("Sent Transaction with hash: %v", tx.Hash().Hex())
 
-	return nil
+	return tx.Hash(), nil
 }
 
 func (c *Client) connect(ctx context.Context, ethHost string) error {

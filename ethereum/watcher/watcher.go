@@ -119,6 +119,8 @@ outerFor:
 								w.log.Errorf("Failed to create notification transaction: %v", err)
 								continue
 							}
+							// TODO: later change to send sync or even async as technically we don't need to know
+							// the resolution on this. We just need to send it.
 							res, err := w.tmClient.BroadcastTxCommit(tmtx)
 							if err != nil {
 								w.log.Errorf("Failed to send notification transaction: %v", err)
