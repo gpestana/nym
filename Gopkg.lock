@@ -443,20 +443,20 @@
   version = "v1.0.0"
 
 [[projects]]
-  digest = "1:ae41c0d9bd222a15ed08e854dbcf7c1ef8a511b937b7fb661762b3e91ff86b49"
+  digest = "1:afb16d787ce8a8d69b9a5cba62898e4fdb47eaa65a06a118fb891b3d6a31745a"
   name = "github.com/tendermint/go-amino"
   packages = ["."]
   pruneopts = ""
-  revision = "dc14acf9ef15f85828bfbc561ed9dd9d2a284885"
-  version = "v0.14.1"
+  revision = "6423ac677daf641ec900ec831a5abe79d2e71194"
+  version = "v0.15.0"
 
 [[projects]]
-  branch = "master"
-  digest = "1:263a45258b48aaa58b545d8c5a36b776414f42196453b2b4b00f767b26ad5250"
+  branch = "marko/remove_colors"
+  digest = "1:451fc34cfbdfb18e7989b5fc0cae08b6d9b7b5a60513e50051a365fb222e3d09"
   name = "github.com/tendermint/iavl"
   packages = ["."]
   pruneopts = ""
-  revision = "41918de7f2d4dcc79915181f448faecd35e9dcab"
+  revision = "040cd96e8af14632ef388edec89a458ec0f9995d"
 
 [[projects]]
   branch = "master"

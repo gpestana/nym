@@ -3,12 +3,12 @@ package iavl
 import (
 	"bytes"
 	"flag"
-	"fmt"
 	"os"
 	"runtime"
 	"strconv"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/db"
 
@@ -69,6 +69,12 @@ func TestVersionedRandomTree(t *testing.T) {
 	// db than in the current tree version.
 	require.True(len(tree.ndb.nodes()) >= tree.nodeSize())
 
+	// Ensure it returns all versions in sorted order
+	available := tree.AvailableVersions()
+	assert.Equal(t, versions, len(available))
+	assert.Equal(t, 1, available[0])
+	assert.Equal(t, versions, available[len(available)-1])
+
 	for i := 1; i < versions; i++ {
 		tree.DeleteVersion(int64(i))
 	}
@@ -77,6 +83,11 @@ func TestVersionedRandomTree(t *testing.T) {
 	tr, err := tree.GetImmutable(int64(versions))
 	require.NoError(err, "GetImmutable should not error for version %d", versions)
 	require.Equal(tr.root, tree.root)
+
+	// we should only have one available version now
+	available = tree.AvailableVersions()
+	assert.Equal(t, 1, len(available))
+	assert.Equal(t, versions, available[0])
 
 	// After cleaning up all previous versions, we should have as many nodes
 	// in the db as in the current tree version.
@@ -1133,44 +1144,6 @@ func TestRollback(t *testing.T) {
 
 	_, val = tree.Get([]byte("t"))
 	require.Equal([]byte("v"), val)
-}
-
-func TestLazyLoadVersion(t *testing.T) {
-	mdb := db.NewMemDB()
-	tree := NewMutableTree(mdb, 0)
-	maxVersions := 10
-
-	version, err := tree.LazyLoadVersion(0)
-	require.NoError(t, err, "unexpected error")
-	require.Equal(t, version, int64(0), "expected latest version to be zero")
-
-	for i := 0; i < maxVersions; i++ {
-		tree.Set([]byte(fmt.Sprintf("key_%d", i+1)), []byte(fmt.Sprintf("value_%d", i+1)))
-
-		_, _, err := tree.SaveVersion()
-		require.NoError(t, err, "SaveVersion should not fail")
-	}
-
-	// require the ability to lazy load the latest version
-	version, err = tree.LazyLoadVersion(int64(maxVersions))
-	require.NoError(t, err, "unexpected error when lazy loading version")
-	require.Equal(t, version, int64(maxVersions))
-
-	_, value := tree.Get([]byte(fmt.Sprintf("key_%d", maxVersions)))
-	require.Equal(t, value, []byte(fmt.Sprintf("value_%d", maxVersions)), "unexpected value")
-
-	// require the ability to lazy load an older version
-	version, err = tree.LazyLoadVersion(int64(maxVersions - 1))
-	require.NoError(t, err, "unexpected error when lazy loading version")
-	require.Equal(t, version, int64(maxVersions-1))
-
-	_, value = tree.Get([]byte(fmt.Sprintf("key_%d", maxVersions-1)))
-	require.Equal(t, value, []byte(fmt.Sprintf("value_%d", maxVersions-1)), "unexpected value")
-
-	// require the inability to lazy load a non-valid version
-	version, err = tree.LazyLoadVersion(int64(maxVersions + 1))
-	require.Error(t, err, "expected error when lazy loading version")
-	require.Equal(t, version, int64(maxVersions))
 }
 
 func TestOverwrite(t *testing.T) {
