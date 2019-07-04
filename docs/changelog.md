@@ -1,5 +1,14 @@
 # CoconutGo Changelog
 
+## 0.10.0
+
+* Introduced Redeemer entity that monitors Tendermint chain for any requests to move tokens back into ERC20. When threshold number of them agrees on a request, only one of them calls the ERC20 smartcontract
+* Changed all local import paths due to repository switch
+* Decreased levels of logging in multiple locations to make outputs more readable
+* Changed default address of the pipe account
+* Increased default polling rate of Ethereum watchers
+* Additional minor fixes and changes
+
 ## 0.9.1
 
 * Sample client cleanup + description of what is actually happening
