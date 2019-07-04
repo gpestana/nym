@@ -27,7 +27,7 @@ import (
 
 const (
 	// TODO: just replace with "memdb" ?
-	DBTYPE = "leveldb"
+	DBTYPE = "goleveldb"
 	dbPath = "/nymabci"
 )
 

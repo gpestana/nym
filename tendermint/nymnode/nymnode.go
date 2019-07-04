@@ -37,7 +37,7 @@ import (
 
 const (
 	// TODO: just replace with "memdb" ?
-	abciDbType = "leveldb"
+	abciDbType = "goleveldb"
 	abciDbDir  = "nymabci"
 )
 
