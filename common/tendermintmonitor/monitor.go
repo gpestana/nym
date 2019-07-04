@@ -29,7 +29,7 @@ import (
 	"github.com/nymtech/nym/server/storage"
 	tmclient "github.com/nymtech/nym/tendermint/client"
 	"github.com/nymtech/nym/worker"
-	cmn "github.com/tendermint/tendermint/libs/common"
+	atypes "github.com/tendermint/tendermint/abci/types"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	"github.com/tendermint/tendermint/types"
 	"gopkg.in/op/go-logging.v1"
@@ -119,27 +119,17 @@ type tx struct {
 	height int64
 	index  uint32
 	Code   uint32
-	Tags   []cmn.KVPair
+	Events []atypes.Event
 	isNil  bool
 }
 
 func startNewTx(txData types.EventDataTx) *tx {
-	// TODO: requires changing Tags field to Events
-	if len(txData.Result.Events) > 0 {
-		return &tx{
-			height: txData.Height,
-			index:  txData.Index,
-			Code:   txData.Result.Code,
-			Tags:   txData.Result.Events[0].Attributes,
-		}
-	}
 	return &tx{
 		height: txData.Height,
 		index:  txData.Index,
 		Code:   txData.Result.Code,
-		Tags:   nil,
+		Events: txData.Result.Events,
 	}
-
 }
 
 // FinalizeHeight gets called when all txs from a particular block are processed.
@@ -309,8 +299,7 @@ func (m *Monitor) addNewCatchUpBlock(res *ctypes.ResultBlockResults, overwrite b
 					height: res.Height,
 					index:  uint32(i),
 					Code:   resTx.Code,
-					// TODO: holds only true only in this particular implementation. Whole tags field will be replaced by events
-					Tags: resTx.Events[0].Attributes,
+					Events: resTx.Events,
 				}
 			}
 			m.unprocessedBlocks[res.Height] = b

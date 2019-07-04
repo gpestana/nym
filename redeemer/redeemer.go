@@ -122,21 +122,22 @@ func (r *Redeemer) worker() {
 		nextBlock.Lock()
 
 		for i, tx := range nextBlock.Txs {
-			if tx.Code != code.OK || len(tx.Tags) == 0 ||
-				!bytes.HasPrefix(tx.Tags[0].Key, tmconst.RedeemTokensRequestKeyPrefix) {
+			if tx.Code != code.OK || len(tx.Events) == 0 ||
+				!bytes.HasPrefix(tx.Events[0].Attributes[0].Key, tmconst.RedeemTokensRequestKeyPrefix) {
 				r.log.Infof("Tx %v at height %v is not a redeem token request", i, height)
 				continue
 			}
 
+			kvpair := tx.Events[0].Attributes[0]
 			// remember that the key field is: [ Prefix || User || amount || nonce ]
 			// and all of them have constants lengths
 			plen := len(tmconst.RedeemTokensRequestKeyPrefix)
 			alen := ethcommon.AddressLength
 
-			addressBytes := tx.Tags[0].Key[plen : plen+alen]
+			addressBytes := kvpair.Key[plen : plen+alen]
 			address := ethcommon.BytesToAddress(addressBytes)
-			amount := binary.BigEndian.Uint64(tx.Tags[0].Key[plen+alen:])
-			nonce := tx.Tags[0].Key[plen+alen+8:]
+			amount := binary.BigEndian.Uint64(kvpair.Key[plen+alen:])
+			nonce := kvpair.Key[plen+alen+8:]
 
 			r.log.Debugf("Received data. Address: %v, amount: %v, nonce: %v", address, amount, nonce)
 

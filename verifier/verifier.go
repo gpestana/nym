@@ -156,24 +156,25 @@ func (v *Verifier) worker() {
 		blockResults := make([]chan *commands.Response, 0, len(nextBlock.Txs))
 
 		for i, tx := range nextBlock.Txs {
-			if tx.Code != code.OK || len(tx.Tags) == 0 ||
-				!bytes.HasPrefix(tx.Tags[0].Key, tmconst.RedeemCredentialRequestKeyPrefix) {
+			if tx.Code != code.OK || len(tx.Events) == 0 ||
+				!bytes.HasPrefix(tx.Events[0].Attributes[0].Key, tmconst.RedeemCredentialRequestKeyPrefix) {
 				v.log.Infof("Tx %v at height %v is not a redeem credential request", i, height)
 				continue
 			}
 
+			kvpair := tx.Events[0].Attributes[0]
 			// remember that the key field is: [ Prefix || Address || uint64(value) || zeta ]
 			// and all of them have constants lengths (TODO: zeta can be compressed/uncompressed, need to fix that)
 			plen := len(tmconst.RedeemCredentialRequestKeyPrefix)
 			alen := ethcommon.AddressLength
 
-			addressBytes := tx.Tags[0].Key[plen : plen+alen]
+			addressBytes := kvpair.Key[plen : plen+alen]
 			address := ethcommon.BytesToAddress(addressBytes)
-			value := int64(binary.BigEndian.Uint64(tx.Tags[0].Key[plen+alen:]))
-			zetaBytes := tx.Tags[0].Key[plen+alen+8:]
+			value := int64(binary.BigEndian.Uint64(kvpair.Key[plen+alen:]))
+			zetaBytes := kvpair.Key[plen+alen+8:]
 
 			materials := &coconut.ProtoTumblerBlindVerifyMaterials{}
-			if err := proto.Unmarshal(tx.Tags[0].Value, materials); err != nil {
+			if err := proto.Unmarshal(kvpair.Value, materials); err != nil {
 				v.log.Warningf("Failed to unmarshal materials from provider %v", address)
 				continue
 			}
