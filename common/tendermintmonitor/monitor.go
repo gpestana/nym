@@ -124,12 +124,22 @@ type tx struct {
 }
 
 func startNewTx(txData types.EventDataTx) *tx {
+	// TODO: requires changing Tags field to Events
+	if len(txData.Result.Events) > 0 {
+		return &tx{
+			height: txData.Height,
+			index:  txData.Index,
+			Code:   txData.Result.Code,
+			Tags:   txData.Result.Events[0].Attributes,
+		}
+	}
 	return &tx{
 		height: txData.Height,
 		index:  txData.Index,
 		Code:   txData.Result.Code,
-		Tags:   txData.Result.Tags,
+		Tags:   nil,
 	}
+
 }
 
 // FinalizeHeight gets called when all txs from a particular block are processed.
@@ -299,7 +309,8 @@ func (m *Monitor) addNewCatchUpBlock(res *ctypes.ResultBlockResults, overwrite b
 					height: res.Height,
 					index:  uint32(i),
 					Code:   resTx.Code,
-					Tags:   resTx.Tags,
+					// TODO: holds only true only in this particular implementation. Whole tags field will be replaced by events
+					Tags: resTx.Events[0].Attributes,
 				}
 			}
 			m.unprocessedBlocks[res.Height] = b
