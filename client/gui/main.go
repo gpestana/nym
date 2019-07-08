@@ -51,7 +51,11 @@ type QmlBridge struct {
 func (qb *QmlBridge) init() {
 	//here you can do some initializing
 	fmt.Println("init called on qmlbridge")
-
+	qb.ConnectSendToGo(func(name string) {
+		fmt.Println("sent to go", name)
+		qb.SendToQml(name + "foo")
+		// return "hello from go"
+	})
 	// qb.ConnectSendToQml(func(name string) {
 	// 	fmt.Println("connect to qml?")
 	// })
@@ -80,12 +84,6 @@ func main() {
 
 	// Create connector
 	var qmlBridge = NewQmlBridge(nil)
-
-	qmlBridge.ConnectSendToGo(func(name string) {
-		fmt.Println("sent to go", name)
-		qmlBridge.SendToQml(name + "foo")
-		// return "hello from go"
-	})
 
 	// // Function to execute from QML
 	// qmlBridge.ConnectRemoveItem(func(data int) string {
