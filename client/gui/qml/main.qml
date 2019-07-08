@@ -25,53 +25,62 @@ ApplicationWindow {
   minimumWidth: 400
   minimumHeight: 400
 
-  Column {
+  Button {
     anchors.centerIn: parent
-
-    TextField {
-      id: input
-
-      anchors.horizontalCenter: parent.horizontalCenter
-
-      placeholderText: "1. write something"
-    }
-
-    Button {
-      anchors.horizontalCenter: parent.horizontalCenter
-
-      text: "2. click me"
-      onClicked: {
-        console.log(QmlBridge.sendToGo(input.text))
-        
-      }
-      
-      enabled: true
-    }
-
-    Text {
-      id: someText
-      anchors.horizontalCenter: parent.horizontalCenter
-
-      text: "3. foo"
+    text: "Run whole pipeline"
+    onClicked: {
+      console.log("Qml says: we are going to run entire nym pipeline")
+      QmlBridge.runPipeline()
     }
   }
-
-  Connections {
-    target: QmlBridge
-    onSendToQml: {
-        someText.text = name
-      }
-  }
-
-  // Dialog {
-  //   contentWidth: window.width / 2
-  //   contentHeight: window.height / 4
-
-  //   id: dialog
-  //   standardButtons: Dialog.Ok
-
-  //   contentItem: Label {
-  //     text: input.text
-  //   }
-  // }
 }
+//   Column {
+//     anchors.centerIn: parent
+
+//     TextField {
+//       id: input
+
+//       anchors.horizontalCenter: parent.horizontalCenter
+
+//       placeholderText: "1. write something"
+//     }
+
+//     Button {
+//       anchors.horizontalCenter: parent.horizontalCenter
+
+//       text: "2. click me"
+//       onClicked: {
+//         console.log(QmlBridge.sendToGo(input.text))
+        
+//       }
+      
+//       enabled: true
+//     }
+
+//     Text {
+//       id: someText
+//       anchors.horizontalCenter: parent.horizontalCenter
+
+//       text: "3. foo"
+//     }
+//   }
+
+//   Connections {
+//     target: QmlBridge
+//     onSendToQml: {
+//         someText.text = name
+//       }
+//   }
+
+//   // Dialog {
+//   //   contentWidth: window.width / 2
+//   //   contentHeight: window.height / 4
+
+//   //   id: dialog
+//   //   standardButtons: Dialog.Ok
+
+//   //   contentItem: Label {
+//   //     text: input.text
+//   //   }
+//   // }
+// }
