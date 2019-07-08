@@ -1,3 +1,18 @@
+// main.go - entry point for coconut GUI application
+// Copyright (C) 2018-2019  Jedrzej Stuczynski.
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as
+// published by the Free Software Foundation, either version 3 of the
+// License, or (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 package main
 
 import (
@@ -44,24 +59,18 @@ type QmlBridge struct {
 	_ func(name string) `signal:"sendToQml"`
 
 	// Slot to make Go do something on 'sendToGo'
-	_ func(name string) `slot:"sendToGo"`
+	_ func(name string) string `slot:"sendToGo"`
 }
 
-//this function will be automatically called, when you use the `NewExampleStruct` function
+//this function will be automatically called, when you use the `NewQmlBridge` function
 func (qb *QmlBridge) init() {
 	//here you can do some initializing
 	fmt.Println("init called on qmlbridge")
-	qb.ConnectSendToGo(func(name string) {
+	qb.ConnectSendToGo(func(name string) string {
 		fmt.Println("sent to go", name)
 		qb.SendToQml(name + "foo")
-		// return "hello from go"
+		return "hello from go"
 	})
-	// qb.ConnectSendToQml(func(name string) {
-	// 	fmt.Println("connect to qml?")
-	// })
-	// s.SetFirstProperty("defaultString")
-	// s.ConnectFirstSignal(func() { println("do something here") })
-	// s.ConnectSecondSignal(s.secondSignal)
 }
 
 func main() {
@@ -84,12 +93,6 @@ func main() {
 
 	// Create connector
 	var qmlBridge = NewQmlBridge(nil)
-
-	// // Function to execute from QML
-	// qmlBridge.ConnectRemoveItem(func(data int) string {
-	// 	fmt.Println("go:", data)
-	// 	return "hello from go"
-	// })
 
 	// Set up the connector
 	engine.RootContext().SetContextProperty("QmlBridge", qmlBridge)
