@@ -14,73 +14,46 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import QtQuick 2.7
-import QtQuick.Controls 2.1
+import QtQuick 2.13
+import QtQuick.Window 2.2
+import QtQuick.Controls 2.5
+import QtQuick.Layouts 1.13
+import QtQuick.Dialogs 1.3
+import QtQuick.Controls.Material 2.12
+import Qt.labs.folderlistmodel 2.13
+import Qt.labs.platform 1.1
 
 ApplicationWindow {
   id: window
 
+  Material.primary: "Indigo"
+
   visible: true
-  title: "Hello World Example"
-  minimumWidth: 400
-  minimumHeight: 400
+  title: qsTr("Nym Demo Application")
+  minimumWidth: 800
+  minimumHeight: 600
 
-  Button {
-    anchors.centerIn: parent
-    text: "Run whole pipeline"
-    onClicked: {
-      console.log("Qml says: we are going to run entire nym pipeline")
-      QmlBridge.runPipeline()
-    }
-  }
+   ColumnLayout {
+      anchors.fill: parent
+      anchors.margins: 20
+      RowLayout {
+        Layout.fillWidth: true
+        Layout.alignment: Qt.AlignHCenter
+        spacing: 30
+        TooltipButton{
+          btnText: qsTr("Demo 'Connect with Nym'")
+          tooltipText: qsTr("The feature hasn't been implemented yet")
+        }
+        TooltipButton{
+          btnText: qsTr("Demo Identity Manager")
+          tooltipText: qsTr("The feature hasn't been implemented yet")
+        }
+        Button {
+          id: walletBtn
+          text: qsTr("Demo Nym Wallet")
+        }
+      }
+   }
 }
-//   Column {
-//     anchors.centerIn: parent
 
-//     TextField {
-//       id: input
 
-//       anchors.horizontalCenter: parent.horizontalCenter
-
-//       placeholderText: "1. write something"
-//     }
-
-//     Button {
-//       anchors.horizontalCenter: parent.horizontalCenter
-
-//       text: "2. click me"
-//       onClicked: {
-//         console.log(QmlBridge.sendToGo(input.text))
-        
-//       }
-      
-//       enabled: true
-//     }
-
-//     Text {
-//       id: someText
-//       anchors.horizontalCenter: parent.horizontalCenter
-
-//       text: "3. foo"
-//     }
-//   }
-
-//   Connections {
-//     target: QmlBridge
-//     onSendToQml: {
-//         someText.text = name
-//       }
-//   }
-
-//   // Dialog {
-//   //   contentWidth: window.width / 2
-//   //   contentHeight: window.height / 4
-
-//   //   id: dialog
-//   //   standardButtons: Dialog.Ok
-
-//   //   contentItem: Label {
-//   //     text: input.text
-//   //   }
-//   // }
-// }
