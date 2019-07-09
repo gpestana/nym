@@ -18,42 +18,58 @@ import QtQuick 2.13
 import QtQuick.Window 2.2
 import QtQuick.Controls 2.5
 import QtQuick.Layouts 1.13
-import QtQuick.Dialogs 1.3
+// import QtQuick.Dialogs 1.3
 import QtQuick.Controls.Material 2.12
 import Qt.labs.folderlistmodel 2.13
 import Qt.labs.platform 1.1
 
 ApplicationWindow {
-  id: window
+	id: mainWindow
 
-  Material.primary: "Indigo"
+	Material.primary: "Indigo"
 
-  visible: true
-  title: qsTr("Nym Demo Application")
-  minimumWidth: 800
-  minimumHeight: 600
+	visible: true
+	title: qsTr("Nym Demo Application")
+	minimumWidth: 800
+	minimumHeight: 600
 
-   ColumnLayout {
-      anchors.fill: parent
-      anchors.margins: 20
-      RowLayout {
-        Layout.fillWidth: true
-        Layout.alignment: Qt.AlignHCenter
-        spacing: 30
-        TooltipButton{
-          btnText: qsTr("Demo 'Connect with Nym'")
-          tooltipText: qsTr("The feature hasn't been implemented yet")
-        }
-        TooltipButton{
-          btnText: qsTr("Demo Identity Manager")
-          tooltipText: qsTr("The feature hasn't been implemented yet")
-        }
-        Button {
-          id: walletBtn
-          text: qsTr("Demo Nym Wallet")
-        }
-      }
-   }
+	footer: Text {
+		text: "TODO: format and insert link here"
+	}
+
+	ColumnLayout {
+		id: mainView
+		visible: true
+
+		anchors.fill: parent
+		anchors.margins: 20
+		RowLayout {
+			Layout.fillWidth: true
+			Layout.alignment: Qt.AlignHCenter
+			spacing: 30
+			TooltipButton{
+				btnText: qsTr("Demo 'Connect with Nym'")
+				tooltipText: qsTr("The feature hasn't been implemented yet")
+			}
+			TooltipButton{
+				btnText: qsTr("Demo Identity Manager")
+				tooltipText: qsTr("The feature hasn't been implemented yet")
+			}
+			Button {
+				id: walletBtn
+				text: qsTr("Demo Nym Wallet")
+					onClicked: {
+						mainView.visible = !mainView.visible
+						nymWallet.visible = !nymWallet.visible
+					}
+			}
+		}
+	}
+	
+	NymWallet {
+		id: nymWallet
+		visible: false
+	}
 }
 
 
