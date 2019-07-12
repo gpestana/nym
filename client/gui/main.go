@@ -20,30 +20,27 @@ import (
 	"os"
 	"strings"
 
+	"github.com/nymtech/nym/client/config"
 	"github.com/therecipe/qt/core"
 	"github.com/therecipe/qt/gui"
 	"github.com/therecipe/qt/qml"
 	"github.com/therecipe/qt/quickcontrols2"
-	"github.com/therecipe/qt/widgets"
 )
 
 var (
-	qmlObjects = make(map[string]*core.QObject)
+	// qmlObjects = make(map[string]*core.QObject)
 
-	qmlBridge          *QmlBridge
-	manipulatedFromQml *widgets.QWidget
+	qmlBridge    *QmlBridge
+	configBridge *ConfigBridge
 )
 
-// type QmlBridge struct {
-// 	core.QObject
+//go:generate qtmoc
+type ConfigBridge struct {
+	core.QObject
 
-// 	_ func() `constructor:"init"`
-// 	_ func(source, action, data string) `signal:"sendToQml"`
-// 	_ func(source, action, data string) `slot:"sendToGo"`
-
-// 	_ func(object *core.QObject) `slot:"registerToGo"`
-// 	_ func(objectName string)    `slot:"deregisterToGo"`
-// }
+	_ string `property:"identifier"`
+	_ string `property:"foo"`
+}
 
 //go:generate qtmoc
 type QmlBridge struct {
@@ -87,6 +84,17 @@ func (qb *QmlBridge) init() {
 
 		fmt.Println("Want to load config", file)
 		qb.DisplayNotification("File to load: " + file)
+
+		cfg, err := config.LoadFile(file)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to load config file '%v': %v\n", file, err)
+			os.Exit(-1)
+		} else {
+			fmt.Println("loaded config!")
+		}
+
+		configBridge.SetIdentifier(cfg.Client.Identifier)
+		configBridge.SetFoo("Foobar")
 	})
 }
 
@@ -99,6 +107,7 @@ func main() {
 
 	// needs to be called once before you can start using QML
 	gui.NewQGuiApplication(len(os.Args), os.Args)
+	// widgets.NewQApplication(len(os.Args), os.Args)
 
 	// use the material style
 	// the other inbuild styles are:
@@ -112,10 +121,13 @@ func main() {
 	engine := qml.NewQQmlApplicationEngine(nil)
 
 	// Create connector
-	var qmlBridge = NewQmlBridge(nil)
+	qmlBridge = NewQmlBridge(nil)
+	configBridge = NewConfigBridge(nil)
 
 	// Set up the connector
 	engine.RootContext().SetContextProperty("QmlBridge", qmlBridge)
+
+	engine.RootContext().SetContextProperty("ConfigBridge", configBridge)
 
 	// load the embedded qml file
 	// created by either qtrcc or qtdeploy
