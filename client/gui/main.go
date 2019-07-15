@@ -16,16 +16,21 @@
 package main
 
 import (
+	"crypto/ecdsa"
 	"fmt"
 	"os"
 	"strings"
 
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/nymtech/nym/client/config"
 	"github.com/therecipe/qt/core"
 	"github.com/therecipe/qt/gui"
 	"github.com/therecipe/qt/qml"
 	"github.com/therecipe/qt/quickcontrols2"
 )
+
+// TODO: once basic structure is figured out + got a good hang of how it works
+// split the file into separate packages, etc.
 
 var (
 	// qmlObjects = make(map[string]*core.QObject)
@@ -39,7 +44,11 @@ type ConfigBridge struct {
 	core.QObject
 
 	_ string `property:"identifier"`
-	_ string `property:"foo"`
+	_ string `property:"address"`
+	_ string `property:"keyfile"`
+	_ string `property:"ethereumNode"`
+	_ string `property:"nymERC20"`
+	_ string `property:"pipeAccount"`
 }
 
 //go:generate qtmoc
@@ -54,11 +63,10 @@ type QmlBridge struct {
 	// Slot to make Go do something on 'sendToGo'
 	_ func(name string) string `slot:"sendToGo"`
 
-	_ func(file string) `slot:"loadConfig"`
-
-	_ func(message string) `signal:"displayNotification"`
-
-	_ func() `slot:"runPipeline"`
+	_ func(file string)                `slot:"loadConfig"`
+	_ func(message string)             `signal:"displayNotification"`
+	_ func(identifier, address string) `signal:"newNymValidator"`
+	_ func(identifier, address string) `signal:"newTendermintValidator"`
 }
 
 //this function will be automatically called, when you use the `NewQmlBridge` function
@@ -71,13 +79,6 @@ func (qb *QmlBridge) init() {
 		return "hello from go"
 	})
 
-	qb.ConnectRunPipeline(func() {
-		fmt.Println("Called to run entire pipeline")
-		qb.DisplayNotification("Sample notification text")
-		fmt.Println("after notif")
-		// runWhole()
-	})
-
 	qb.ConnectLoadConfig(func(file string) {
 		// TODO: is that prefix always added?
 		file = strings.TrimPrefix(file, "file://")
@@ -87,14 +88,44 @@ func (qb *QmlBridge) init() {
 
 		cfg, err := config.LoadFile(file)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to load config file '%v': %v\n", file, err)
-			os.Exit(-1)
+			errStr := fmt.Sprintf("Failed to load config file '%v': %v\n", file, err)
+			qmlBridge.DisplayNotification(errStr)
+			return
 		} else {
 			fmt.Println("loaded config!")
 		}
 
 		configBridge.SetIdentifier(cfg.Client.Identifier)
-		configBridge.SetFoo("Foobar")
+		configBridge.SetKeyfile(cfg.Nym.AccountKeysFile)
+
+		// TODO: later remove it, but for now it's temporary for demo sake
+		privateKey, loadErr := ethcrypto.LoadECDSA(cfg.Nym.AccountKeysFile)
+		if loadErr != nil {
+			errStr := fmt.Sprintf("Failed to load Nym keys: %v", loadErr)
+			fmt.Println(errStr)
+			configBridge.SetAddress(errStr)
+		} else {
+			address := ethcrypto.PubkeyToAddress(*privateKey.Public().(*ecdsa.PublicKey)).Hex()
+			configBridge.SetAddress(address)
+		}
+
+		// should have been detected during validation...
+		if len(cfg.Nym.EthereumNodeAddresses) > 0 {
+			configBridge.SetEthereumNode(cfg.Nym.EthereumNodeAddresses[0])
+		} else {
+			configBridge.SetEthereumNode("none specified")
+		}
+		configBridge.SetNymERC20(cfg.Nym.NymContract.Hex())
+		configBridge.SetPipeAccount(cfg.Nym.PipeAccount.Hex())
+
+		for i, addr := range cfg.Client.IAAddresses {
+			qb.NewNymValidator(fmt.Sprintf("nymnode%v", i), addr)
+		}
+
+		for i, addr := range cfg.Nym.BlockchainNodeAddresses {
+			qb.NewTendermintValidator(fmt.Sprintf("tendermintnode%v", i), addr)
+		}
+
 	})
 }
 
@@ -113,6 +144,7 @@ func main() {
 	// the other inbuild styles are:
 	// Default, Fusion, Imagine, Universal
 	quickcontrols2.QQuickStyle_SetStyle("Material")
+	// quickcontrols2.QQuickStyle_SetStyle("Imagine")
 
 	fntdb := gui.NewQFontDatabase()
 	fntdb.AddApplicationFont(":/materialdesignicons-webfont.ttf")
