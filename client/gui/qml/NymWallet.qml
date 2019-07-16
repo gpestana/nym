@@ -18,67 +18,104 @@ import QtQuick 2.12
 import QtQuick.Controls 2.5
 import QtQuick.Layouts 1.12
 import Qt.labs.platform 1.1 as QtLabs
-import CustomQmlTypes 1.0
 
+
+// TODO: move stuff to separate components, it's too messy right now
 Flickable {
     id: walletPage
     anchors.fill: parent
 
     ScrollIndicator.vertical: ScrollIndicator { }
 
-    ColumnLayout {
-        spacing: 5
-        anchors.fill: parent
-        anchors.margins: 30
-        Label {
+	ColumnLayout {
+		anchors.topMargin: 20
+		anchors.fill: parent
+
+		Label {
             id: label3
             text: qsTr("Nym Wallet Demo")
-            horizontalAlignment: Text.AlignHCenter
+            Layout.alignment: Qt.AlignLeft | Qt.AlignTop
             Layout.fillWidth: true
-            Layout.alignment: Qt.AlignHCenter | Qt.AlignTop
+            // anchors.horizontalCenter: parent.horizontalCenter
+            horizontalAlignment: Text.AlignHCenter
             font.weight: Font.DemiBold
             font.pointSize: 16
         }
 
-        RowLayout {
-            Layout.alignment: Qt.AlignTop
-            Layout.preferredHeight: 40
+		ColumnLayout {
+			id: accountFull
+			Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+
+			visible: false
+			spacing: 5
+			// anchors.fill: parent
+            Layout.fillHeight: true
             Layout.fillWidth: true
-            TextField {
-                id: path
-                enabled: false
-                text: "Please load Nym Client configuration file"
-                Layout.fillWidth: true
-            }
-            Button {
-                text: "open config"
-                onClicked: fileDialog.open();
-            }
-        }
+            Layout.rightMargin: 30
+            Layout.leftMargin: 30
+            Layout.bottomMargin: 30
+            Layout.topMargin: 10
 
-		ConfigSummary{
-			id: configView
-			visible: true
-		}
+			ClientAccount {
 
-		RowLayout {
-			Layout.fillHeight: false
-			Layout.alignment: Qt.AlignBottom | Qt.AlignRight
-
-			Layout.preferredHeight: 40
-			Layout.fillWidth: true
-
-			Button {
-				Layout.alignment: Qt.AlignRight | Qt.AlignBottom
-				id: configConfirmBtn
-				enabled: false
-				text: "confirm"
-				Layout.fillHeight: false
-				Layout.fillWidth: false
-				onClicked: console.log("Confirmed config")
 			}
 		}
-    }
+		
+		ColumnLayout {		
+			id: configFull
+			spacing: 5
+			// anchors.fill: parent
+			Layout.fillHeight: true
+            Layout.fillWidth: true
+            Layout.rightMargin: 30
+            Layout.leftMargin: 30
+            Layout.bottomMargin: 30
+            Layout.topMargin: 10
+
+			RowLayout {
+				Layout.alignment: Qt.AlignTop
+				Layout.preferredHeight: 40
+				Layout.fillWidth: true
+				TextField {
+					id: path
+					enabled: false
+					text: "Please load Nym Client configuration file"
+					Layout.fillWidth: true
+				}
+				Button {
+					text: "open config"
+					onClicked: fileDialog.open();
+				}
+			}
+
+			ConfigSummary{
+				id: configView
+				opacity: 0 // temporary until I can figure out proper spacing with visible: false
+			}
+
+			RowLayout {
+				Layout.fillHeight: false
+				Layout.alignment: Qt.AlignBottom | Qt.AlignRight
+
+				Layout.preferredHeight: 40
+				Layout.fillWidth: true
+
+				Button {
+					Layout.alignment: Qt.AlignRight | Qt.AlignBottom
+					id: configConfirmBtn
+					enabled: false
+					text: "confirm"
+					Layout.fillHeight: false
+					Layout.fillWidth: false
+					onClicked: {
+						QmlBridge.confirmConfig()
+						configFull.visible = false
+						accountFull.visible = true
+					}
+				}
+			}
+		}
+	}
 
     QtLabs.FileDialog {
         id: fileDialog
@@ -88,9 +125,9 @@ Flickable {
         //     folderModel.folder = folder;
         // }
         onAccepted: {
-            console.log("You chose: " + fileDialog.file)
             QmlBridge.loadConfig(fileDialog.file)
 			configConfirmBtn.enabled = true
+			configView.opacity = 1
             path.text = fileDialog.file
         }
     }
@@ -120,7 +157,11 @@ Flickable {
 
         Label {
             id: notificationText
-            // maximumWidth: notificationDialog.contentWidth
+			// wrapMode: Label.WordWrap
+			wrapMode: Label.WrapAnywhere
+
+            width: notificationDialog.availableWidth
+			height: notificationDialog.availableHeight
         }
 
         onAccepted: console.log("Ok clicked")
@@ -131,14 +172,9 @@ Flickable {
         target: QmlBridge
         onDisplayNotification: {
             notificationText.text = message
-            // notificationDialog.implicitHeight = notificationText.height
-            // notificationDialog.implicitWidth = notificationText.width
+
             notificationDialog.open()
         }
-		
-		// onNewNymValidator: {
-		// 	nymValidatorsListModel.append({Identifier: "foo", Address: "bar"})
-		// }
     }
 
 }

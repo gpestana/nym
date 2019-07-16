@@ -18,7 +18,7 @@ import QtQuick 2.12
 import QtQuick.Controls 2.5
 import QtQuick.Layouts 1.12
 import Qt.labs.platform 1.1 as QtLabs
-import CustomQmlTypes 1.0
+//import CustomQmlTypes 1.0
 
 
 ColumnLayout {
