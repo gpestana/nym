@@ -114,9 +114,7 @@ ColumnLayout {
                 text: qsTr("Force update")
                 Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
                 onClicked: {
-                    // busyIndicator5.running = !busyIndicator5.running
                     QmlBridge.forceUpdateBalances(balanceUpdateIndicator, mainColumn)
-                    // busyIndicator5.running = false
                 }
             }
 
@@ -143,16 +141,15 @@ ColumnLayout {
 
 
         Label {
-            text: "Send to Pipe Account"
+            text: qsTr("Send to Pipe Account")
             horizontalAlignment: Text.AlignRight
             font.weight: Font.DemiBold
         }
 
         TextField {
             // inputMethodHints: Qt.ImhDigitsOnly
-            id: textField3
-            text: qsTr(" ")
-            placeholderText: "amount"
+            id: sendToPipeAccountAmount
+            placeholderText: "enter amount"
             Layout.fillWidth: false
         }
 
@@ -160,10 +157,13 @@ ColumnLayout {
         Button {
             id: button
             text: "Confirm"
+            onClicked: {
+                QmlBridge.sendToPipeAccount(sendToPipeAccountAmount.text, sendToPipeAccountIndicator, mainColumn)
+            }
         }
 
         BusyIndicator {
-            id: busyIndicator1
+            id: sendToPipeAccountIndicator
             running: false
             width: 60
             Layout.preferredHeight: 50
@@ -180,8 +180,7 @@ ColumnLayout {
         TextField {
             // inputMethodHints: Qt.ImhDigitsOnly
             id: textField4
-            text: qsTr(" ")
-            placeholderText: "amount"
+            placeholderText: "enter amount"
             Layout.fillWidth: false
         }
 

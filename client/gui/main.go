@@ -16,11 +16,14 @@
 package main
 
 import (
+	"context"
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/nymtech/nym/client"
@@ -74,19 +77,27 @@ type QmlBridge struct {
 	_ func(strigifiedSecret string)                                     `signal:"updateSecret"`
 	_ func(busyIndicator *core.QObject, mainLayoutObject *core.QObject) `slot:"forceUpdateBalances"`
 
-	_ func() `slot:"sendToPipeAccount"`
-	_ func() `slot:"redeemTokens"`
-	_ func() `slot:"getCredential"`
-	_ func() `slot:"spendCredential"`
+	_ func(amount string, busyIndicator *core.QObject, mainLayoutObject *core.QObject) `slot:"sendToPipeAccount"`
+	_ func(amount string, busyIndicator *core.QObject, mainLayoutObject *core.QObject) `slot:"redeemTokens"`
+	_ func()                                                                           `slot:"getCredential"`
+	_ func()                                                                           `slot:"spendCredential"`
 }
 
 func setIndicatorAndObjects(indicator *core.QObject, objs []*core.QObject, run bool) {
 	if run {
-		indicator.SetProperty("running", core.NewQVariant1(true))
-		disableAllObjects(objs)
+		if indicator != nil {
+			indicator.SetProperty("running", core.NewQVariant1(true))
+		}
+		if len(objs) > 0 {
+			disableAllObjects(objs)
+		}
 	} else {
-		indicator.SetProperty("running", core.NewQVariant1(false))
-		enableAllObjects(objs)
+		if indicator != nil {
+			indicator.SetProperty("running", core.NewQVariant1(false))
+		}
+		if len(objs) > 0 {
+			enableAllObjects(objs)
+		}
 	}
 }
 
@@ -99,6 +110,31 @@ func enableAllObjects(objs []*core.QObject) {
 func disableAllObjects(objs []*core.QObject) {
 	for _, obj := range objs {
 		obj.SetProperty("enabled", core.NewQVariant1(false))
+	}
+}
+
+// TODO: FIXME: a temporary solution. copied from client file just to update 'live' erc20 balances
+func (qb *QmlBridge) waitForERC20BalanceChange(ctx context.Context, expectedBalance uint64) {
+	retryTicker := time.NewTicker(2 * time.Second)
+
+	for {
+		select {
+		case <-retryTicker.C:
+			currentBalance, err := qb.clientInstance.GetCurrentERC20Balance()
+			qb.displayErrorDialogOnErr("failed to query for ERC20 Nym Balance", err)
+			qb.UpdateERC20NymBalance(strconv.FormatUint(currentBalance, 10))
+
+			pendingBalance, err := qb.clientInstance.GetCurrentERC20PendingBalance()
+			qb.displayErrorDialogOnErr("failed to query for ERC20 Nym Balance (pending)", err)
+			qb.UpdateERC20NymBalancePending(strconv.FormatUint(pendingBalance, 10))
+
+			if currentBalance == expectedBalance {
+				return
+			}
+		case <-ctx.Done():
+			qb.displayErrorDialogOnErr("failed to query for obtain current ERC20 balances", errors.New("ctx timeout"))
+			return
+		}
 	}
 }
 
@@ -159,9 +195,6 @@ func (qb *QmlBridge) init() {
 			return
 		}
 		qb.clientInstance = client
-		qb.UpdateERC20NymBalance("42")
-		qb.UpdateERC20NymBalancePending("4000")
-		qb.UpdateNymTokenBalance("9000")
 	})
 
 	qb.ConnectForceUpdateBalances(func(busyIndicator *core.QObject, mainLayoutObject *core.QObject) {
@@ -182,8 +215,39 @@ func (qb *QmlBridge) init() {
 
 		}()
 	})
+
+	qb.ConnectSendToPipeAccount(func(amount string, busyIndicator *core.QObject, mainLayoutObject *core.QObject) {
+		go func() {
+			setIndicatorAndObjects(busyIndicator, []*core.QObject{mainLayoutObject}, true)
+			defer setIndicatorAndObjects(busyIndicator, []*core.QObject{mainLayoutObject}, false)
+
+			amountInt64, err := strconv.ParseInt(amount, 10, 64)
+			qb.displayErrorDialogOnErr("could not parse value", err)
+
+			// TODO:
+			ctx := context.TODO()
+			err = qb.clientInstance.SendToPipeAccount(ctx, amountInt64)
+			qb.displayErrorDialogOnErr(fmt.Sprintf("failed to send %v to the pipe account", amountInt64), err)
+			if err != nil {
+				return
+			}
+
+			currentERC20Balance, err := qb.clientInstance.GetCurrentERC20Balance()
+			qb.displayErrorDialogOnErr("failed to query for ERC20 Nym Balance", err)
+			currentNymBalance, err := qb.clientInstance.GetCurrentNymBalance()
+			qb.displayErrorDialogOnErr("failed to query for Nym Token Balance", err)
+
+			qb.waitForERC20BalanceChange(ctx, currentERC20Balance-uint64(amountInt64))
+
+			err = qb.clientInstance.WaitForBalanceChange(ctx, currentNymBalance+uint64(amountInt64))
+			qb.displayErrorDialogOnErr("could not query for the Nym token balance", err)
+
+			qb.UpdateNymTokenBalance(strconv.FormatUint(currentNymBalance+uint64(amountInt64), 10))
+		}()
+	})
 }
 
+// TODO: redesign this....
 func (qb *QmlBridge) displayErrorDialogOnErr(prefix string, err error) {
 	if err != nil {
 		qb.DisplayNotification(fmt.Sprintf("%v: %v", prefix, err))
