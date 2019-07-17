@@ -19,85 +19,119 @@ import QtQuick.Controls 2.5
 import QtQuick.Layouts 1.12
 
 ColumnLayout {
+    id: mainColumn
     spacing: 20
     Layout.fillWidth: true
 
-    RowLayout {
-        id: rowLayout
+    ColumnLayout {
+        id: columnLayout
         width: 100
         height: 100
-        spacing: 5
         Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+        Layout.fillHeight: false
         Layout.fillWidth: true
 
+        RowLayout {
+            id: rowLayout
+            width: 100
+            height: 100
+            spacing: 5
+            Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+            Layout.fillWidth: true
 
-        Label {
-            text: "ERC20 Nym Balance:"
-            horizontalAlignment: Text.AlignRight
-            font.weight: Font.DemiBold
+
+            Label {
+                text: "ERC20 Nym Balance:"
+                horizontalAlignment: Text.AlignRight
+                font.weight: Font.DemiBold
+            }
+
+            TextField {
+                enabled: false
+                id: erc20BalanceField
+                Layout.maximumWidth: 100
+                Layout.minimumWidth: 30
+                Layout.preferredWidth: 50
+                Layout.fillWidth: false
+                placeholderText: "-1"
+            }
+
+            ToolSeparator {
+                id: toolSeparator
+                opacity: 0
+            }
+
+            Label {
+                text: "ERC20 Nym Balance (pending):"
+                horizontalAlignment: Text.AlignRight
+                font.weight: Font.DemiBold
+            }
+
+            TextField {
+                enabled: false
+                id: erc20BalancePendingField
+                Layout.maximumWidth: 100
+                Layout.minimumWidth: 30
+                Layout.preferredWidth: 50
+                Layout.fillWidth: false
+                placeholderText: "-1"
+            }
+
+            ToolSeparator {
+                id: toolSeparator1
+                opacity: 0
+            }
+
+            Label {
+                text: "Nym Token Balance:"
+                horizontalAlignment: Text.AlignRight
+                font.weight: Font.DemiBold
+            }
+
+            TextField {
+                enabled: false
+                id: nymTokenBalanceField
+                Layout.maximumWidth: 100
+                Layout.minimumWidth: 30
+                Layout.preferredWidth: 50
+                Layout.fillWidth: false
+                placeholderText: "-1"
+            }
+
+
+
         }
 
-        TextField {
-            enabled: false
-            id: textField
-            text: qsTr(" ")
-            Layout.maximumWidth: 100
-            Layout.minimumWidth: 30
-            Layout.preferredWidth: 50
-            Layout.fillWidth: false
-            placeholderText: "-1"
+        RowLayout {
+            id: rowLayout4
+            width: 100
+            height: 100
+            Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+            Layout.fillWidth: true
+
+            Button {
+                id: updateBalancesBtn
+                text: qsTr("Force update")
+                Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+                onClicked: {
+                    // busyIndicator5.running = !busyIndicator5.running
+                    QmlBridge.forceUpdateBalances(balanceUpdateIndicator, mainColumn)
+                    // busyIndicator5.running = false
+                }
+            }
+
+            BusyIndicator {
+                id: balanceUpdateIndicator
+                running: false
+                width: 60
+                Layout.preferredHeight: 50
+                Layout.preferredWidth: 50
+            }
         }
-
-        ToolSeparator {
-            id: toolSeparator
-            opacity: 0
-        }
-
-        Label {
-            text: "ERC20 Nym Balance (pending):"
-            horizontalAlignment: Text.AlignRight
-            font.weight: Font.DemiBold
-        }
-
-        TextField {
-            enabled: false
-            id: textField1
-            text: qsTr("")
-            Layout.maximumWidth: 100
-            Layout.minimumWidth: 30
-            Layout.preferredWidth: 50
-            Layout.fillWidth: false
-            placeholderText: "-1"
-        }
-
-        ToolSeparator {
-            id: toolSeparator1
-            opacity: 0
-        }
-
-        Label {
-            text: "Nym Token Balance:"
-            horizontalAlignment: Text.AlignRight
-            font.weight: Font.DemiBold
-        }
-
-        TextField {
-            enabled: false
-            id: textField2
-            text: qsTr("")
-            Layout.maximumWidth: 100
-            Layout.minimumWidth: 30
-            Layout.preferredWidth: 50
-            Layout.fillWidth: false
-            placeholderText: "-1"
-        }
-
-
-
     }
 
     GridLayout {
-        id: gridLayout
+        id: actionGrid
         width: 100
         height: 100
         columnSpacing: 10
@@ -130,6 +164,7 @@ ColumnLayout {
 
         BusyIndicator {
             id: busyIndicator1
+            running: false
             width: 60
             Layout.preferredHeight: 50
             Layout.preferredWidth: 50
@@ -157,6 +192,7 @@ ColumnLayout {
 
         BusyIndicator {
             id: busyIndicator2
+            running: false
             width: 60
             Layout.preferredHeight: 50
             Layout.preferredWidth: 50
@@ -170,10 +206,9 @@ ColumnLayout {
 
         TextField {
             enabled: false
-            id: textField5
-            text: qsTr(" ")
+            id: secretField
             Layout.columnSpan: 3
-            placeholderText: "-1"
+            placeholderText: "N/A"
             Layout.fillWidth: true
         }
 
@@ -197,6 +232,7 @@ ColumnLayout {
 
         BusyIndicator {
             id: busyIndicator3
+            running: false
             width: 60
             Layout.preferredHeight: 50
             Layout.preferredWidth: 50
@@ -207,7 +243,7 @@ ColumnLayout {
 
 
     RowLayout {
-        id: rowLayout1
+        id: credentialDisplayRow
         width: 100
         height: 100
         Layout.fillHeight: false
@@ -285,7 +321,7 @@ ColumnLayout {
     }
 
     RowLayout {
-        id: rowLayout2
+        id: selectedCredentialRow
         width: 100
         height: 100
         Layout.fillWidth: false
@@ -361,6 +397,7 @@ ColumnLayout {
 
         BusyIndicator {
             id: busyIndicator4
+            running: false
             width: 60
             Layout.preferredHeight: 50
             Layout.preferredWidth: 50
@@ -368,7 +405,34 @@ ColumnLayout {
 
 
     }
+    Connections {
+        target: QmlBridge
+        onUpdateERC20NymBalance: {
+            erc20BalanceField.text = amount
+        }
+
+        onUpdateERC20NymBalancePending: {
+            erc20BalancePendingField.text = amount
+        }
+
+        onUpdateNymTokenBalance: {
+            nymTokenBalanceField.text = amount
+        }
+
+        onUpdateSecret: {
+            secretField.text = strigifiedSecret
+        }
+
+        
+    }
+
+
+
 }
+
+
+
+
 
 
 

@@ -29,7 +29,9 @@ Flickable {
 
 	ColumnLayout {
 		anchors.topMargin: 20
-		anchors.fill: parent
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.left: parent.left
 
 		Label {
             id: label3
@@ -157,8 +159,8 @@ Flickable {
 
         Label {
             id: notificationText
-			// wrapMode: Label.WordWrap
-			wrapMode: Label.WrapAnywhere
+			wrapMode: Label.WordWrap
+			// wrapMode: Label.WrapAnywhere
 
             width: notificationDialog.availableWidth
 			height: notificationDialog.availableHeight

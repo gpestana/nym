@@ -19,9 +19,11 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/nymtech/nym/client"
 	"github.com/nymtech/nym/client/config"
 	"github.com/therecipe/qt/core"
 	"github.com/therecipe/qt/gui"
@@ -54,37 +56,57 @@ type ConfigBridge struct {
 //go:generate qtmoc
 type QmlBridge struct {
 	core.QObject
+	cfg            *config.Config
+	clientInstance *client.Client
 
 	_ func() `constructor:"init"`
 
-	// Signal to make QML do something on 'sendToQml'
-	_ func(name string) `signal:"sendToQml"`
-
-	// Slot to make Go do something on 'sendToGo'
-	_ func(name string) string `slot:"sendToGo"`
-
 	_ func(file string)                `slot:"loadConfig"`
+	_ func()                           `slot:"confirmConfig"`
 	_ func(message string)             `signal:"displayNotification"`
 	_ func(identifier, address string) `signal:"newNymValidator"`
 	_ func(identifier, address string) `signal:"newTendermintValidator"`
+
+	_ func(amount string) `signal:"updateERC20NymBalance"`
+	_ func(amount string) `signal:"updateERC20NymBalancePending"`
+	_ func(amount string) `signal:"updateNymTokenBalance"`
+
+	_ func(strigifiedSecret string)                                     `signal:"updateSecret"`
+	_ func(busyIndicator *core.QObject, mainLayoutObject *core.QObject) `slot:"forceUpdateBalances"`
+
+	_ func() `slot:"sendToPipeAccount"`
+	_ func() `slot:"redeemTokens"`
+	_ func() `slot:"getCredential"`
+	_ func() `slot:"spendCredential"`
+}
+
+func setIndicatorAndObjects(indicator *core.QObject, objs []*core.QObject, run bool) {
+	if run {
+		indicator.SetProperty("running", core.NewQVariant1(true))
+		disableAllObjects(objs)
+	} else {
+		indicator.SetProperty("running", core.NewQVariant1(false))
+		enableAllObjects(objs)
+	}
+}
+
+func enableAllObjects(objs []*core.QObject) {
+	for _, obj := range objs {
+		obj.SetProperty("enabled", core.NewQVariant1(true))
+	}
+}
+
+func disableAllObjects(objs []*core.QObject) {
+	for _, obj := range objs {
+		obj.SetProperty("enabled", core.NewQVariant1(false))
+	}
 }
 
 //this function will be automatically called, when you use the `NewQmlBridge` function
 func (qb *QmlBridge) init() {
-	//here you can do some initializing
-	fmt.Println("init called on qmlbridge")
-	qb.ConnectSendToGo(func(name string) string {
-		fmt.Println("sent to go", name)
-		qb.SendToQml(name + "foo")
-		return "hello from go"
-	})
-
 	qb.ConnectLoadConfig(func(file string) {
 		// TODO: is that prefix always added?
 		file = strings.TrimPrefix(file, "file://")
-
-		fmt.Println("Want to load config", file)
-		qb.DisplayNotification("File to load: " + file)
 
 		cfg, err := config.LoadFile(file)
 		if err != nil {
@@ -126,7 +148,46 @@ func (qb *QmlBridge) init() {
 			qb.NewTendermintValidator(fmt.Sprintf("tendermintnode%v", i), addr)
 		}
 
+		qb.cfg = cfg
 	})
+
+	qb.ConnectConfirmConfig(func() {
+		client, err := client.New(qb.cfg)
+		if err != nil {
+			errStr := fmt.Sprintf("Could not use the config to create client instance: %v\n", err)
+			qmlBridge.DisplayNotification(errStr)
+			return
+		}
+		qb.clientInstance = client
+		qb.UpdateERC20NymBalance("42")
+		qb.UpdateERC20NymBalancePending("4000")
+		qb.UpdateNymTokenBalance("9000")
+	})
+
+	qb.ConnectForceUpdateBalances(func(busyIndicator *core.QObject, mainLayoutObject *core.QObject) {
+		go func() {
+			setIndicatorAndObjects(busyIndicator, []*core.QObject{mainLayoutObject}, true)
+			defer setIndicatorAndObjects(busyIndicator, []*core.QObject{mainLayoutObject}, false)
+
+			erc20balance, err := qb.clientInstance.GetCurrentERC20Balance()
+			qb.displayErrorDialogOnErr("failed to query for ERC20 Nym Balance", err)
+			pending, err := qb.clientInstance.GetCurrentERC20PendingBalance()
+			qb.displayErrorDialogOnErr("failed to query for ERC20 Nym Balance (pending)", err)
+			nymBalance, err := qb.clientInstance.GetCurrentNymBalance()
+			qb.displayErrorDialogOnErr("failed to query for Nym Token Balance", err)
+
+			qb.UpdateERC20NymBalance(strconv.FormatUint(erc20balance, 10))
+			qb.UpdateERC20NymBalancePending(strconv.FormatUint(pending, 10))
+			qb.UpdateNymTokenBalance(strconv.FormatUint(nymBalance, 10))
+
+		}()
+	})
+}
+
+func (qb *QmlBridge) displayErrorDialogOnErr(prefix string, err error) {
+	if err != nil {
+		qb.DisplayNotification(fmt.Sprintf("%v: %v", prefix, err))
+	}
 }
 
 func main() {
@@ -139,6 +200,7 @@ func main() {
 	// needs to be called once before you can start using QML
 	gui.NewQGuiApplication(len(os.Args), os.Args)
 	// widgets.NewQApplication(len(os.Args), os.Args)
+	gui.QGuiApplication_SetApplicationDisplayName("Nym Demo")
 
 	// use the material style
 	// the other inbuild styles are:

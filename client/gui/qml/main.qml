@@ -30,8 +30,8 @@ ApplicationWindow {
 
 	visible: true
 	title: qsTr("Nym Demo Application")
-	minimumWidth: 1024
-	minimumHeight: 768
+	minimumWidth: 900
+	minimumHeight: 900
 
 	footer: Text {
 		text: "TODO: format and insert link here"
