@@ -26,6 +26,7 @@ import (
 	"time"
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
+	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"github.com/nymtech/nym/client"
 	"github.com/nymtech/nym/client/config"
 	"github.com/therecipe/qt/core"
@@ -62,19 +63,18 @@ type QmlBridge struct {
 	core.QObject
 	cfg            *config.Config
 	clientInstance *client.Client
+	longtermSecret *Curve.BIG
 
 	_ func() `constructor:"init"`
 
-	_ func(file string)                `slot:"loadConfig"`
-	_ func()                           `slot:"confirmConfig"`
-	_ func(message string)             `signal:"displayNotification"`
-	_ func(identifier, address string) `signal:"newNymValidator"`
-	_ func(identifier, address string) `signal:"newTendermintValidator"`
-
-	_ func(amount string) `signal:"updateERC20NymBalance"`
-	_ func(amount string) `signal:"updateERC20NymBalancePending"`
-	_ func(amount string) `signal:"updateNymTokenBalance"`
-
+	_ func(file string)                                                 `slot:"loadConfig"`
+	_ func()                                                            `slot:"confirmConfig"`
+	_ func(message string)                                              `signal:"displayNotification"`
+	_ func(identifier, address string)                                  `signal:"newNymValidator"`
+	_ func(identifier, address string)                                  `signal:"newTendermintValidator"`
+	_ func(amount string)                                               `signal:"updateERC20NymBalance"`
+	_ func(amount string)                                               `signal:"updateERC20NymBalancePending"`
+	_ func(amount string)                                               `signal:"updateNymTokenBalance"`
 	_ func(strigifiedSecret string)                                     `signal:"updateSecret"`
 	_ func(busyIndicator *core.QObject, mainLayoutObject *core.QObject) `slot:"forceUpdateBalances"`
 
@@ -189,13 +189,20 @@ func (qb *QmlBridge) init() {
 	})
 
 	qb.ConnectConfirmConfig(func() {
-		client, err := client.New(qb.cfg)
-		if err != nil {
-			errStr := fmt.Sprintf("Could not use the config to create client instance: %v\n", err)
-			qmlBridge.DisplayNotification(errStr)
-			return
+		if qb.clientInstance == nil {
+			client, err := client.New(qb.cfg)
+			if err != nil {
+				errStr := fmt.Sprintf("Could not use the config to create client instance: %v\n", err)
+				qmlBridge.DisplayNotification(errStr)
+				return
+			}
+			qb.clientInstance = client
 		}
-		qb.clientInstance = client
+
+		if qb.longtermSecret == nil {
+			qb.longtermSecret = qb.clientInstance.RandomBIG()
+			qb.UpdateSecret(qb.longtermSecret.ToString())
+		}
 	})
 
 	qb.ConnectForceUpdateBalances(func(busyIndicator *core.QObject, mainLayoutObject *core.QObject) {

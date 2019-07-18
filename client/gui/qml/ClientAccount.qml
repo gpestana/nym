@@ -204,11 +204,13 @@ ColumnLayout {
             font.weight: Font.DemiBold
         }
 
-        TextField {
-            enabled: false
+        TooltipTextField {
             id: secretField
+            textFieldText: ""
+            textFieldPlaceholderText: "N/A"
+            tooltipText: ""
+
             Layout.columnSpan: 3
-            placeholderText: "N/A"
             Layout.fillWidth: true
         }
 
@@ -420,7 +422,8 @@ ColumnLayout {
         }
 
         onUpdateSecret: {
-            secretField.text = strigifiedSecret
+            secretField.tooltipText = strigifiedSecret
+            secretField.textFieldText = strigifiedSecret
         }
 
         
