@@ -82,7 +82,7 @@ type QmlBridge struct {
 
 	_ func(amount string, busyIndicator *core.QObject, mainLayoutObject *core.QObject) `slot:"sendToPipeAccount"`
 	_ func(amount string, busyIndicator *core.QObject, mainLayoutObject *core.QObject) `slot:"redeemTokens"`
-	_ func()                                                                           `slot:"getCredential"`
+	_ func(value string, busyIndicator *core.QObject, mainLayoutObject *core.QObject)  `slot:"getCredential"`
 	_ func()                                                                           `slot:"spendCredential"`
 }
 
@@ -217,17 +217,7 @@ func (qb *QmlBridge) init() {
 			setIndicatorAndObjects(busyIndicator, []*core.QObject{mainLayoutObject}, true)
 			defer setIndicatorAndObjects(busyIndicator, []*core.QObject{mainLayoutObject}, false)
 
-			erc20balance, err := qb.clientInstance.GetCurrentERC20Balance()
-			qb.displayErrorDialogOnErr("failed to query for ERC20 Nym Balance", err)
-			pending, err := qb.clientInstance.GetCurrentERC20PendingBalance()
-			qb.displayErrorDialogOnErr("failed to query for ERC20 Nym Balance (pending)", err)
-			nymBalance, err := qb.clientInstance.GetCurrentNymBalance()
-			qb.displayErrorDialogOnErr("failed to query for Nym Token Balance", err)
-
-			qb.UpdateERC20NymBalance(strconv.FormatUint(erc20balance, 10))
-			qb.UpdateERC20NymBalancePending(strconv.FormatUint(pending, 10))
-			qb.UpdateNymTokenBalance(strconv.FormatUint(nymBalance, 10))
-
+			qb.updateBalances()
 		}()
 	})
 
@@ -293,6 +283,46 @@ func (qb *QmlBridge) init() {
 			qb.waitForERC20BalanceChange(ctx, currentERC20Balance+uint64(amountInt64))
 		}()
 	})
+
+	qb.ConnectGetCredential(func(value string, busyIndicator *core.QObject, mainLayoutObject *core.QObject) {
+		go func() {
+			setIndicatorAndObjects(busyIndicator, []*core.QObject{mainLayoutObject}, true)
+			defer setIndicatorAndObjects(busyIndicator, []*core.QObject{mainLayoutObject}, false)
+
+			value = strings.TrimSuffix(value, "Nym")
+			valueInt64, err := strconv.ParseInt(value, 10, 64)
+			qb.displayErrorDialogOnErr("could not parse value", err)
+
+			seq := qb.clientInstance.RandomBIG()
+
+			token, err := token.New(seq, qb.longtermSecret, valueInt64)
+			qb.displayErrorDialogOnErr(fmt.Sprintf("could not generate token for %v", value), err)
+
+			cred, err := qb.clientInstance.GetCredential(token)
+			qb.displayErrorDialogOnErr(fmt.Sprintf("could not obtain credential for %v", value), err)
+
+			qb.updateBalances()
+
+			if cred != nil && err == nil {
+				qb.DisplayNotification(fmt.Sprintf("Obtained credential: \nsig1: %v\nsig2:%v\n", cred.Sig1().ToString(), cred.Sig2().ToString()))
+				// TODO: add it to the list model that I will create
+			}
+			fmt.Printf("obtained cred: %+v\n", cred)
+		}()
+	})
+}
+
+func (qb *QmlBridge) updateBalances() {
+	erc20balance, err := qb.clientInstance.GetCurrentERC20Balance()
+	qb.displayErrorDialogOnErr("failed to query for ERC20 Nym Balance", err)
+	pending, err := qb.clientInstance.GetCurrentERC20PendingBalance()
+	qb.displayErrorDialogOnErr("failed to query for ERC20 Nym Balance (pending)", err)
+	nymBalance, err := qb.clientInstance.GetCurrentNymBalance()
+	qb.displayErrorDialogOnErr("failed to query for Nym Token Balance", err)
+
+	qb.UpdateERC20NymBalance(strconv.FormatUint(erc20balance, 10))
+	qb.UpdateERC20NymBalancePending(strconv.FormatUint(pending, 10))
+	qb.UpdateNymTokenBalance(strconv.FormatUint(nymBalance, 10))
 }
 
 // TODO: redesign this....

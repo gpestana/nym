@@ -230,12 +230,14 @@ ColumnLayout {
         }
 
         Button {
-            id: button2
             text: "Confirm"
+            onClicked: {
+                QmlBridge.getCredential(credentialValueBox.currentText, getCredentialIndicator, mainColumn)
+            }
         }
 
         BusyIndicator {
-            id: busyIndicator3
+            id: getCredentialIndicator
             running: false
             width: 60
             Layout.preferredHeight: 50
