@@ -29,6 +29,7 @@ import (
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"github.com/nymtech/nym/client"
 	"github.com/nymtech/nym/client/config"
+	"github.com/nymtech/nym/nym/token"
 	"github.com/therecipe/qt/core"
 	"github.com/therecipe/qt/gui"
 	"github.com/therecipe/qt/qml"
@@ -76,6 +77,7 @@ type QmlBridge struct {
 	_ func(amount string)                                               `signal:"updateERC20NymBalancePending"`
 	_ func(amount string)                                               `signal:"updateNymTokenBalance"`
 	_ func(strigifiedSecret string)                                     `signal:"updateSecret"`
+	_ func(values []string)                                             `signal:"populateValueComboBox"`
 	_ func(busyIndicator *core.QObject, mainLayoutObject *core.QObject) `slot:"forceUpdateBalances"`
 
 	_ func(amount string, busyIndicator *core.QObject, mainLayoutObject *core.QObject) `slot:"sendToPipeAccount"`
@@ -203,6 +205,11 @@ func (qb *QmlBridge) init() {
 			qb.longtermSecret = qb.clientInstance.RandomBIG()
 			qb.UpdateSecret(qb.longtermSecret.ToString())
 		}
+		valueList := make([]string, len(token.AllowedValues))
+		for i, val := range token.AllowedValues {
+			valueList[i] = strconv.FormatInt(val, 10) + "Nym"
+		}
+		qb.PopulateValueComboBox(valueList)
 	})
 
 	qb.ConnectForceUpdateBalances(func(busyIndicator *core.QObject, mainLayoutObject *core.QObject) {

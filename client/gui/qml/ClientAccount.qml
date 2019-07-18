@@ -222,9 +222,11 @@ ColumnLayout {
         }
 
         ComboBox {
-            id: comboBox
-            currentIndex: 1
+            id: credentialValueBox
+            currentIndex: -1
             displayText: "Value"
+
+            onActivated: displayText = model[index]
         }
 
         Button {
@@ -424,6 +426,10 @@ ColumnLayout {
         onUpdateSecret: {
             secretField.tooltipText = strigifiedSecret
             secretField.textFieldText = strigifiedSecret
+        }
+
+        onPopulateValueComboBox: {
+            credentialValueBox.model = values
         }
 
         
