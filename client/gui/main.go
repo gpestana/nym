@@ -36,6 +36,7 @@ import (
 
 // TODO: once basic structure is figured out + got a good hang of how it works
 // split the file into separate packages, etc.
+// also cleanup it.... there's a lot of messy code here right now...
 
 var (
 	// qmlObjects = make(map[string]*core.QObject)
@@ -138,7 +139,7 @@ func (qb *QmlBridge) waitForERC20BalanceChange(ctx context.Context, expectedBala
 	}
 }
 
-//this function will be automatically called, when you use the `NewQmlBridge` function
+// this function will be automatically called, when you use the `NewQmlBridge` function
 func (qb *QmlBridge) init() {
 	qb.ConnectLoadConfig(func(file string) {
 		// TODO: is that prefix always added?
@@ -224,6 +225,11 @@ func (qb *QmlBridge) init() {
 			amountInt64, err := strconv.ParseInt(amount, 10, 64)
 			qb.displayErrorDialogOnErr("could not parse value", err)
 
+			currentERC20Balance, err := qb.clientInstance.GetCurrentERC20Balance()
+			qb.displayErrorDialogOnErr("failed to query for ERC20 Nym Balance", err)
+			currentNymBalance, err := qb.clientInstance.GetCurrentNymBalance()
+			qb.displayErrorDialogOnErr("failed to query for Nym Token Balance", err)
+
 			// TODO:
 			ctx := context.TODO()
 			err = qb.clientInstance.SendToPipeAccount(ctx, amountInt64)
@@ -232,17 +238,45 @@ func (qb *QmlBridge) init() {
 				return
 			}
 
-			currentERC20Balance, err := qb.clientInstance.GetCurrentERC20Balance()
-			qb.displayErrorDialogOnErr("failed to query for ERC20 Nym Balance", err)
-			currentNymBalance, err := qb.clientInstance.GetCurrentNymBalance()
-			qb.displayErrorDialogOnErr("failed to query for Nym Token Balance", err)
-
 			qb.waitForERC20BalanceChange(ctx, currentERC20Balance-uint64(amountInt64))
 
 			err = qb.clientInstance.WaitForBalanceChange(ctx, currentNymBalance+uint64(amountInt64))
 			qb.displayErrorDialogOnErr("could not query for the Nym token balance", err)
 
 			qb.UpdateNymTokenBalance(strconv.FormatUint(currentNymBalance+uint64(amountInt64), 10))
+		}()
+	})
+
+	qb.ConnectRedeemTokens(func(amount string, busyIndicator *core.QObject, mainLayoutObject *core.QObject) {
+		go func() {
+			setIndicatorAndObjects(busyIndicator, []*core.QObject{mainLayoutObject}, true)
+			defer setIndicatorAndObjects(busyIndicator, []*core.QObject{mainLayoutObject}, false)
+
+			amountInt64, err := strconv.ParseInt(amount, 10, 64)
+			qb.displayErrorDialogOnErr("could not parse value", err)
+
+			currentERC20Balance, err := qb.clientInstance.GetCurrentERC20Balance()
+			qb.displayErrorDialogOnErr("failed to query for ERC20 Nym Balance", err)
+			currentNymBalance, err := qb.clientInstance.GetCurrentNymBalance()
+			qb.displayErrorDialogOnErr("failed to query for Nym Token Balance", err)
+
+			// TODO:
+			ctx := context.TODO()
+
+			err = qb.clientInstance.RedeemTokens(ctx, uint64(amountInt64))
+			qb.displayErrorDialogOnErr(fmt.Sprintf("failed to redeem %v tokens", amountInt64), err)
+			if err != nil {
+				return
+			}
+
+			err = qb.clientInstance.WaitForBalanceChange(ctx, currentNymBalance-uint64(amountInt64))
+			qb.displayErrorDialogOnErr("could not query for the Nym token balance", err)
+			if err != nil {
+				return
+			}
+
+			qb.UpdateNymTokenBalance(strconv.FormatUint(currentNymBalance-uint64(amountInt64), 10))
+			qb.waitForERC20BalanceChange(ctx, currentERC20Balance+uint64(amountInt64))
 		}()
 	})
 }

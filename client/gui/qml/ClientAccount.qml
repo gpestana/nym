@@ -155,7 +155,6 @@ ColumnLayout {
 
 
         Button {
-            id: button
             text: "Confirm"
             onClicked: {
                 QmlBridge.sendToPipeAccount(sendToPipeAccountAmount.text, sendToPipeAccountIndicator, mainColumn)
@@ -179,18 +178,20 @@ ColumnLayout {
 
         TextField {
             // inputMethodHints: Qt.ImhDigitsOnly
-            id: textField4
+            id: redeemTokensAmount
             placeholderText: "enter amount"
             Layout.fillWidth: false
         }
 
         Button {
-            id: button1
             text: "Confirm"
+            onClicked: {
+                QmlBridge.redeemTokens(redeemTokensAmount.text, redeemTokensIndicator, mainColumn)
+            }
         }
 
         BusyIndicator {
-            id: busyIndicator2
+            id: redeemTokensIndicator
             running: false
             width: 60
             Layout.preferredHeight: 50
