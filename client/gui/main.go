@@ -1,5 +1,5 @@
 // main.go - entry point for nym GUI application
-// Copyright (C) 2018-2019  Jedrzej Stuczynski.
+// Copyright (C) 2019  Jedrzej Stuczynski.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -18,6 +18,7 @@ package main
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"os"
@@ -25,10 +26,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nymtech/nym/crypto/coconut/utils"
+
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"github.com/nymtech/nym/client"
 	"github.com/nymtech/nym/client/config"
+	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
 	"github.com/nymtech/nym/nym/token"
 	"github.com/therecipe/qt/core"
 	"github.com/therecipe/qt/gui"
@@ -42,10 +46,22 @@ import (
 
 var (
 	// qmlObjects = make(map[string]*core.QObject)
+	credentialListModelObject *CredentialListModel
+	qmlBridge                 *QmlBridge
+	configBridge              *ConfigBridge
 
-	qmlBridge    *QmlBridge
-	configBridge *ConfigBridge
+	credentialMap map[string]*IssuedCredential
 )
+
+func init() {
+	credentialMap = make(map[string]*IssuedCredential)
+}
+
+type IssuedCredential struct {
+	credential *coconut.Signature
+	sequence   *Curve.BIG
+	value      uint64
+}
 
 //go:generate qtmoc
 type ConfigBridge struct {
@@ -84,6 +100,7 @@ type QmlBridge struct {
 	_ func(amount string, busyIndicator *core.QObject, mainLayoutObject *core.QObject) `slot:"redeemTokens"`
 	_ func(value string, busyIndicator *core.QObject, mainLayoutObject *core.QObject)  `slot:"getCredential"`
 	_ func()                                                                           `slot:"spendCredential"`
+	_ func(item CredentialListItem)                                                    `signal:"addCredentialListItem"`
 }
 
 func setIndicatorAndObjects(indicator *core.QObject, objs []*core.QObject, run bool) {
@@ -203,7 +220,7 @@ func (qb *QmlBridge) init() {
 
 		if qb.longtermSecret == nil {
 			qb.longtermSecret = qb.clientInstance.RandomBIG()
-			qb.UpdateSecret(qb.longtermSecret.ToString())
+			qb.UpdateSecret(utils.ToCoconutString(qb.longtermSecret))
 		}
 		valueList := make([]string, len(token.AllowedValues))
 		for i, val := range token.AllowedValues {
@@ -303,11 +320,33 @@ func (qb *QmlBridge) init() {
 
 			qb.updateBalances()
 
-			if cred != nil && err == nil {
-				qb.DisplayNotification(fmt.Sprintf("Obtained credential: \nsig1: %v\nsig2:%v\n", cred.Sig1().ToString(), cred.Sig2().ToString()))
-				// TODO: add it to the list model that I will create
-			}
 			fmt.Printf("obtained cred: %+v\n", cred)
+
+			credBytes, err := cred.MarshalBinary()
+			if err != nil {
+				qb.displayErrorDialogOnErr("could not marshal obtained credential", err)
+				return
+			}
+
+			seqString := utils.ToCoconutString(seq)
+
+			item := CredentialListItem{
+				credential: base64.StdEncoding.EncodeToString(credBytes),
+				sequence:   seqString,
+				value:      uint64(valueInt64),
+			}
+
+			issuedCredential := &IssuedCredential{
+				credential: cred,
+				sequence:   seq,
+				value:      uint64(valueInt64),
+			}
+
+			// TODO: locking?
+			// in principle each credential has unique sequence number by which it can be identified
+			credentialMap[seqString] = issuedCredential
+
+			qb.AddCredentialListItem(item)
 		}()
 	})
 }

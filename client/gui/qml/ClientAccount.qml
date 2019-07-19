@@ -17,6 +17,8 @@
 import QtQuick 2.12
 import QtQuick.Controls 2.5
 import QtQuick.Layouts 1.12
+import QtQuick.Controls.Material 2.12
+import CustomQmlTypes 1.0
 
 ColumnLayout {
     id: mainColumn
@@ -247,6 +249,9 @@ ColumnLayout {
 
     }
 
+    CredentialListModel {
+        id: credentialListModel
+    }
 
     RowLayout {
         id: credentialDisplayRow
@@ -267,56 +272,70 @@ ColumnLayout {
             Layout.preferredWidth: parent.width/2
 
             ScrollView {
-                id: scrollView2
+                id: scrollView
                 x: -12
                 y: -7
                 anchors.topMargin: 5
                 anchors.fill: parent
                 anchors.bottomMargin: 5
 
+                Component {
+                    id: highlight
+                    Rectangle {
+                        width: credentialList.width
+                        height: 30
+                        id: highlightRectangle
+                        color: "lightsteelblue"; radius: 5
+                        y: credentialList.currentItem.y - 5
+                        Behavior on y {
+                            SmoothedAnimation {
+                                velocity: 300
+                            }
+                        }
+                    }
+                }
+
                 ListView {
-                    id: listView
+                    id: credentialList
                     anchors.fill: parent
                     clip: true
                     keyNavigationWraps: true
-                    model: ListModel {
-                        ListElement {
-                            name: "Grey"
-                            colorCode: "grey"
-                        }
+                    
+                    model: credentialListModel
+                    
+                    highlight: highlight
+                    highlightFollowsCurrentItem: false
+                    focus: true
 
-                        ListElement {
-                            name: "Red"
-                            colorCode: "red"
-                        }
-
-                        ListElement {
-                            name: "Blue"
-                            colorCode: "blue"
-                        }
-
-                        ListElement {
-                            name: "Green"
-                            colorCode: "green"
-                        }
-                    }
                     delegate: Item {
                         x: 5
-                        width: 80
-                        height: 40
-                        Row {
-                            id: row1
-                            spacing: 10
-                            Rectangle {
-                                width: 40
-                                height: 40
-                                color: colorCode
-                            }
+                        width: 500
+                        height: 30
 
+                        property string displayCredential: Credential.substr(0,8) + " ... " + Credential.substr(-8)
+                        property string displaySequence: Sequence.substr(0,8) + " ... " + Sequence.substr(-16)
+                        property string credential: Credential
+                        property string sequence: Sequence
+                        property string value: Value
+
+                        Row {
+                            spacing: 5
                             Text {
-                                text: name
-                                font.bold: true
-                                anchors.verticalCenter: parent.verticalCenter
+                                text: "(" + Value + "Nym) "
+                            }
+                            Label {
+                                text: displayCredential
+                                font.weight: Font.DemiBold
+                            }
+                            Text {
+                                text: "sequence: " + displaySequence
+                            }
+                            
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: {
+                                credentialList.currentIndex = index
                             }
                         }
                     }
@@ -331,44 +350,58 @@ ColumnLayout {
         width: 100
         height: 100
         Layout.fillWidth: false
+        spacing: 5
 
         Label {
-            text: "Selected Credential:"
+            text: qsTr("Selected Credential:")
             horizontalAlignment: Text.AlignRight
             font.weight: Font.DemiBold
         }
 
+        TooltipTextField {
+            id: selectedCredentialField
+            textFieldText: credentialList.currentItem != null ? credentialList.currentItem.displayCredential : ""
+            textFieldPlaceholderText: "N/A"
+            tooltipText: redentialList.currentItem != null ? credentialList.currentItem.credential : ""
+        }
+
         ToolSeparator {
-            id: toolSeparator2
             opacity: 0
         }
 
         Label {
-            id: label
             text: qsTr("value:")
+            font.weight: Font.DemiBold
         }
 
         TextField {
             enabled: false
-            id: textField6
-            text: qsTr(" ")
-            placeholderText: "-1"
-            Layout.fillWidth: false
+            width: 30
+            id: selectedCredentialValueField
+            placeholderText: "N/A"
+            text: credentialList.currentItem != null ? credentialList.currentItem.value + " Nym" : ""
         }
 
+         ToolSeparator {
+            opacity: 0
+        }
+        
         Label {
             id: label1
             text: qsTr("sequence:")
+            font.weight: Font.DemiBold
         }
 
-        TextField {
-            enabled: false
-            id: textField8
-            text: qsTr(" ")
-            placeholderText: "N/A"
-            Layout.fillWidth: false
+        TooltipTextField {
+            id: selectedCredentialSequenceField
+            textFieldText: credentialList.currentItem != null ? credentialList.currentItem.displaySequence : ""
+            textFieldPlaceholderText: "N/A"
+            tooltipText: redentialList.currentItem != null ? credentialList.currentItem.sequence : ""
         }
 
+        
+
+        
 
     }
 
@@ -433,12 +466,11 @@ ColumnLayout {
         onPopulateValueComboBox: {
             credentialValueBox.model = values
         }
-
         
+        onAddCredentialListItem: {
+            credentialListModel.addItem(item)
+        }
     }
-
-
-
 }
 
 
