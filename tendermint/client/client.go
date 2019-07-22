@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -70,15 +71,17 @@ func (c *Client) Broadcast(tx []byte) (*ctypes.ResultBroadcastTxCommit, error) {
 	}
 	// network error
 	if err != nil {
-		c.logMsg("DEBUG", "Network error while sending tx to the ABCI: %v", err)
-		//nolint: govet
-		err := c.reconnect(false)
-		if err != nil {
-			// workers should decide how to handle it
-			return nil, err
+		if match, _ := regexp.MatchString(".*connection refused.*", err.Error()); match {
+			c.logMsg("DEBUG", "Network error while sending tx to the ABCI: %v", err)
+			//nolint: govet
+			err := c.reconnect(false)
+			if err != nil {
+				// workers should decide how to handle it
+				return nil, err
+			}
+			// try to send the tx again
+			return c.Broadcast(tx)
 		}
-		// try to send the tx again
-		return c.Broadcast(tx)
 	}
 	c.logMsg("DEBUG", "Broadcast call done")
 	return res, err
@@ -98,15 +101,17 @@ func (c *Client) SendSync(tx []byte) (*ctypes.ResultBroadcastTx, error) {
 	}
 	// network error
 	if err != nil {
-		c.logMsg("DEBUG", "Network error while sending tx to the ABCI: %v", err)
-		//nolint: govet
-		err := c.reconnect(false)
-		if err != nil {
-			// workers should decide how to handle it
-			return nil, err
+		if match, _ := regexp.MatchString(".*connection refused.*", err.Error()); match {
+			c.logMsg("DEBUG", "Network error while sending tx to the ABCI: %v", err)
+			//nolint: govet
+			err := c.reconnect(false)
+			if err != nil {
+				// workers should decide how to handle it
+				return nil, err
+			}
+			// try to send the tx again
+			return c.SendSync(tx)
 		}
-		// try to send the tx again
-		return c.SendSync(tx)
 	}
 	c.logMsg("DEBUG", "SendSync call done")
 	return res, err
@@ -125,15 +130,17 @@ func (c *Client) SendAsync(tx []byte) (*ctypes.ResultBroadcastTx, error) {
 	}
 	// network error
 	if err != nil {
-		c.logMsg("DEBUG", "Network error while sending tx to the ABCI: %v", err)
-		//nolint: govet
-		err := c.reconnect(false)
-		if err != nil {
-			// workers should decide how to handle it
-			return nil, err
+		if match, _ := regexp.MatchString(".*connection refused.*", err.Error()); match {
+			c.logMsg("DEBUG", "Network error while sending tx to the ABCI: %v", err)
+			//nolint: govet
+			err := c.reconnect(false)
+			if err != nil {
+				// workers should decide how to handle it
+				return nil, err
+			}
+			// try to send the tx again
+			return c.SendAsync(tx)
 		}
-		// try to send the tx again
-		return c.SendAsync(tx)
 	}
 	c.logMsg("DEBUG", "SendAsync call done")
 	return res, err
@@ -152,15 +159,17 @@ func (c *Client) Query(path string, data cmn.HexBytes) (*ctypes.ResultABCIQuery,
 	}
 	// network error
 	if err != nil {
-		c.logMsg("DEBUG", "Network error while quering the ABCI: %v", err)
-		//nolint: govet
-		err := c.reconnect(false)
-		if err != nil {
-			// workers should decide how to handle it
-			return nil, err
+		if match, _ := regexp.MatchString(".*connection refused.*", err.Error()); match {
+			c.logMsg("DEBUG", "Network error while quering the ABCI: %v", err)
+			//nolint: govet
+			err := c.reconnect(false)
+			if err != nil {
+				// workers should decide how to handle it
+				return nil, err
+			}
+			// repeat the query
+			return c.Query(path, data)
 		}
-		// repeat the query
-		return c.Query(path, data)
 	}
 	c.logMsg("DEBUG", "Query call done")
 	return res, err
@@ -178,15 +187,17 @@ func (c *Client) TxByHash(hash cmn.HexBytes) (*ctypes.ResultTx, error) {
 	}
 	// network error
 	if err != nil {
-		c.logMsg("DEBUG", "Network error while getting tx result: %v", err)
-		//nolint: govet
-		err := c.reconnect(false)
-		if err != nil {
-			// workers should decide how to handle it
-			return nil, err
+		if match, _ := regexp.MatchString(".*connection refused.*", err.Error()); match {
+			c.logMsg("DEBUG", "Network error while getting tx result: %v", err)
+			//nolint: govet
+			err := c.reconnect(false)
+			if err != nil {
+				// workers should decide how to handle it
+				return nil, err
+			}
+			// repeat the query
+			return c.TxByHash(hash)
 		}
-		// repeat the query
-		return c.TxByHash(hash)
 	}
 	c.logMsg("DEBUG", "TxByHash call done")
 	return res, err
@@ -205,15 +216,17 @@ func (c *Client) BlockchainInfo(minHeight, maxHeight int64) (*ctypes.ResultBlock
 	}
 	// network error
 	if err != nil {
-		c.logMsg("DEBUG", "Network error while getting tx result: %v", err)
-		//nolint: govet
-		err := c.reconnect(false)
-		if err != nil {
-			// workers should decide how to handle it
-			return nil, err
+		if match, _ := regexp.MatchString(".*connection refused.*", err.Error()); match {
+			c.logMsg("DEBUG", "Network error while getting tx result: %v", err)
+			//nolint: govet
+			err := c.reconnect(false)
+			if err != nil {
+				// workers should decide how to handle it
+				return nil, err
+			}
+			// repeat the query
+			return c.BlockchainInfo(minHeight, maxHeight)
 		}
-		// repeat the query
-		return c.BlockchainInfo(minHeight, maxHeight)
 	}
 	c.logMsg("DEBUG", "BlockchainInfo call done")
 	return res, err
@@ -236,15 +249,17 @@ func (c *Client) BlockResults(height *int64) (*ctypes.ResultBlockResults, error)
 	}
 	// network error
 	if err != nil {
-		c.logMsg("DEBUG", "Network error while getting tx result: %v", err)
-		//nolint: govet
-		err := c.reconnect(false)
-		if err != nil {
-			// workers should decide how to handle it
-			return nil, err
+		if match, _ := regexp.MatchString(".*connection refused.*", err.Error()); match {
+			c.logMsg("DEBUG", "Network error while getting tx result: %v", err)
+			//nolint: govet
+			err := c.reconnect(false)
+			if err != nil {
+				// workers should decide how to handle it
+				return nil, err
+			}
+			// repeat the query
+			return c.BlockResults(height)
 		}
-		// repeat the query
-		return c.BlockResults(height)
 	}
 	c.logMsg("DEBUG", "BlockResults call done")
 	return res, err
