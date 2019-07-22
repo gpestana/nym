@@ -362,7 +362,7 @@ ColumnLayout {
             id: selectedCredentialField
             textFieldText: credentialList.currentItem != null ? credentialList.currentItem.displayCredential : ""
             textFieldPlaceholderText: "N/A"
-            tooltipText: redentialList.currentItem != null ? credentialList.currentItem.credential : ""
+            tooltipText: credentialList.currentItem != null ? credentialList.currentItem.credential : ""
         }
 
         ToolSeparator {
@@ -396,7 +396,7 @@ ColumnLayout {
             id: selectedCredentialSequenceField
             textFieldText: credentialList.currentItem != null ? credentialList.currentItem.displaySequence : ""
             textFieldPlaceholderText: "N/A"
-            tooltipText: redentialList.currentItem != null ? credentialList.currentItem.sequence : ""
+            tooltipText: credentialList.currentItem != null ? credentialList.currentItem.sequence : ""
         }
 
         
