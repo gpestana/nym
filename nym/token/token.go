@@ -39,14 +39,14 @@ var (
 )
 
 type Token struct {
-	privateKey  PrivateKey `coconut:"private"`
-	sequenceNum *Curve.BIG `coconut:"private"`
-	value       int64      `coconut:"public"` // should be limited to set of possible values to prevent traffic analysis
+	longtermSecret *Curve.BIG `coconut:"private"`
+	sequenceNum    *Curve.BIG `coconut:"private"`
+	value          int64      `coconut:"public"` // should be limited to set of possible values to prevent traffic analysis
 	// ttl         time.Time  `coconut:"public"`
 }
 
-func (t *Token) PrivateKey() PrivateKey {
-	return t.privateKey
+func (t *Token) LongtermSecret() *Curve.BIG {
+	return t.longtermSecret
 }
 
 func (t *Token) SequenceNum() *Curve.BIG {
@@ -68,14 +68,14 @@ func (t *Token) GetPublicAndPrivateSlices() ([]*Curve.BIG, []*Curve.BIG) {
 	// attrBig := utils.HashBytesToBig(amcl.SHA256, attr)
 
 	privM[0] = t.sequenceNum
-	privM[1] = t.privateKey
+	privM[1] = t.longtermSecret
 
 	pubM[0] = valBig
 	return pubM, privM
 }
 
-// should be associated with given client/user rather than token if I understand it correctly
-type PrivateKey *Curve.BIG
+// // should be associated with given client/user rather than token if I understand it correctly
+// type PrivateKey *Curve.BIG
 
 type Credential *coconut.Signature
 
@@ -100,8 +100,8 @@ func New(s, k *Curve.BIG, val int64) (*Token, error) {
 	}
 	// TODO: validate val
 	return &Token{
-		privateKey:  k,
-		sequenceNum: s,
-		value:       val,
+		longtermSecret: k,
+		sequenceNum:    s,
+		value:          val,
 	}, nil
 }

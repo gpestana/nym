@@ -26,13 +26,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nymtech/nym/crypto/coconut/utils"
-
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"github.com/nymtech/nym/client"
 	"github.com/nymtech/nym/client/config"
 	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
+	"github.com/nymtech/nym/crypto/coconut/utils"
 	"github.com/nymtech/nym/nym/token"
 	"github.com/therecipe/qt/core"
 	"github.com/therecipe/qt/gui"
@@ -53,9 +53,9 @@ var (
 	credentialMap map[string]*IssuedCredential
 
 	// temp. probably will be moved to config or something
-	serviceProviders = map[string]string{
-		"127.0.0.1:4100": "0x5F828924E58f98f3dA07596F392fCB094aC818ad",
-		"127.0.0.1:4101": "0xEe45d746721633f37142EDa6bd99F115aEb2Ff2D",
+	serviceProviders = map[string]ethcommon.Address{
+		"127.0.0.1:4100": ethcommon.HexToAddress("0x5F828924E58f98f3dA07596F392fCB094aC818ad"),
+		"127.0.0.1:4101": ethcommon.HexToAddress("0xEe45d746721633f37142EDa6bd99F115aEb2Ff2D"),
 	}
 )
 
@@ -65,8 +65,7 @@ func init() {
 
 type IssuedCredential struct {
 	credential *coconut.Signature
-	sequence   *Curve.BIG
-	value      uint64
+	token      *token.Token
 }
 
 //go:generate qtmoc
@@ -103,11 +102,11 @@ type QmlBridge struct {
 	_ func(sps []string)                                                `signal:"populateSPComboBox"`
 	_ func(busyIndicator *core.QObject, mainLayoutObject *core.QObject) `slot:"forceUpdateBalances"`
 
-	_ func(amount string, busyIndicator *core.QObject, mainLayoutObject *core.QObject) `slot:"sendToPipeAccount"`
-	_ func(amount string, busyIndicator *core.QObject, mainLayoutObject *core.QObject) `slot:"redeemTokens"`
-	_ func(value string, busyIndicator *core.QObject, mainLayoutObject *core.QObject)  `slot:"getCredential"`
-	_ func()                                                                           `slot:"spendCredential"`
-	_ func(item CredentialListItem)                                                    `signal:"addCredentialListItem"`
+	_ func(amount string, busyIndicator *core.QObject, mainLayoutObject *core.QObject)              `slot:"sendToPipeAccount"`
+	_ func(amount string, busyIndicator *core.QObject, mainLayoutObject *core.QObject)              `slot:"redeemTokens"`
+	_ func(value string, busyIndicator *core.QObject, mainLayoutObject *core.QObject)               `slot:"getCredential"`
+	_ func(schosenSP, eqString string, busyIndicator *core.QObject, mainLayoutObject *core.QObject) `slot:"spendCredential"`
+	_ func(item CredentialListItem)                                                                 `signal:"addCredentialListItem"`
 }
 
 func setIndicatorAndObjects(indicator *core.QObject, objs []*core.QObject, run bool) {
@@ -239,7 +238,7 @@ func (qb *QmlBridge) init() {
 		spAddresses := make([]string, len(serviceProviders))
 		i := 0
 		for sp := range serviceProviders {
-			spAddresses[i] = "SP at: " + sp
+			spAddresses[i] = sp
 			i++
 		}
 
@@ -355,8 +354,7 @@ func (qb *QmlBridge) init() {
 
 			issuedCredential := &IssuedCredential{
 				credential: cred,
-				sequence:   seq,
-				value:      uint64(valueInt64),
+				token:      token, // encapsulates all attributes
 			}
 
 			// TODO: locking?
@@ -364,6 +362,37 @@ func (qb *QmlBridge) init() {
 			credentialMap[seqString] = issuedCredential
 
 			qb.AddCredentialListItem(item)
+		}()
+	})
+
+	qb.ConnectSpendCredential(func(chosenSP, seqString string, busyIndicator *core.QObject, mainLayoutObject *core.QObject) {
+		go func() {
+			setIndicatorAndObjects(busyIndicator, []*core.QObject{mainLayoutObject}, true)
+			defer setIndicatorAndObjects(busyIndicator, []*core.QObject{mainLayoutObject}, false)
+
+			spAddress, ok := serviceProviders[chosenSP]
+			if !ok {
+				qb.DisplayNotification(fmt.Sprintf("No service provider with address %v exists", chosenSP))
+				return
+			}
+
+			cred, ok := credentialMap[seqString]
+			if !ok {
+				qb.DisplayNotification(fmt.Sprintf("no credential exists for that sequence number (%v)", seqString))
+				return
+			}
+
+			wasSuccessful, err := qb.clientInstance.SpendCredential(cred.token, cred.credential, chosenSP, spAddress, nil)
+			qb.displayErrorDialogOnErr("could not spend credential", err)
+
+			if wasSuccessful {
+				qb.DisplayNotification(fmt.Sprintf("We successfully managed to spend credential with value of %v Nyms at SP (%v) with address %v!", cred.token.Value(), chosenSP, spAddress.Hex()))
+			} else {
+				qb.DisplayNotification(fmt.Sprintf("We failed to spend credential with value of %v Nyms at SP (%v) with address %v: %v", cred.token.Value(), chosenSP, spAddress.Hex(), err))
+			}
+
+			// mark internally credential as spent (or remove it)
+
 		}()
 	})
 }

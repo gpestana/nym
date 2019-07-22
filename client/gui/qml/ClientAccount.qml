@@ -224,9 +224,10 @@ ColumnLayout {
         }
 
         ComboBox {
+            property string defaultText: "Value"
             id: credentialValueBox
             currentIndex: -1
-            displayText: "Value"
+            displayText: defaultText
 
             onActivated: displayText = model[index]
         }
@@ -234,7 +235,9 @@ ColumnLayout {
         Button {
             text: "Confirm"
             onClicked: {
-                QmlBridge.getCredential(credentialValueBox.currentText, getCredentialIndicator, mainColumn)
+                if (credentialValueBox.currentText != credentialValueBox.defaultText) {
+                    QmlBridge.getCredential(credentialValueBox.currentText, getCredentialIndicator, mainColumn)
+                }
             }
         }
 
@@ -413,11 +416,12 @@ ColumnLayout {
         }
 
         ComboBox {
+            property string defaultText: "Choose Service Provider"
             id: spComboBox
             Layout.preferredWidth: 250
-            displayText: "Choose Service Provider"
+            displayText: defaultText
             currentIndex: -1
-            onActivated: displayText = model[index]
+            onActivated: displayText = "SP at: " + model[index]
         }
 
         ToolSeparator {
@@ -426,12 +430,16 @@ ColumnLayout {
         }
 
         Button {
-            id: button3
             text: "Confirm"
+            onClicked: {
+                if (credentialList.currentItem != null && spComboBox.currentText != spComboBox.defaultText) {
+                    QmlBridge.spendCredential(spComboBox.currentText, credentialList.currentItem.sequence, spendCredentialIndicator, mainColumn)
+                }
+            }
         }
 
         BusyIndicator {
-            id: busyIndicator4
+            id: spendCredentialIndicator
             running: false
             width: 60
             Layout.preferredHeight: 50
