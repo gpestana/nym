@@ -398,11 +398,6 @@ ColumnLayout {
             textFieldPlaceholderText: "N/A"
             tooltipText: credentialList.currentItem != null ? credentialList.currentItem.sequence : ""
         }
-
-        
-
-        
-
     }
 
     RowLayout {
@@ -418,10 +413,11 @@ ColumnLayout {
         }
 
         ComboBox {
-            id: comboBox1
+            id: spComboBox
             Layout.preferredWidth: 250
             displayText: "Choose Service Provider"
-            currentIndex: 1
+            currentIndex: -1
+            onActivated: displayText = model[index]
         }
 
         ToolSeparator {
@@ -465,6 +461,10 @@ ColumnLayout {
 
         onPopulateValueComboBox: {
             credentialValueBox.model = values
+        }
+
+        onPopulateSPComboBox: {
+            spComboBox.model = sps
         }
         
         onAddCredentialListItem: {

@@ -51,6 +51,12 @@ var (
 	configBridge              *ConfigBridge
 
 	credentialMap map[string]*IssuedCredential
+
+	// temp. probably will be moved to config or something
+	serviceProviders = map[string]string{
+		"127.0.0.1:4100": "0x5F828924E58f98f3dA07596F392fCB094aC818ad",
+		"127.0.0.1:4101": "0xEe45d746721633f37142EDa6bd99F115aEb2Ff2D",
+	}
 )
 
 func init() {
@@ -94,6 +100,7 @@ type QmlBridge struct {
 	_ func(amount string)                                               `signal:"updateNymTokenBalance"`
 	_ func(strigifiedSecret string)                                     `signal:"updateSecret"`
 	_ func(values []string)                                             `signal:"populateValueComboBox"`
+	_ func(sps []string)                                                `signal:"populateSPComboBox"`
 	_ func(busyIndicator *core.QObject, mainLayoutObject *core.QObject) `slot:"forceUpdateBalances"`
 
 	_ func(amount string, busyIndicator *core.QObject, mainLayoutObject *core.QObject) `slot:"sendToPipeAccount"`
@@ -227,6 +234,16 @@ func (qb *QmlBridge) init() {
 			valueList[i] = strconv.FormatInt(val, 10) + "Nym"
 		}
 		qb.PopulateValueComboBox(valueList)
+
+		// gui only cares about physical addresses (for now)
+		spAddresses := make([]string, len(serviceProviders))
+		i := 0
+		for sp := range serviceProviders {
+			spAddresses[i] = "SP at: " + sp
+			i++
+		}
+
+		qb.PopulateSPComboBox(spAddresses)
 	})
 
 	qb.ConnectForceUpdateBalances(func(busyIndicator *core.QObject, mainLayoutObject *core.QObject) {
