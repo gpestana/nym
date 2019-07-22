@@ -432,8 +432,8 @@ func main() {
 	// use the material style
 	// the other inbuild styles are:
 	// Default, Fusion, Imagine, Universal
-	// quickcontrols2.QQuickStyle_SetStyle("Material")
-	quickcontrols2.QQuickStyle_SetStyle("Imagine")
+	quickcontrols2.QQuickStyle_SetStyle("Material")
+	// quickcontrols2.QQuickStyle_SetStyle("Imagine")
 
 	// create the qml application engine
 	engine := qml.NewQQmlApplicationEngine(nil)

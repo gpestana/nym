@@ -235,7 +235,7 @@ ColumnLayout {
         Button {
             text: "Confirm"
             onClicked: {
-                if (credentialValueBox.currentText != credentialValueBox.defaultText) {
+                if (credentialValueBox.displayText != credentialValueBox.defaultText) {
                     QmlBridge.getCredential(credentialValueBox.currentText, getCredentialIndicator, mainColumn)
                 }
             }
@@ -439,7 +439,7 @@ ColumnLayout {
         Button {
             text: "Confirm"
             onClicked: {
-                if (credentialList.currentItem != null && spComboBox.currentText != spComboBox.defaultText) {
+                if (credentialList.currentItem != null && spComboBox.displayText != spComboBox.defaultText) {
                     QmlBridge.spendCredential(spComboBox.currentText, credentialList.currentItem.sequence, spendCredentialIndicator, mainColumn)
                 }
             }
