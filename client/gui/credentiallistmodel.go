@@ -45,8 +45,7 @@ type CredentialListItem struct {
 type CredentialListModel struct {
 	core.QAbstractListModel
 
-	_ func() `constructor:"init"`
-
+	_         func()                        `constructor:"init"`
 	_         func()                        `signal:"remove,auto"`
 	_         func(item CredentialListItem) `signal:"addItem,auto"`
 	modelData []CredentialListItem

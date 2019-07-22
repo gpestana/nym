@@ -457,7 +457,8 @@ func (c *Client) SpendCredential(
 			c.logAndReturnError("SpendCredential: Failed to write to connection: %v", werr)
 	}
 
-	sderr := conn.SetReadDeadline(time.Now().Add(time.Duration(c.cfg.Debug.ConnectTimeout) * time.Millisecond))
+	// TODO: is it the actual connect timeout or rather timeout to receive any response?
+	sderr := conn.SetReadDeadline(time.Now().Add(time.Duration(c.cfg.Debug.ConnectTimeout+c.cfg.Debug.RequestTimeout) * time.Millisecond))
 	if sderr != nil {
 		return false,
 			c.logAndReturnError("SpendCredential: Failed to set read deadline for connection: %v",

@@ -89,24 +89,24 @@ type QmlBridge struct {
 
 	_ func() `constructor:"init"`
 
-	_ func(file string)                                                 `slot:"loadConfig"`
-	_ func()                                                            `slot:"confirmConfig"`
-	_ func(message string)                                              `signal:"displayNotification"`
-	_ func(identifier, address string)                                  `signal:"newNymValidator"`
-	_ func(identifier, address string)                                  `signal:"newTendermintValidator"`
-	_ func(amount string)                                               `signal:"updateERC20NymBalance"`
-	_ func(amount string)                                               `signal:"updateERC20NymBalancePending"`
-	_ func(amount string)                                               `signal:"updateNymTokenBalance"`
-	_ func(strigifiedSecret string)                                     `signal:"updateSecret"`
-	_ func(values []string)                                             `signal:"populateValueComboBox"`
-	_ func(sps []string)                                                `signal:"populateSPComboBox"`
-	_ func(busyIndicator *core.QObject, mainLayoutObject *core.QObject) `slot:"forceUpdateBalances"`
-
-	_ func(amount string, busyIndicator *core.QObject, mainLayoutObject *core.QObject)              `slot:"sendToPipeAccount"`
-	_ func(amount string, busyIndicator *core.QObject, mainLayoutObject *core.QObject)              `slot:"redeemTokens"`
-	_ func(value string, busyIndicator *core.QObject, mainLayoutObject *core.QObject)               `slot:"getCredential"`
-	_ func(schosenSP, eqString string, busyIndicator *core.QObject, mainLayoutObject *core.QObject) `slot:"spendCredential"`
-	_ func(item CredentialListItem)                                                                 `signal:"addCredentialListItem"`
+	_ func(file string)                                                                              `slot:"loadConfig"`
+	_ func()                                                                                         `slot:"confirmConfig"`
+	_ func(message string)                                                                           `signal:"displayNotification"`
+	_ func(identifier, address string)                                                               `signal:"newNymValidator"`
+	_ func(identifier, address string)                                                               `signal:"newTendermintValidator"`
+	_ func(amount string)                                                                            `signal:"updateERC20NymBalance"`
+	_ func(amount string)                                                                            `signal:"updateERC20NymBalancePending"`
+	_ func(amount string)                                                                            `signal:"updateNymTokenBalance"`
+	_ func(strigifiedSecret string)                                                                  `signal:"updateSecret"`
+	_ func(values []string)                                                                          `signal:"populateValueComboBox"`
+	_ func(sps []string)                                                                             `signal:"populateSPComboBox"`
+	_ func(busyIndicator *core.QObject, mainLayoutObject *core.QObject)                              `slot:"forceUpdateBalances"`
+	_ func()                                                                                         `signal:"markSpentCredential"`
+	_ func(amount string, busyIndicator *core.QObject, mainLayoutObject *core.QObject)               `slot:"sendToPipeAccount"`
+	_ func(amount string, busyIndicator *core.QObject, mainLayoutObject *core.QObject)               `slot:"redeemTokens"`
+	_ func(value string, busyIndicator *core.QObject, mainLayoutObject *core.QObject)                `slot:"getCredential"`
+	_ func(schosenSP, seqString string, busyIndicator *core.QObject, mainLayoutObject *core.QObject) `slot:"spendCredential"`
+	_ func(item CredentialListItem)                                                                  `signal:"addCredentialListItem"`
 }
 
 func setIndicatorAndObjects(indicator *core.QObject, objs []*core.QObject, run bool) {
@@ -391,8 +391,8 @@ func (qb *QmlBridge) init() {
 				qb.DisplayNotification(fmt.Sprintf("We failed to spend credential with value of %v Nyms at SP (%v) with address %v: %v", cred.token.Value(), chosenSP, spAddress.Hex(), err))
 			}
 
-			// mark internally credential as spent (or remove it)
-
+			// TODO: for demo sake, mark as spent (so you could see double-spent error), but in future just remove it
+			qb.MarkSpentCredential()
 		}()
 	})
 }
@@ -432,11 +432,8 @@ func main() {
 	// use the material style
 	// the other inbuild styles are:
 	// Default, Fusion, Imagine, Universal
-	quickcontrols2.QQuickStyle_SetStyle("Material")
-	// quickcontrols2.QQuickStyle_SetStyle("Imagine")
-
-	fntdb := gui.NewQFontDatabase()
-	fntdb.AddApplicationFont(":/materialdesignicons-webfont.ttf")
+	// quickcontrols2.QQuickStyle_SetStyle("Material")
+	quickcontrols2.QQuickStyle_SetStyle("Imagine")
 
 	// create the qml application engine
 	engine := qml.NewQQmlApplicationEngine(nil)

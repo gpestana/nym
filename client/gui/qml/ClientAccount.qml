@@ -288,6 +288,7 @@ ColumnLayout {
                         width: credentialList.width
                         height: 30
                         id: highlightRectangle
+
                         color: "lightsteelblue"; radius: 5
                         y: credentialList.currentItem.y - 5
                         Behavior on y {
@@ -320,6 +321,7 @@ ColumnLayout {
                         property string credential: Credential
                         property string sequence: Sequence
                         property string value: Value
+                        property bool isSpent: false
 
                         Row {
                             spacing: 5
@@ -332,6 +334,11 @@ ColumnLayout {
                             }
                             Text {
                                 text: "sequence: " + displaySequence
+                            }
+                            Label {
+                                font.weight: Font.Black
+                                text: isSpent ? qsTr("SPENT") : qsTr("NOT SPENT")
+                                color: isSpent ? "orangered" : "limegreen"
                             }
                             
                         }
@@ -477,6 +484,10 @@ ColumnLayout {
         
         onAddCredentialListItem: {
             credentialListModel.addItem(item)
+        }
+
+        onMarkSpentCredential: {
+            credentialList.currentItem.isSpent = true
         }
     }
 }
