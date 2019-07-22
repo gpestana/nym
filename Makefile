@@ -123,3 +123,10 @@ localnet-clear:
 	make localnet-stop
 	rm -rf build
 
+
+build_gui:
+	qtdeploy build desktop client/gui
+
+run_gui:
+	client/gui/deploy/linux/gui
+	

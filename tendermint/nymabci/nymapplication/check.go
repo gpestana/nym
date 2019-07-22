@@ -352,9 +352,9 @@ func (app *NymApplication) checkCredentialVerificationNotificationTx(tx []byte) 
 		return code.INVALID_SIGNATURE
 	}
 
-	// check if this tx was not already confirmed by this watcher
+	// check if this tx was not already confirmed by this verifier
 	if app.checkVerifierNotification(req.VerifierPublicKey, req.Zeta, req.Value) {
-		app.log.Info("This watcher already sent this notification before")
+		app.log.Info("This verifier already sent this notification before")
 		return code.ALREADY_CONFIRMED
 	}
 

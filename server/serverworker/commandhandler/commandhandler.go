@@ -532,16 +532,19 @@ func SpendCredentialRequestHandler(ctx context.Context, reqData HandlerData) *co
 	// this is not by any means a reliable check as this request is not properly ordered, etc.
 	// All it does is check against credentials spent in the past (so say it would fail if client sent same request
 	// to two SPs now)
-	wasSpentRes, err := verificationData.NymClient.Query(query.ZetaStatus, req.Theta.Zeta)
+	wasSpentRes, err := verificationData.NymClient.Query(query.FullZetaStatus, req.Theta.Zeta)
+	log.Critical(fmt.Sprintf("spent: %v", wasSpentRes.Response.Value))
+
 	if err != nil {
 		errMsg := "Failed to preliminarily check status of zeta"
 		setErrorResponse(log, response, errMsg, commands.StatusCode_UNAVAILABLE)
 		return response
 	}
 
-	if bytes.Equal(wasSpentRes.Response.Value, []byte{1}) {
+	if !bytes.Equal(wasSpentRes.Response.Value, tmconst.ZetaStatusUnspent.DbEntry()) {
 		errMsg := "Received zeta was already spent before"
 		setErrorResponse(log, response, errMsg, commands.StatusCode_DOUBLE_SPENDING_ATTEMPT)
+		return response
 	}
 
 	log.Info("The received credential seems to not have been spent before (THIS IS NOT A GUARANTEE)")

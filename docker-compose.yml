@@ -149,6 +149,7 @@ services:
     networks:
       localnet:
         ipv4_address: 192.167.12.1 
+    restart: always
 
   watcher2:
     # below two are for debug purposes only
@@ -163,6 +164,7 @@ services:
     networks:
       localnet:
         ipv4_address: 192.167.12.2 
+    restart: always
 
   watcher3:
     # below two are for debug purposes only
@@ -177,6 +179,7 @@ services:
     networks:
       localnet:
         ipv4_address: 192.167.12.3
+    restart: always
 
   watcher4:
     # below two are for debug purposes only
@@ -191,6 +194,7 @@ services:
     networks:
       localnet:
         ipv4_address: 192.167.12.4
+    restart: always
 
   provider1:
     # below two are for debug purposes only

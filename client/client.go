@@ -26,6 +26,9 @@ import (
 	"reflect"
 	"time"
 
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/golang/protobuf/proto"
+	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"github.com/nymtech/nym/client/config"
 	"github.com/nymtech/nym/client/cryptoworker"
 	"github.com/nymtech/nym/common/comm"
@@ -37,9 +40,6 @@ import (
 	ethclient "github.com/nymtech/nym/ethereum/client"
 	"github.com/nymtech/nym/logger"
 	nymclient "github.com/nymtech/nym/tendermint/client"
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
-	"github.com/golang/protobuf/proto"
-	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"google.golang.org/grpc"
 	"gopkg.in/op/go-logging.v1"
 )
@@ -69,6 +69,10 @@ const (
 	nonGRPCClientErr = "Non-gRPC client trying to call gRPC method"
 	gRPCClientErr    = "gRPC client trying to call non-gRPC method"
 )
+
+func (c *Client) RandomBIG() *Curve.BIG {
+	return c.cryptoworker.CoconutWorker().RandomBIG()
+}
 
 func (c *Client) checkResponseStatus(resp commands.ProtoResponse) error {
 	if resp == nil || resp.GetStatus() == nil {
