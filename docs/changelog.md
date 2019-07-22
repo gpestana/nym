@@ -1,5 +1,12 @@
 # CoconutGo Changelog
 
+## 0.11.0
+
+* Created GUI appliction for demonstrating the capabilities of the current system
+* Adjustments to default timeout values
+* Changed docker-compose to auto-restart Ethereum watchers
+* Possibly fixed the issue of reconnection loop for the Tendermint client
+
 ## 0.10.4
 
 * Added token redemption to sample client
