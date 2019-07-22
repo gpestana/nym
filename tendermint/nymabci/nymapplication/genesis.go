@@ -66,7 +66,6 @@ type GenesisAccount struct {
 
 // GenesisAppState defines the json structure of the the AppState in the Genesis block. This allows parsing it
 // and applying appropriate changes to the state upon InitChain.
-// Currently it includes list of genesis accounts and Coconut properties required for credential validation.
 type GenesisAppState struct {
 	SystemProperties    SystemProperties `json:"systemProperties"`
 	Accounts            []GenesisAccount `json:"accounts"`
