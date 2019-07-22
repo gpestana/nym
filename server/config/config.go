@@ -33,7 +33,7 @@ const (
 	defaultNumProcessors    = 1
 
 	defaultConnectTimeout               = 15 * 1000 // 15 sec.
-	defaultRequestTimeout               = 15 * 1000 // 15 sec.
+	defaultRequestTimeout               = 60 * 1000 // 60 sec.
 	defaultProviderStartupTimeout       = 30 * 1000 // 30 sec.
 	defaultProviderStartupRetryInterval = 5 * 1000  // 5s.
 	defaultProviderMaxRequests          = 16
