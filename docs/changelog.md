@@ -1,5 +1,11 @@
 # CoconutGo Changelog
 
+## 0.11.1
+
+* Updated dependencies
+* Updated Dockerfiles
+* Updated install instructions
+
 ## 0.11.0
 
 * Created GUI appliction for demonstrating the capabilities of the current system
