@@ -20,9 +20,9 @@ package token
 import (
 	"fmt"
 
+	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
 	"github.com/nymtech/nym/crypto/elgamal"
-	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 )
 
 // TODO: refactor the entire file? - move somewhere more appropriate and perhaps rename it
@@ -35,18 +35,18 @@ import (
 
 //nolint: gochecknoglobals
 var (
-	allowedValues = []int64{1, 2, 5, 10, 20, 50, 100}
+	AllowedValues = []int64{1, 2, 5, 10, 20, 50, 100}
 )
 
 type Token struct {
-	privateKey  PrivateKey `coconut:"private"`
-	sequenceNum *Curve.BIG `coconut:"private"`
-	value       int64      `coconut:"public"` // should be limited to set of possible values to prevent traffic analysis
+	longtermSecret *Curve.BIG `coconut:"private"`
+	sequenceNum    *Curve.BIG `coconut:"private"`
+	value          int64      `coconut:"public"` // should be limited to set of possible values to prevent traffic analysis
 	// ttl         time.Time  `coconut:"public"`
 }
 
-func (t *Token) PrivateKey() PrivateKey {
-	return t.privateKey
+func (t *Token) LongtermSecret() *Curve.BIG {
+	return t.longtermSecret
 }
 
 func (t *Token) SequenceNum() *Curve.BIG {
@@ -68,14 +68,14 @@ func (t *Token) GetPublicAndPrivateSlices() ([]*Curve.BIG, []*Curve.BIG) {
 	// attrBig := utils.HashBytesToBig(amcl.SHA256, attr)
 
 	privM[0] = t.sequenceNum
-	privM[1] = t.privateKey
+	privM[1] = t.longtermSecret
 
 	pubM[0] = valBig
 	return pubM, privM
 }
 
-// should be associated with given client/user rather than token if I understand it correctly
-type PrivateKey *Curve.BIG
+// // should be associated with given client/user rather than token if I understand it correctly
+// type PrivateKey *Curve.BIG
 
 type Credential *coconut.Signature
 
@@ -85,7 +85,7 @@ func (t *Token) PrepareBlindSign(params *coconut.Params, egPub *elgamal.PublicKe
 }
 
 func ValidateValue(val int64) bool {
-	for _, allowed := range allowedValues {
+	for _, allowed := range AllowedValues {
 		if val == allowed {
 			return true
 		}
@@ -96,12 +96,12 @@ func ValidateValue(val int64) bool {
 // temp, havent decided on where attrs will be generated, but want token instance for test
 func New(s, k *Curve.BIG, val int64) (*Token, error) {
 	if !ValidateValue(val) {
-		return nil, fmt.Errorf("disallowed credential value: %v, allowed: %v", val, allowedValues)
+		return nil, fmt.Errorf("disallowed credential value: %v, allowed: %v", val, AllowedValues)
 	}
 	// TODO: validate val
 	return &Token{
-		privateKey:  k,
-		sequenceNum: s,
-		value:       val,
+		longtermSecret: k,
+		sequenceNum:    s,
+		value:          val,
 	}, nil
 }

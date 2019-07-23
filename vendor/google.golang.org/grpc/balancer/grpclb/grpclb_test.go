@@ -44,6 +44,7 @@ import (
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/resolver"
 	"google.golang.org/grpc/resolver/manual"
+	"google.golang.org/grpc/serviceconfig"
 	"google.golang.org/grpc/status"
 	testpb "google.golang.org/grpc/test/grpc_testing"
 )
@@ -528,18 +529,54 @@ func TestDropRequest(t *testing.T) {
 		ServerName: lbServerName,
 	}}})
 
-	// Wait for the 1st, non-fail-fast RPC to succeed. This ensures both server
-	// connections are made, because the first one has Drop set to true.
-	var i int
-	for i = 0; i < 1000; i++ {
-		if _, err := testC.EmptyCall(ctx, &testpb.Empty{}, grpc.WaitForReady(true)); err == nil {
+	var (
+		i int
+		p peer.Peer
+	)
+	const (
+		// Poll to wait for something to happen. Total timeout 1 second. Sleep 1
+		// ms each loop, and do at most 1000 loops.
+		sleepEachLoop = time.Millisecond
+		loopCount     = int(time.Second / sleepEachLoop)
+	)
+	// Make a non-fail-fast RPC and wait for it to succeed.
+	for i = 0; i < loopCount; i++ {
+		if _, err := testC.EmptyCall(ctx, &testpb.Empty{}, grpc.WaitForReady(true), grpc.Peer(&p)); err == nil {
 			break
 		}
-		time.Sleep(time.Millisecond)
+		time.Sleep(sleepEachLoop)
 	}
-	if i >= 1000 {
-		t.Fatalf("%v.SayHello(_, _) = _, %v, want _, <nil>", testC, err)
+	if i >= loopCount {
+		t.Fatalf("timeout waiting for the first connection to become ready. EmptyCall(_, _) = _, %v, want _, <nil>", err)
 	}
+
+	// Make RPCs until the peer is different. So we know both connections are
+	// READY.
+	for i = 0; i < loopCount; i++ {
+		var temp peer.Peer
+		if _, err := testC.EmptyCall(ctx, &testpb.Empty{}, grpc.WaitForReady(true), grpc.Peer(&temp)); err == nil {
+			if temp.Addr.(*net.TCPAddr).Port != p.Addr.(*net.TCPAddr).Port {
+				break
+			}
+		}
+		time.Sleep(sleepEachLoop)
+	}
+	if i >= loopCount {
+		t.Fatalf("timeout waiting for the second connection to become ready")
+	}
+
+	// More RPCs until drop happens. So we know the picker index, and the
+	// expected behavior of following RPCs.
+	for i = 0; i < loopCount; i++ {
+		if _, err := testC.EmptyCall(ctx, &testpb.Empty{}, grpc.WaitForReady(true)); status.Code(err) == codes.Unavailable {
+			break
+		}
+		time.Sleep(sleepEachLoop)
+	}
+	if i >= loopCount {
+		t.Fatalf("timeout waiting for drop. EmptyCall(_, _) = _, %v, want _, <Unavailable>", err)
+	}
+
 	select {
 	case <-ctx.Done():
 		t.Fatal("timed out", ctx.Err())
@@ -547,25 +584,33 @@ func TestDropRequest(t *testing.T) {
 	}
 	for _, failfast := range []bool{true, false} {
 		for i := 0; i < 3; i++ {
-			// 1st RPCs pick the second item in server list. They should succeed
+			// 1st RPCs pick the first item in server list. They should succeed
 			// since they choose the non-drop-request backend according to the
 			// round robin policy.
 			if _, err := testC.EmptyCall(context.Background(), &testpb.Empty{}, grpc.WaitForReady(!failfast)); err != nil {
 				t.Errorf("%v.EmptyCall(_, _) = _, %v, want _, <nil>", testC, err)
 			}
-			// 2st RPCs should fail, because they pick last item in server list,
+			// 2nd RPCs pick the second item in server list. They should succeed
+			// since they choose the non-drop-request backend according to the
+			// round robin policy.
+			if _, err := testC.EmptyCall(context.Background(), &testpb.Empty{}, grpc.WaitForReady(!failfast)); err != nil {
+				t.Errorf("%v.EmptyCall(_, _) = _, %v, want _, <nil>", testC, err)
+			}
+			// 3rd RPCs should fail, because they pick last item in server list,
 			// with Drop set to true.
 			if _, err := testC.EmptyCall(context.Background(), &testpb.Empty{}, grpc.WaitForReady(!failfast)); status.Code(err) != codes.Unavailable {
 				t.Errorf("%v.EmptyCall(_, _) = _, %v, want _, %s", testC, err, codes.Unavailable)
 			}
-			// 3rd RPCs pick the first item in server list. They should succeed
-			// since they choose the non-drop-request backend according to the
-			// round robin policy.
-			if _, err := testC.EmptyCall(context.Background(), &testpb.Empty{}, grpc.WaitForReady(!failfast)); err != nil {
-				t.Errorf("%v.EmptyCall(_, _) = _, %v, want _, <nil>", testC, err)
-			}
 		}
 	}
+
+	// Make one more RPC to move the picker index one step further, so it's not
+	// 0. The following RPCs will test that drop index is not reset. If picker
+	// index is at 0, we cannot tell whether it's reset or not.
+	if _, err := testC.EmptyCall(context.Background(), &testpb.Empty{}, grpc.WaitForReady(true)); err != nil {
+		t.Errorf("%v.EmptyCall(_, _) = _, %v, want _, <nil>", testC, err)
+	}
+
 	tss.backends[0].Stop()
 	// This last pick was backend 0. Closing backend 0 doesn't reset drop index
 	// (for level 1 picking), so the following picks will be (backend1, drop,
@@ -807,10 +852,12 @@ func TestFallback(t *testing.T) {
 	}
 }
 
-// The remote balancer sends response with duplicates to grpclb client.
 func TestGRPCLBPickFirst(t *testing.T) {
-	balancer.Register(newLBBuilderWithPickFirst())
-	defer balancer.Register(newLBBuilder())
+	const pfc = `{"loadBalancingConfig":[{"grpclb":{"childPolicy":[{"pick_first":{}}]}}]}`
+	svcCfg, err := serviceconfig.Parse(pfc)
+	if err != nil {
+		t.Fatalf("Error parsing config %q: %v", pfc, err)
+	}
 
 	defer leakcheck.Check(t)
 
@@ -854,57 +901,94 @@ func TestGRPCLBPickFirst(t *testing.T) {
 	defer cc.Close()
 	testC := testpb.NewTestServiceClient(cc)
 
-	r.UpdateState(resolver.State{Addresses: []resolver.Address{{
-		Addr:       tss.lbAddr,
-		Type:       resolver.GRPCLB,
-		ServerName: lbServerName,
-	}}})
+	var (
+		p      peer.Peer
+		result string
+	)
+	tss.ls.sls <- &lbpb.ServerList{Servers: beServers[0:3]}
 
-	var p peer.Peer
+	// Start with sub policy pick_first.
 
-	portPicked1 := 0
-	tss.ls.sls <- &lbpb.ServerList{Servers: beServers[1:2]}
+	r.UpdateState(resolver.State{
+		Addresses: []resolver.Address{{
+			Addr:       tss.lbAddr,
+			Type:       resolver.GRPCLB,
+			ServerName: lbServerName,
+		}},
+		ServiceConfig: svcCfg,
+	})
+
+	result = ""
 	for i := 0; i < 1000; i++ {
 		if _, err := testC.EmptyCall(context.Background(), &testpb.Empty{}, grpc.WaitForReady(true), grpc.Peer(&p)); err != nil {
 			t.Fatalf("_.EmptyCall(_, _) = _, %v, want _, <nil>", err)
 		}
-		if portPicked1 == 0 {
-			portPicked1 = p.Addr.(*net.TCPAddr).Port
-			continue
-		}
-		if portPicked1 != p.Addr.(*net.TCPAddr).Port {
-			t.Fatalf("Different backends are picked for RPCs: %v vs %v", portPicked1, p.Addr.(*net.TCPAddr).Port)
-		}
+		result += strconv.Itoa(portsToIndex[p.Addr.(*net.TCPAddr).Port])
+	}
+	if seq := "00000"; !strings.Contains(result, strings.Repeat(seq, 100)) {
+		t.Errorf("got result sequence %q, want patten %q", result, seq)
 	}
 
-	portPicked2 := portPicked1
-	tss.ls.sls <- &lbpb.ServerList{Servers: beServers[:1]}
+	tss.ls.sls <- &lbpb.ServerList{Servers: beServers[2:]}
+	result = ""
 	for i := 0; i < 1000; i++ {
 		if _, err := testC.EmptyCall(context.Background(), &testpb.Empty{}, grpc.WaitForReady(true), grpc.Peer(&p)); err != nil {
 			t.Fatalf("_.EmptyCall(_, _) = _, %v, want _, <nil>", err)
 		}
-		if portPicked2 == portPicked1 {
-			portPicked2 = p.Addr.(*net.TCPAddr).Port
-			continue
-		}
-		if portPicked2 != p.Addr.(*net.TCPAddr).Port {
-			t.Fatalf("Different backends are picked for RPCs: %v vs %v", portPicked2, p.Addr.(*net.TCPAddr).Port)
-		}
+		result += strconv.Itoa(portsToIndex[p.Addr.(*net.TCPAddr).Port])
+	}
+	if seq := "22222"; !strings.Contains(result, strings.Repeat(seq, 100)) {
+		t.Errorf("got result sequence %q, want patten %q", result, seq)
 	}
 
-	portPicked := portPicked2
 	tss.ls.sls <- &lbpb.ServerList{Servers: beServers[1:]}
+	result = ""
 	for i := 0; i < 1000; i++ {
 		if _, err := testC.EmptyCall(context.Background(), &testpb.Empty{}, grpc.WaitForReady(true), grpc.Peer(&p)); err != nil {
 			t.Fatalf("_.EmptyCall(_, _) = _, %v, want _, <nil>", err)
 		}
-		if portPicked == portPicked2 {
-			portPicked = p.Addr.(*net.TCPAddr).Port
-			continue
+		result += strconv.Itoa(portsToIndex[p.Addr.(*net.TCPAddr).Port])
+	}
+	if seq := "22222"; !strings.Contains(result, strings.Repeat(seq, 100)) {
+		t.Errorf("got result sequence %q, want patten %q", result, seq)
+	}
+
+	// Switch sub policy to roundrobin.
+	grpclbServiceConfigEmpty, err := serviceconfig.Parse(`{}`)
+	if err != nil {
+		t.Fatalf("Error parsing config %q: %v", grpclbServiceConfigEmpty, err)
+	}
+
+	r.UpdateState(resolver.State{
+		Addresses: []resolver.Address{{
+			Addr:       tss.lbAddr,
+			Type:       resolver.GRPCLB,
+			ServerName: lbServerName,
+		}},
+		ServiceConfig: grpclbServiceConfigEmpty,
+	})
+
+	result = ""
+	for i := 0; i < 1000; i++ {
+		if _, err := testC.EmptyCall(context.Background(), &testpb.Empty{}, grpc.WaitForReady(true), grpc.Peer(&p)); err != nil {
+			t.Fatalf("_.EmptyCall(_, _) = _, %v, want _, <nil>", err)
 		}
-		if portPicked != p.Addr.(*net.TCPAddr).Port {
-			t.Fatalf("Different backends are picked for RPCs: %v vs %v", portPicked, p.Addr.(*net.TCPAddr).Port)
+		result += strconv.Itoa(portsToIndex[p.Addr.(*net.TCPAddr).Port])
+	}
+	if seq := "121212"; !strings.Contains(result, strings.Repeat(seq, 100)) {
+		t.Errorf("got result sequence %q, want patten %q", result, seq)
+	}
+
+	tss.ls.sls <- &lbpb.ServerList{Servers: beServers[0:3]}
+	result = ""
+	for i := 0; i < 1000; i++ {
+		if _, err := testC.EmptyCall(context.Background(), &testpb.Empty{}, grpc.WaitForReady(true), grpc.Peer(&p)); err != nil {
+			t.Fatalf("%v.EmptyCall(_, _) = _, %v, want _, <nil>", testC, err)
 		}
+		result += strconv.Itoa(portsToIndex[p.Addr.(*net.TCPAddr).Port])
+	}
+	if seq := "012012012"; !strings.Contains(result, strings.Repeat(seq, 2)) {
+		t.Errorf("got result sequence %q, want patten %q", result, seq)
 	}
 }
 

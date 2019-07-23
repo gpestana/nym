@@ -1,0 +1,44 @@
+# Coconut Redeemer configuration file.
+
+[Redeemer]
+
+  # Identifier is the human readable identifier for the node (eg: FQDN).
+  Identifier = "Redeemer 1"
+
+  # KeyFile defines path to file containing ECDSA private key of the redeemer.
+  KeyFile = "/redeemer/redeemer.key"
+
+  # DataDir specifies path to a .db file holding relevant server-specific persistent data.
+  DataDir = "/redeemer/"
+  
+  # BlockchainNodeAddresses specifies addresses of Tendermint blockchain nodes
+  # to which the issuer should send all relevant requests. 
+  # Note that only a single request will ever be sent, but multiple addresses are provided in case 
+  # the particular node was unavailable.
+  BlockchainNodeAddresses = [ "192.167.10.2:26657", "192.167.10.3:26657", "192.167.10.4:26657", "192.167.10.5:26657" ]
+
+	# PipeAccountKeyFile defines path to file containing ECDSA private key for the pipe account contract.
+	PipeAccountKeyFile = "/redeemer/pipeAccount.key"
+
+	# EthereumNodeAddress defines address of an Ethereum node to which transactions are sent.
+  EthereumNodeAddress = "https://ropsten.infura.io/v3/131453a5470641cd9f64942eecd8add2"
+
+	# NymContract defined address of the ERC20 token Nym contract. It is expected to be provided in hex format.
+  NymContract = "0xE80025228D5448A55B995c829B89567ECE5203d3"
+
+[Logging]
+
+  # Disable disables logging entirely.
+  Disable = false
+
+  # File specifies the log file, if omitted stdout will be used.
+  # File = "/var/log/nymVerifier.log"
+
+  # Level specifies the log level out of `CRITICAL`, `ERROR`, `WARNING`,
+  # `NOTICE`, `INFO` and `DEBUG`.
+  #
+  # Warning: The `DEBUG` log level is unsafe for production use.
+  Level = "INFO"
+
+
+[Debug]

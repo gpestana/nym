@@ -37,7 +37,7 @@ import (
 
 const (
 	// TODO: just replace with "memdb" ?
-	abciDbType = "leveldb"
+	abciDbType = "goleveldb"
 	abciDbDir  = "nymabci"
 )
 
@@ -133,6 +133,9 @@ func CreateNymNode(cfgFile, dataRoot string, createEmptyBlocks bool, emptyBlocks
 		// should have been detected when loading config, so it's undefined behaviour
 		return nil, err
 	}
+
+	// FIXME: temporary workaround
+	cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
 
 	node, err := tmNode.NewNode(cfg,
 		privval.LoadOrGenFilePV(cfg.PrivValidatorKeyFile(), cfg.PrivValidatorStateFile()),

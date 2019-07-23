@@ -31,6 +31,7 @@ type CoconutProperties struct {
 type SystemProperties struct {
 	WatcherThreshold  int               `json:"watcherThreshold"`
 	VerifierThreshold int               `json:"verifierThreshold"`
+	RedeemerThreshold int               `json:"redeemerThreshold"`
 	PipeAccount       ethcommon.Address `json:"pipeAccount"`
 	CoconutProperties CoconutProperties `json:"coconutProperties"`
 }
@@ -53,6 +54,11 @@ type Verifier struct {
 	PublicKey []byte `json:"pub_key"`
 }
 
+type Redeemer struct {
+	// Public key associated with given redeemer. Used to authenticate any notifications they send to the chain.
+	PublicKey []byte `json:"pub_key"`
+}
+
 type GenesisAccount struct {
 	Address ethcommon.Address `json:"address"`
 	Balance uint64            `json:"balance"`
@@ -60,11 +66,11 @@ type GenesisAccount struct {
 
 // GenesisAppState defines the json structure of the the AppState in the Genesis block. This allows parsing it
 // and applying appropriate changes to the state upon InitChain.
-// Currently it includes list of genesis accounts and Coconut properties required for credential validation.
 type GenesisAppState struct {
 	SystemProperties    SystemProperties `json:"systemProperties"`
 	Accounts            []GenesisAccount `json:"accounts"`
 	Issuers             []Issuer         `json:"issuingAuthorities"`
 	EthereumWatchers    []Watcher        `json:"ethereumWatchers"`
 	CredentialVerifiers []Verifier       `json:"verifiers"`
+	TokenRedeemers      []Redeemer       `json:"redeemers"`
 }

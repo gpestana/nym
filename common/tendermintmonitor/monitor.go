@@ -29,7 +29,7 @@ import (
 	"github.com/nymtech/nym/server/storage"
 	tmclient "github.com/nymtech/nym/tendermint/client"
 	"github.com/nymtech/nym/worker"
-	cmn "github.com/tendermint/tendermint/libs/common"
+	atypes "github.com/tendermint/tendermint/abci/types"
 	ctypes "github.com/tendermint/tendermint/rpc/core/types"
 	"github.com/tendermint/tendermint/types"
 	"gopkg.in/op/go-logging.v1"
@@ -119,7 +119,7 @@ type tx struct {
 	height int64
 	index  uint32
 	Code   uint32
-	Tags   []cmn.KVPair
+	Events []atypes.Event
 	isNil  bool
 }
 
@@ -128,7 +128,7 @@ func startNewTx(txData types.EventDataTx) *tx {
 		height: txData.Height,
 		index:  txData.Index,
 		Code:   txData.Result.Code,
-		Tags:   txData.Result.Tags,
+		Events: txData.Result.Events,
 	}
 }
 
@@ -299,7 +299,7 @@ func (m *Monitor) addNewCatchUpBlock(res *ctypes.ResultBlockResults, overwrite b
 					height: res.Height,
 					index:  uint32(i),
 					Code:   resTx.Code,
-					Tags:   resTx.Tags,
+					Events: resTx.Events,
 				}
 			}
 			m.unprocessedBlocks[res.Height] = b

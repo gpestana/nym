@@ -298,7 +298,7 @@ func (app *NymApplication) checkCredentialRequestTx(tx []byte) uint32 {
 	return code.OK
 }
 
-func (app *NymApplication) checkCredentialVerificationNotification(tx []byte) uint32 {
+func (app *NymApplication) checkCredentialVerificationNotificationTx(tx []byte) uint32 {
 	req := &transaction.CredentialVerificationNotification{}
 
 	if err := proto.Unmarshal(tx, req); err != nil {
@@ -307,7 +307,7 @@ func (app *NymApplication) checkCredentialVerificationNotification(tx []byte) ui
 	}
 
 	// first check if the threshold was alredy reached and transaction was committed
-	if app.getCredentialVerificationCount(req.Zeta, req.Value) == app.state.verifierThreshold {
+	if app.getCredentialVerificationNotificationCount(req.Zeta, req.Value) == app.state.verifierThreshold {
 		app.log.Info("Already reached required threshold")
 		return code.ALREADY_COMMITTED
 	}
@@ -334,7 +334,7 @@ func (app *NymApplication) checkCredentialVerificationNotification(tx []byte) ui
 	// check signature
 	msg := make([]byte, len(req.VerifierPublicKey)+ethcommon.AddressLength+8+len(req.Zeta)+1)
 	i := copy(msg, req.VerifierPublicKey)
-	i += copy(msg[i:], req.ProviderAddress[:])
+	i += copy(msg[i:], req.ProviderAddress)
 	binary.BigEndian.PutUint64(msg[i:], uint64(req.Value))
 	i += 8
 	if req.CredentialValidity {
@@ -352,11 +352,117 @@ func (app *NymApplication) checkCredentialVerificationNotification(tx []byte) ui
 		return code.INVALID_SIGNATURE
 	}
 
-	// check if this tx was not already confirmed by this watcher
+	// check if this tx was not already confirmed by this verifier
 	if app.checkVerifierNotification(req.VerifierPublicKey, req.Zeta, req.Value) {
-		app.log.Info("This watcher already sent this notification before")
+		app.log.Info("This verifier already sent this notification before")
 		return code.ALREADY_CONFIRMED
 	}
 
 	return code.OK
+}
+
+func (app *NymApplication) checkTokenRedemptionRequestTx(tx []byte) uint32 {
+	// we need to check:
+	// if user has enough funds to move (and by extension whether his account even exists)
+	// if the nonce is unique
+	// if the signature is valid
+	req := &transaction.TokenRedemptionRequest{}
+
+	if err := proto.Unmarshal(tx, req); err != nil {
+		app.log.Info("Failed to unmarshal request")
+		return code.INVALID_TX_PARAMS
+	}
+
+	// firstly check if client's account even exists and if it has sufficient balance
+	if accBalance, err := app.retrieveAccountBalance(req.UserAddress); err != nil || accBalance < req.Amount {
+		return code.INSUFFICIENT_BALANCE
+	}
+
+	if app.checkNonce(req.Nonce, req.UserAddress) {
+		return code.REPLAY_ATTACK_ATTEMPT
+	}
+
+	// check signature
+	msg := make([]byte, ethcommon.AddressLength+8+tmconst.NonceLength)
+	i := copy(msg, req.UserAddress)
+	binary.BigEndian.PutUint64(msg[i:], req.Amount)
+	i += 8
+	copy(msg[i:], req.Nonce)
+
+	recPub, err := ethcrypto.SigToPub(tmconst.HashFunction(msg), req.Sig)
+	if err != nil {
+		app.log.Info("Error while trying to recover public key associated with the signature")
+		return code.INVALID_SIGNATURE
+	}
+
+	recAddr := ethcrypto.PubkeyToAddress(*recPub)
+	if !bytes.Equal(recAddr[:], req.UserAddress) {
+		app.log.Info("Failed to verify signature on request")
+		return code.INVALID_SIGNATURE
+	}
+
+	return code.OK
+}
+
+func (app *NymApplication) checkTokenRedemptionConfirmationNotificationTx(tx []byte) uint32 {
+	// we need to check:
+	// if the threshold was already reached - then we just 'ignore' the tx
+	// if the redeemer is in the trusted set
+	// correct formation of users account address
+	// if the signature is valid
+	// if the redeemer has not 'confirmed' this tx before
+
+	req := &transaction.TokenRedemptionConfirmationNotification{}
+
+	if err := proto.Unmarshal(tx, req); err != nil {
+		app.log.Info("Failed to unmarshal request")
+		return code.INVALID_TX_PARAMS
+	}
+
+	address := ethcommon.BytesToAddress(req.UserAddress)
+	// first check if the threshold was alredy reached and transaction was committed
+	if app.getTokenRedemptionNotificationCount(address, req.Nonce, req.Amount) == app.state.redeemerThreshold {
+		app.log.Info("Already reached required threshold")
+		return code.ALREADY_COMMITTED
+	}
+
+	// check if the verifier can be trusted
+	if !app.checkRedeemerKey(req.RedeemerPublicKey) {
+		app.log.Info("This redeemer is not in the trusted set")
+		return code.TOKEN_REDEEMER_DOES_NOT_EXIST
+	}
+
+	// check if user address is correctly formed
+	if len(req.UserAddress) != ethcommon.AddressLength {
+		app.log.Info("User's address is malformed")
+		return code.MALFORMED_ADDRESS
+	}
+
+	// check signature
+	msg := make([]byte, len(req.RedeemerPublicKey)+ethcommon.AddressLength+ethcommon.AddressLength+8+tmconst.NonceLength)
+	i := copy(msg, req.RedeemerPublicKey)
+	i += copy(msg[i:], req.UserAddress)
+	binary.BigEndian.PutUint64(msg[i:], req.Amount)
+	i += 8
+	copy(msg[i:], req.Nonce)
+
+	sig := req.Sig
+	// last byte is a recoveryID which we don't care about
+	if len(sig) > 64 {
+		sig = sig[:64]
+	}
+
+	if !ethcrypto.VerifySignature(req.RedeemerPublicKey, tmconst.HashFunction(msg), sig) {
+		app.log.Info("The signature on message is invalid")
+		return code.INVALID_SIGNATURE
+	}
+
+	// check if this tx was not already confirmed by this redeemer
+	if app.checkRedeemerNotification(req.RedeemerPublicKey, address, req.Nonce, req.Amount) {
+		app.log.Info("This redeemer already sent this notification before")
+		return code.ALREADY_CONFIRMED
+	}
+
+	return code.OK
+
 }

@@ -13,7 +13,7 @@
   NymContract = "0xE80025228D5448A55B995c829B89567ECE5203d3"
   # PipeAccount defines address of Ethereum account that pipes Nym ERC20 into Nym Tendermint coins.
   # It is expected to be provided in hex format.
-  PipeAccount = "0xd6A548f60FB6F98fB29e6226DE1405c20DbbCF52"
+  PipeAccount = "0xb749305b3293477b4d6b498b22db5353c9acb3f1"
 
 [Logging]
 

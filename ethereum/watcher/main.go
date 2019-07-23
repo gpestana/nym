@@ -43,7 +43,7 @@ package watcher
 // func main() {
 // 	var ethHost = "https://ropsten.infura.io/v3/131453a5470641cd9f64942eecd8add2" // Infura used for the moment. In production should be a fullnode.
 // 	numConfirmations := 2
-// 	pipeAccount := common.HexToAddress("0xd6A548f60FB6F98fB29e6226DE1405c20DbbCF52")
+// 	pipeAccount := common.HexToAddress("0xb749305b3293477b4d6b498b22db5353c9acb3f1")
 // 	nymContract := common.HexToAddress("0xE80025228D5448A55B995c829B89567ECE5203d3")
 
 // 	config := NewConfig(ethHost, numConfirmations, nymContract, pipeAccount)

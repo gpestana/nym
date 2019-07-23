@@ -26,12 +26,12 @@ import (
 	"net"
 	"time"
 
+	"github.com/golang/protobuf/proto"
+	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"github.com/nymtech/nym/common/comm/commands"
 	"github.com/nymtech/nym/common/comm/packet"
 	"github.com/nymtech/nym/constants"
 	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
-	"github.com/golang/protobuf/proto"
-	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	"gopkg.in/op/go-logging.v1"
 )
 
@@ -502,6 +502,12 @@ func GetServerResponses(ctx context.Context, requestParams *RequestParams, log *
 	// write requests in a goroutine so we wouldn't block when trying to read responses
 	go func() {
 		for i := range requestParams.ServerAddresses {
+			// FIXME: TODO: TEMPORARY HACKY SOLUTION
+			defer func() {
+				if err := recover(); err != nil {
+					log.Critical(fmt.Sprintf("Recovered from panic: %v", err))
+				}
+			}()
 			log.Debug("Writing request to %v", requestParams.ServerAddresses[i])
 			reqCh <- &ServerRequest{
 				MarshaledData: requestParams.MarshaledPacket,

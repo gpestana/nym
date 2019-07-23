@@ -34,10 +34,9 @@ import (
 	"github.com/nymtech/nym/tendermint/nymabci/transaction"
 	"github.com/tendermint/iavl"
 	"github.com/tendermint/tendermint/abci/types"
-	cmn "github.com/tendermint/tendermint/libs/common"
-	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/version"
+	dbm "github.com/tendermint/tm-cmn/db"
 )
 
 // TODO: FIXME: considering tendermint blockchain will no longer have to verify coconut credentials,
@@ -104,6 +103,9 @@ func NewNymApplication(dbType, dbDir string, logger log.Logger) *NymApplication 
 		if err := app.loadVerifierThreshold(); err != nil {
 			panic(fmt.Errorf("expected to have verifier threshold stored: %v", err))
 		}
+		if err := app.loadRedeemerThreshold(); err != nil {
+			panic(fmt.Errorf("expected to have verifier threshold stored: %v", err))
+		}
 		if err := app.loadPipeAccountAddress(); err != nil {
 			panic(fmt.Errorf("expected to have pipe account address stored: %v", err))
 		}
@@ -137,16 +139,16 @@ func (app *NymApplication) SetOption(req types.RequestSetOption) types.ResponseS
 }
 
 // DeliverTx delivers a tx for full processing.
-func (app *NymApplication) DeliverTx(tx []byte) types.ResponseDeliverTx {
+func (app *NymApplication) DeliverTx(req types.RequestDeliverTx) types.ResponseDeliverTx {
 	app.log.Debug(fmt.Sprintf("DeliverTx; height: %v", app.state.db.Version()))
-
+	tx := req.Tx
 	txType := tx[0]
 	switch txType {
-	// currently for debug purposes to check if given g^s is in the spent set
+	// currently for debug purposes to check status of given g^s
 	case transaction.TxTypeLookUpZeta:
 		app.log.Info("DeliverTx for lookup zeta")
-		// app.log.Info(fmt.Sprintf("looking up %v", tx[1:]))
-		// return types.ResponseDeliverTx{Code: code.OK, Data: app.lookUpZeta(tx[1:])}
+		app.log.Info(fmt.Sprintf("looking up %v", tx[1:]))
+		return types.ResponseDeliverTx{Code: code.OK, Data: app.checkZetaStatus(tx[1:])}
 
 	case transaction.TxNewAccount:
 		// creates new account
@@ -157,7 +159,7 @@ func (app *NymApplication) DeliverTx(tx []byte) types.ResponseDeliverTx {
 		// DEBUG: transfer funds from account X to account Y
 		if !tmconst.DebugMode {
 			app.log.Info("Trying to use TxTransferBetweenAccounts not in debug mode")
-			break
+			return types.ResponseDeliverTx{Code: code.INVALID_TX_PARAMS}
 		}
 		app.log.Info("Transfer tx")
 		return app.transferFunds(tx[1:])
@@ -175,29 +177,35 @@ func (app *NymApplication) DeliverTx(tx []byte) types.ResponseDeliverTx {
 	case transaction.TxCredentialVerificationNotification:
 		app.log.Info("Credential verification notification")
 		return app.handleCredentialVerificationNotification(tx[1:])
+	case transaction.TxTokenRedemptionRequest:
+		app.log.Info("Token Redemption request")
+		return app.handleTokenRedemption(tx[1:])
+	case transaction.TxTokenRedemptionConfirmationNotification:
+		app.log.Info("Token Redemption confirmation notification")
+		return app.handleTokenRedemptionConfirmationNotification(tx[1:])
 	case transaction.TxAdvanceBlock:
 		// purely for debug purposes to populate the state and advance the blocks
 		if !tmconst.DebugMode {
 			app.log.Info("Trying to use TxAdvanceBlock not in debug mode")
-			break
+			return types.ResponseDeliverTx{Code: code.INVALID_TX_PARAMS}
 		}
 		app.log.Info(fmt.Sprintf("storing up %v", tx[1:]))
 		app.state.db.Set(tx[1:], []byte{1})
 
-		return types.ResponseDeliverTx{Code: code.OK, Tags: []cmn.KVPair{{Key: []byte{tx[1]}, Value: tx[1:]}}}
+		return types.ResponseDeliverTx{Code: code.OK}
 	default:
 		app.log.Error("Unknown tx")
 
 		return types.ResponseDeliverTx{Code: code.UNKNOWN}
 	}
 
-	return types.ResponseDeliverTx{Code: code.UNKNOWN}
+	// return types.ResponseDeliverTx{Code: code.UNKNOWN}
 }
 
 // CheckTx validates tx in the mempool to discard obviously invalid ones so they would not be included in the block.
-func (app *NymApplication) CheckTx(tx []byte) types.ResponseCheckTx {
+func (app *NymApplication) CheckTx(req types.RequestCheckTx) types.ResponseCheckTx {
 	app.log.Debug(fmt.Sprintf("CheckTx; height: %v", app.state.db.Version()))
-
+	tx := req.Tx
 	txType := tx[0]
 
 	switch txType {
@@ -218,6 +226,7 @@ func (app *NymApplication) CheckTx(tx []byte) types.ResponseCheckTx {
 				checkCode, code.ToString(checkCode)))
 		}
 		return types.ResponseCheckTx{Code: checkCode}
+
 	case transaction.TxTransferToPipeAccountNotification:
 		app.log.Debug("CheckTx for TxTransferToPipeAccountNotification")
 		checkCode := app.checkTransferToPipeAccountNotificationTx(tx[1:])
@@ -236,8 +245,12 @@ func (app *NymApplication) CheckTx(tx []byte) types.ResponseCheckTx {
 				checkCode, code.ToString(checkCode)))
 		}
 		return types.ResponseCheckTx{Code: checkCode}
+
 	case transaction.TxAdvanceBlock:
+		// TODO: remove it completely at some point
 		app.log.Debug("CheckTx for TxAdvanceBlock")
+		return types.ResponseCheckTx{Code: code.OK}
+
 	case transaction.TxCredentialRequest:
 		app.log.Debug("CheckTx for TxCredentialRequest")
 
@@ -247,23 +260,39 @@ func (app *NymApplication) CheckTx(tx []byte) types.ResponseCheckTx {
 				checkCode, code.ToString(checkCode)))
 		}
 		return types.ResponseCheckTx{Code: checkCode}
+
 	case transaction.TxCredentialVerificationNotification:
 		app.log.Debug("CheckTx for TxCredentialVerificationNotification")
-		checkCode := app.checkCredentialVerificationNotification(tx[1:])
+		checkCode := app.checkCredentialVerificationNotificationTx(tx[1:])
 		if checkCode != code.OK {
 			app.log.Info(fmt.Sprintf("checkTx for TxCredentialVerificationNotification failed with code: %v - %v",
 				checkCode, code.ToString(checkCode)))
 		}
 		return types.ResponseCheckTx{Code: checkCode}
+
+	case transaction.TxTokenRedemptionRequest:
+		app.log.Debug("CheckTx for TxTokenRedemptionRequest")
+		checkCode := app.checkTokenRedemptionRequestTx(tx[1:])
+		if checkCode != code.OK {
+			app.log.Info(fmt.Sprintf("checkTx for TxTokenRedemptionRequest failed with code: %v - %v",
+				checkCode, code.ToString(checkCode)))
+		}
+		return types.ResponseCheckTx{Code: checkCode}
+
+	case transaction.TxTokenRedemptionConfirmationNotification:
+		app.log.Debug("CheckTx for TxTokenRedemptionConfirmationNotification")
+		checkCode := app.checkTokenRedemptionConfirmationNotificationTx(tx[1:])
+		if checkCode != code.OK {
+			app.log.Info(fmt.Sprintf("checkTx for TxTokenRedemptionConfirmationNotification failed with code: %v - %v",
+				checkCode, code.ToString(checkCode)))
+		}
+		return types.ResponseCheckTx{Code: checkCode}
+
 	default:
 		app.log.Error("Unknown Tx")
 		return types.ResponseCheckTx{Code: code.INVALID_TX_PARAMS}
 
 	}
-
-	// temp
-	checkCode := code.OK
-	return types.ResponseCheckTx{Code: checkCode}
 }
 
 // Commit commits the state and returns the application Merkle root hash
@@ -338,15 +367,26 @@ func (app *NymApplication) InitChain(req types.RequestInitChain) types.ResponseI
 		panic("Insufficient number of verifiers declared in the genesis block")
 	}
 
+	numRedeemers := len(genesisState.TokenRedeemers)
+	redeemerThreshold := genesisState.SystemProperties.RedeemerThreshold
+	// In future do not terminate here as it will be possible (TODO: actually implement it) to add redeemers in txs
+	if redeemerThreshold > numRedeemers {
+		app.log.Error(fmt.Sprintf("Only %v redeemers declared in the genesis block out of minimum %v",
+			numRedeemers, redeemerThreshold))
+		panic("Insufficient number of verifiers declared in the genesis block")
+	}
+
 	app.state.watcherThreshold = uint32(watcherThreshold)
 	app.state.verifierThreshold = uint32(verifierThreshold)
+	app.state.redeemerThreshold = uint32(redeemerThreshold)
 	app.state.pipeAccount = genesisState.SystemProperties.PipeAccount
 	app.storeWatcherThreshold()
 	app.storeVerifierThreshold()
+	app.storeRedeemerThreshold()
 	app.storePipeAccountAddress()
 
-	app.log.Info(fmt.Sprintf("Setting watcher threshold to %v, verifier threshold to %v and pipe contract address to %v",
-		watcherThreshold, verifierThreshold, app.state.pipeAccount.Hex()))
+	app.log.Info(fmt.Sprintf("Setting watcher threshold to %v, verifier threshold to %v, redeemer threshold to %v and pipe contract address to %v",
+		watcherThreshold, verifierThreshold, redeemerThreshold, app.state.pipeAccount.Hex()))
 
 	for _, watcher := range genesisState.EthereumWatchers {
 		app.storeWatcherKey(watcher)
@@ -357,6 +397,11 @@ func (app *NymApplication) InitChain(req types.RequestInitChain) types.ResponseI
 		app.storeVerifierKey(verifier)
 	}
 	app.log.Info("Stored verifier keys in the DB")
+
+	for _, redeemer := range genesisState.TokenRedeemers {
+		app.storeRedeemerKey(redeemer)
+	}
+	app.log.Info("Stored redeemer keys in the DB")
 
 	// import vk of IAs
 	numIAs := len(genesisState.Issuers)

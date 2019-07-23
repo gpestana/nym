@@ -24,16 +24,15 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/nymtech/nym/logger"
-	"gopkg.in/op/go-logging.v1"
-
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	Curve "github.com/jstuczyn/amcl/version3/go/amcl/BLS381"
 	cclient "github.com/nymtech/nym/client"
 	"github.com/nymtech/nym/client/config"
 	"github.com/nymtech/nym/crypto/bpgroup"
 	coconut "github.com/nymtech/nym/crypto/coconut/scheme"
+	"github.com/nymtech/nym/logger"
 	"github.com/nymtech/nym/nym/token"
+	"gopkg.in/op/go-logging.v1"
 )
 
 const provider1IP = "127.0.0.1:4100"
@@ -92,12 +91,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Failed to spawn client instance: %v\n", err)
 		os.Exit(-1)
 	}
-
 	nymFlow(cc)
-}
-
-func transferToPipe(cc *cclient.Client) {
-
 }
 
 func checkNymBalance(cc *cclient.Client, log *logging.Logger) uint64 {
@@ -147,7 +141,7 @@ func nymFlow(cc *cclient.Client) {
 
 	// we wait for both operations to get finalized
 	cc.WaitForERC20BalanceChangeWrapper(context.TODO(), currentERC20Balance-uint64(tokenValue))
-	cc.WaitForBalanceIncrease(context.TODO(), currentNymBalance+uint64(tokenValue))
+	cc.WaitForBalanceChange(context.TODO(), currentNymBalance+uint64(tokenValue))
 	log.Noticef("We sent %v to the pipe account", tokenValue)
 
 	// and we see both balances changed accordingly
@@ -176,7 +170,7 @@ func nymFlow(cc *cclient.Client) {
 	log.Noticef("Obtained Credential: %v %v\n", cred.Sig1().ToString(), cred.Sig2().ToString())
 
 	// see that our balance changed
-	checkNymBalance(cc, log)
+	bal := checkNymBalance(cc, log)
 
 	log.Info("Going to spend the obtained credential at some service provider")
 	didSucceed, err := cc.SpendCredential(token, cred, provider1IP, ethcommon.HexToAddress(provider1Address), nil)
@@ -188,4 +182,24 @@ func nymFlow(cc *cclient.Client) {
 	} else {
 		log.Error("For some reason, we failed to spend the credential - please refer to the provider's logs for details")
 	}
+
+	if bal > 1 {
+		log.Noticef("Going to redeem 1 token [In actual deployment this will be performed by Service Providers only]")
+		erc20bal, _ := checkERC20NymBalance(cc, log)
+		if err := cc.RedeemTokens(context.TODO(), uint64(1)); err != nil {
+			panic(err)
+		}
+
+		if err := cc.WaitForBalanceChange(context.TODO(), bal-1); err != nil {
+			panic(err)
+		}
+
+		if err := cc.WaitForERC20BalanceChangeWrapper(context.TODO(), erc20bal+1); err != nil {
+			panic(err)
+		}
+
+		checkNymBalance(cc, log)
+		checkERC20NymBalance(cc, log)
+	}
+
 }
