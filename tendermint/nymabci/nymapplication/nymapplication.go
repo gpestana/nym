@@ -34,9 +34,9 @@ import (
 	"github.com/nymtech/nym/tendermint/nymabci/transaction"
 	"github.com/tendermint/iavl"
 	"github.com/tendermint/tendermint/abci/types"
-	dbm "github.com/tendermint/tendermint/libs/db"
 	"github.com/tendermint/tendermint/libs/log"
 	"github.com/tendermint/tendermint/version"
+	dbm "github.com/tendermint/tm-cmn/db"
 )
 
 // TODO: FIXME: considering tendermint blockchain will no longer have to verify coconut credentials,

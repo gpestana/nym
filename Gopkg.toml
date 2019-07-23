@@ -34,8 +34,4 @@
   
 [[override]]
   name = "github.com/tendermint/tendermint"
-  branch = "master"
-
-[[override]]
-  name = "github.com/tendermint/iavl"
-  branch = "marko/remove_colors"
+  version = "v0.32.1" # master is now under development and we should not point to it anymore
