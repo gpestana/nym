@@ -33,6 +33,64 @@ ColumnLayout {
         Layout.fillHeight: false
         Layout.fillWidth: true
 
+
+        RowLayout {
+            width: 100
+            height: 100
+            spacing: 5
+            Layout.alignment: Qt.AlignHCenter | Qt.AlignVCenter
+            Layout.fillWidth: true
+
+
+            Label {
+                text: "Account status:"
+                horizontalAlignment: Text.AlignRight
+                font.weight: Font.DemiBold
+            }
+
+            Label {
+                Layout.preferredWidth: 150
+                id: accountStatusLabel
+                property bool accountExists: false
+                font.weight: Font.Black
+                text: accountExists ? qsTr("EXISTS") : qsTr("DOES NOT EXIST")
+                color: accountExists ? "limegreen" : "orangered"               
+            }
+
+
+            Button {
+                id: registerButton
+                text: qsTr("Register account")
+                enabled: !accountStatusLabel.accountExists
+                onClicked: QmlBridge.registerAccount(registerIndicator, mainColumn)
+            }
+
+            BusyIndicator {
+                id: registerIndicator
+                running: false
+                width: 60
+                Layout.preferredHeight: 50
+                Layout.preferredWidth: 50
+            }
+
+            Button {
+                id: faucetButton
+                enabled: (parseInt(erc20BalanceField.text, 10) >= 0 && parseInt(erc20BalanceField.text, 10) <= 5) ? true : false
+                text: qsTr("Request 50 ERC20 Nym from faucet")
+                onClicked: QmlBridge.getFaucetNym(faucetIndicator, mainColumn)
+            }
+
+            BusyIndicator {
+                id: faucetIndicator
+                running: false
+                width: 60
+                Layout.preferredHeight: 50
+                Layout.preferredWidth: 50
+            }
+        }
+
+
+
         RowLayout {
             id: rowLayout
             width: 100
@@ -99,9 +157,6 @@ ColumnLayout {
                 Layout.fillWidth: false
                 placeholderText: "-1"
             }
-
-
-
         }
 
         RowLayout {
@@ -386,8 +441,10 @@ ColumnLayout {
 
         TextField {
             enabled: false
-            width: 30
             id: selectedCredentialValueField
+            Layout.maximumWidth: 100
+            Layout.minimumWidth: 30
+            Layout.preferredWidth: 50
             placeholderText: "N/A"
             text: credentialList.currentItem != null ? credentialList.currentItem.value + " Nym" : ""
         }
@@ -488,6 +545,10 @@ ColumnLayout {
 
         onMarkSpentCredential: {
             credentialList.currentItem.isSpent = true
+        }
+
+        onSetAccountStatus: {
+            accountStatusLabel.accountExists = accountExists
         }
     }
 }

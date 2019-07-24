@@ -66,6 +66,7 @@ ApplicationWindow {
 		}
 	}
 	
+	// I guess rather than 'visible' trick, a proper loader should have been used?
 	NymWallet {
 		id: nymWallet
 		visible: false

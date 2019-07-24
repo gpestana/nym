@@ -275,15 +275,48 @@ ColumnLayout {
                 }
             }
         }
-
     }
+
+    Dialog {
+        id: newKeyDialog
+        parent: ApplicationWindow.contentItem
+        anchors.centerIn: ApplicationWindow.contentItem
+
+        height: 200
+        width: Math.min(ApplicationWindow.contentItem.width * 2/3, 800)
+
+        modal: true
+
+        closePolicy: Popup.NoAutoClose	
+        standardButtons: Dialog.Ok | Dialog.Close	
+        title: qsTr("No compatible key detected")
+
+        Label {
+			wrapMode: Label.WordWrap
+			// wrapMode: Label.WrapAnywhere
+            text: qsTr("The keyfile specified by your configuration file could not be loaded - was its path specified correctly?\nDo you want to generate a fresh keypair and save it to the the specified location? If rejected the application will be terminated.")
+
+            width: newKeyDialog.availableWidth
+			height: newKeyDialog.availableHeight
+        }
+
+        onAccepted: QmlBridge.generateNewKey()
+        onRejected: Qt.quit()
+    }
+
+
     Connections {
         target: QmlBridge
 		onNewNymValidator: {
             nymValidatorsListModel.add([identifier, address])
 		}
+
         onNewTendermintValidator: {
             tendermintValidatorsListModel.add([identifier, address])
+        }
+
+        onShowNewKeyDialog: {
+            newKeyDialog.open()
         }
     }
 

@@ -83,6 +83,11 @@ type QmlBridge struct {
 	_ func(value string, busyIndicator *core.QObject, mainLayoutObject *core.QObject)               `slot:"getCredential,auto"`
 	_ func(chosenSP, seqString string, busyIndicator *core.QObject, mainLayoutObject *core.QObject) `slot:"spendCredential,auto"`
 	_ func(item CredentialListItem)                                                                 `signal:"addCredentialListItem"`
+	_ func()                                                                                        `signal:"showNewKeyDialog"`
+	_ func()                                                                                        `slot:"generateNewKey,auto"`
+	_ func(accountExists bool)                                                                      `signal:"setAccountStatus"`
+	_ func(busyIndicator *core.QObject, mainLayoutObject *core.QObject)                             `slot:"registerAccount,auto"`
+	_ func(busyIndicator *core.QObject, mainLayoutObject *core.QObject)                             `slot:"getFaucetNym,auto"`
 }
 
 func enableAllObjects(objs []*core.QObject) {
@@ -198,7 +203,8 @@ func (qb *QmlBridge) loadConfig(file string) {
 	// TODO: later remove it, but for now it's temporary for demo sake
 	privateKey, loadErr := ethcrypto.LoadECDSA(cfg.Nym.AccountKeysFile)
 	if loadErr != nil {
-		qb.DisplayNotificationf(errNotificationTitle, "failed to load Nym keys: %v", loadErr)
+		// qb.DisplayNotificationf(errNotificationTitle, "failed to load Nym keys: %v", loadErr)
+		fmt.Printf("failed to load Nym keys: %v\n", loadErr)
 		configBridge.SetAddress("could not load the key")
 	} else {
 		address := ethcrypto.PubkeyToAddress(*privateKey.Public().(*ecdsa.PublicKey)).Hex()
@@ -224,8 +230,8 @@ func (qb *QmlBridge) loadConfig(file string) {
 
 	qb.cfg = cfg
 
-	if privateKey == nil {
-		// TODO: if we fail to load the key, ask the user whether to generate new keys at the specified location
+	if privateKey == nil || loadErr != nil {
+		qb.ShowNewKeyDialog()
 	}
 }
 
@@ -258,6 +264,7 @@ func (qb *QmlBridge) confirmConfig() {
 	}
 
 	qb.PopulateSPComboBox(spAddresses)
+	qb.SetAccountStatus(qb.checkIfAccountExists())
 }
 
 func (qb *QmlBridge) forceUpdateBalances(busyIndicator *core.QObject, mainLayoutObject *core.QObject) {
@@ -462,6 +469,57 @@ func (qb *QmlBridge) spendCredential(chosenSP, seqString string, busyIndicator *
 		// TODO: for demo sake, mark as spent (so you could see double-spent error), but in future just remove it
 		qb.MarkSpentCredential()
 	}()
+}
+
+func (qb *QmlBridge) generateNewKey() {
+	fmt.Println("new keygen")
+	pk, err := ethcrypto.GenerateKey()
+	if err != nil {
+		qb.DisplayNotificationf(errNotificationTitle, "could not generate a fresh key: %v", err)
+		return
+	}
+	if err := ethcrypto.SaveECDSA(qb.cfg.Nym.AccountKeysFile, pk); err != nil {
+		qb.DisplayNotificationf(errNotificationTitle, "could not save the new key: %v", err)
+	}
+}
+
+func (qb *QmlBridge) checkIfAccountExists() bool {
+	if qb.clientInstance == nil {
+		qb.DisplayNotificationf(errNotificationTitle, "nil client instance")
+		return false
+	}
+
+	exists, err := qb.clientInstance.CheckAccountExistence()
+	if err != nil {
+		qb.DisplayNotificationf(errNotificationTitle, "could not check for account existence")
+		return false
+	}
+	return exists
+}
+
+func (qb *QmlBridge) registerAccount(busyIndicator *core.QObject, mainLayoutObject *core.QObject) {
+	if qb.clientInstance == nil {
+		qb.DisplayNotificationf(errNotificationTitle, "nil client instance")
+		return
+	}
+
+	go func() {
+		toggleIndicatorAndObjects(busyIndicator, []*core.QObject{mainLayoutObject}, true)
+		defer toggleIndicatorAndObjects(busyIndicator, []*core.QObject{mainLayoutObject}, false)
+
+		// fake non-existent credential
+		accountCred := []byte("foo")
+		if err := qb.clientInstance.RegisterAccount(accountCred); err != nil {
+			qb.DisplayNotificationf(errNotificationTitle, "could not register Nym account: %v", err)
+			return
+		}
+
+		qb.SetAccountStatus(true)
+	}()
+}
+
+func (qb *QmlBridge) getFaucetNym(busyIndicator *core.QObject, mainLayoutObject *core.QObject) {
+	fmt.Println("get faucet nym")
 }
 
 // this function will be automatically called, when you use the `NewQmlBridge` function
