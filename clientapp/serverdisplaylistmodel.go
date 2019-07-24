@@ -21,10 +21,6 @@ import (
 	"github.com/therecipe/qt/core"
 )
 
-// TODO: once basic structure is figured out + got a good hang of how it works
-// split the file into separate packages, etc.
-
-// TODO: correct uri?
 func init() { ServerDisplayListModel_QmlRegisterType2("CustomQmlTypes", 1, 0, "ServerDisplayListModel") }
 
 const (
@@ -40,8 +36,7 @@ type ServerListItem struct {
 type ServerDisplayListModel struct {
 	core.QAbstractListModel
 
-	_ func() `constructor:"init"`
-
+	_ func()                                  `constructor:"init"`
 	_ func()                                  `signal:"remove,auto"`
 	_ func(obj []*core.QVariant)              `signal:"add,auto"`
 	_ func(identifier string, address string) `signal:"edit,auto"`

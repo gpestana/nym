@@ -3,7 +3,7 @@
 /build
 /ethereum/tmpPrivate
 mainaccount.key
-/client/gui/moc*
-/client/gui/rcc*
-/client/gui/deploy
-/client/gui/linux
+/clientapp/moc*
+/clientapp/rcc*
+/clientapp/deploy
+/clientapp/linux

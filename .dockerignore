@@ -1,3 +1,4 @@
 /.vscode
 /build
 **/*_test.go
+/clientapp

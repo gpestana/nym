@@ -174,6 +174,7 @@ Flickable {
         target: QmlBridge
         onDisplayNotification: {
             notificationText.text = message
+            notificationDialog.title = title
 
             notificationDialog.open()
         }

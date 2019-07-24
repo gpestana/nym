@@ -125,8 +125,8 @@ localnet-clear:
 
 
 build_gui:
-	qtdeploy build desktop client/gui
+	qtdeploy build desktop clientapp
 
 run_gui:
-	client/gui/deploy/linux/gui
+	clientapp/deploy/linux/clientapp
 	
