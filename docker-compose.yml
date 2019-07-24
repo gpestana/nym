@@ -26,7 +26,7 @@ services:
     container_name: node1
     image: "nym/nymnode"
     ports:
-      - "26659-26660:26656-26657"
+      - "26658-26659:26656-26657"
     environment:
       - ID=1
 # Is this still applicable?
@@ -48,7 +48,7 @@ services:
 # Is this still applicable?
       - LOG=$${LOG:-tendermint.log}
     ports:
-      - "26661-26662:26656-26657"
+      - "26660-26661:26656-26657"
     volumes:
       - ./build/nodes/node2:/tendermint:Z
     networks:
@@ -66,7 +66,7 @@ services:
 # Is this still applicable?
       - LOG=$${LOG:-tendermint.log}
     ports:
-      - "26663-26664:26656-26657"
+      - "26662-26663:26656-26657"
     volumes:
       - ./build/nodes/node3:/tendermint:Z
     networks:
