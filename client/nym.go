@@ -135,6 +135,37 @@ func (c *Client) GetCurrentNymBalance() (uint64, error) {
 	return balance, nil
 }
 
+func (c *Client) RegisterAccount(credential []byte) error {
+	exists, err := c.CheckAccountExistence()
+	if err != nil {
+		return c.logAndReturnError("RegisterAccount: could not check account status")
+	}
+	if exists {
+		return c.logAndReturnError("RegisterAccount: account already exists")
+	}
+	tx, err := transaction.CreateNewAccountRequest(c.privateKey, credential)
+	if err != nil {
+		return c.logAndReturnError("RegisterAccount: could not create register transaction")
+	}
+
+	res, err := c.nymClient.Broadcast(tx)
+	if err != nil {
+		return c.logAndReturnError("RegisterAccount: Failed to send new account request: %v", err)
+	}
+	if res.CheckTx.Code != code.OK || res.DeliverTx.Code != code.OK {
+		// TODO: once we include Logs field, return those
+		return c.logAndReturnError("RegisterAccount: Failed to send new account request: checkTx code: %v (%v) deliverTx code: %v (%v)",
+			res.CheckTx.Code,
+			code.ToString(res.CheckTx.Code),
+			res.DeliverTx.Code,
+			code.ToString(res.DeliverTx.Code),
+		)
+	}
+
+	c.log.Notice("Created new account")
+	return nil
+}
+
 func (c *Client) CheckAccountExistence() (bool, error) {
 	address := ethcrypto.PubkeyToAddress(*c.privateKey.Public().(*ecdsa.PublicKey))
 	res, err := c.nymClient.Query(query.AccountExistence, address[:])
