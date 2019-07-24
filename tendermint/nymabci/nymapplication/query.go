@@ -20,6 +20,8 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/nymtech/nym/tendermint/nymabci/query"
+
 	"github.com/nymtech/nym/tendermint/nymabci/code"
 	tmconst "github.com/nymtech/nym/tendermint/nymabci/constants"
 	"github.com/tendermint/tendermint/abci/types"
@@ -48,6 +50,16 @@ func (app *NymApplication) queryCheckZetaStatus(req types.RequestQuery) types.Re
 	status := app.checkZetaStatus(req.Data)
 	app.log.Debug(fmt.Sprintf("Zeta %v status: %v", req.Data, status))
 	return types.ResponseQuery{Code: code.OK, Key: req.Data, Value: status}
+}
+
+func (app *NymApplication) queryCheckAccountExistence(req types.RequestQuery) types.ResponseQuery {
+	// simplest way to determine existence is to query for balance
+	_, err := app.retrieveAccountBalance(req.Data)
+	exists := query.AccountStatusDoesNotExists
+	if err == nil {
+		exists = query.AccountStatusExists
+	}
+	return types.ResponseQuery{Code: code.OK, Key: req.Data, Value: exists}
 }
 
 //nolint: unparam

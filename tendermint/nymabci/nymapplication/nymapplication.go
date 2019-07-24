@@ -325,6 +325,8 @@ func (app *NymApplication) Query(req types.RequestQuery) types.ResponseQuery {
 			break
 		}
 		return res
+	case query.AccountExistence:
+		return app.queryCheckAccountExistence(req)
 	default:
 		app.log.Info(fmt.Sprintf("Unknown Query Path: %v", req.Path))
 	}

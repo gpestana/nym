@@ -16,75 +16,75 @@
 
 package client
 
-import (
-	"fmt"
-	"io/ioutil"
-	"log"
-	"os"
-	"sync"
-	"testing"
+// import (
+// 	"fmt"
+// 	"io/ioutil"
+// 	"log"
+// 	"os"
+// 	"sync"
+// 	"testing"
 
-	"github.com/nymtech/nym/logger"
-	"github.com/nymtech/nym/tendermint/nymabci/query"
-	"github.com/nymtech/nym/tendermint/nymnode/testnode"
-	"github.com/stretchr/testify/assert"
-	cmn "github.com/tendermint/tendermint/libs/common"
-)
+// 	"github.com/nymtech/nym/logger"
+// 	"github.com/nymtech/nym/tendermint/nymabci/query"
+// 	"github.com/nymtech/nym/tendermint/nymnode/testnode"
+// 	"github.com/stretchr/testify/assert"
+// 	cmn "github.com/tendermint/tendermint/libs/common"
+// )
 
-const tendermintRPCPort = 36657
+// const tendermintRPCPort = 36657
 
-// TODO: create entire cluster
-//nolint: gochecknoglobals
-var addresses = []string{
-	"localhost:4667",
-	fmt.Sprintf("localhost:%v", tendermintRPCPort),
-}
+// // TODO: create entire cluster
+// //nolint: gochecknoglobals
+// var addresses = []string{
+// 	"localhost:4667",
+// 	fmt.Sprintf("localhost:%v", tendermintRPCPort),
+// }
 
-// TEST REQUIRES RUNNING WITH --race FLAG
-func TestMultipleQueries(t *testing.T) {
-	log, err := logger.New("", "DEBUG", true)
-	// log, err := logger.New("", "DEBUG", false)
+// // TEST REQUIRES RUNNING WITH --race FLAG
+// func TestMultipleQueries(t *testing.T) {
+// 	log, err := logger.New("", "DEBUG", true)
+// 	// log, err := logger.New("", "DEBUG", false)
 
-	assert.Nil(t, err)
+// 	assert.Nil(t, err)
 
-	nymClient, err := New(addresses, log)
-	assert.Nil(t, err)
+// 	nymClient, err := New(addresses, log)
+// 	assert.Nil(t, err)
 
-	var wg sync.WaitGroup
-	numWorkers := 50
-	wg.Add(numWorkers)
-	for i := 0; i < numWorkers; i++ {
-		go func() {
-			_, _ = nymClient.Query(query.QueryCheckBalancePath, []byte("foo"))
-			wg.Done()
-		}()
-	}
-	wg.Wait()
-}
+// 	var wg sync.WaitGroup
+// 	numWorkers := 50
+// 	wg.Add(numWorkers)
+// 	for i := 0; i < numWorkers; i++ {
+// 		go func() {
+// 			_, _ = nymClient.Query(query.QueryCheckBalancePath, []byte("foo"))
+// 			wg.Done()
+// 		}()
+// 	}
+// 	wg.Wait()
+// }
 
-// TODO: more tests
+// // TODO: more tests
 
-func TestMain(m *testing.M) {
-	tmpDir, err := ioutil.TempDir("", fmt.Sprintf("test-node-%v", cmn.RandStr(6)))
-	if err != nil {
-		log.Fatal(err)
-	}
+// func TestMain(m *testing.M) {
+// 	tmpDir, err := ioutil.TempDir("", fmt.Sprintf("test-node-%v", cmn.RandStr(6)))
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
 
-	node, err := testnode.CreateTestingNymNode(tmpDir, tendermintRPCPort-1)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if err := node.Start(); err != nil {
-		log.Fatal(err)
-	}
-	defer os.Remove(tmpDir)
+// 	node, err := testnode.CreateTestingNymNode(tmpDir, tendermintRPCPort-1)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	if err := node.Start(); err != nil {
+// 		log.Fatal(err)
+// 	}
+// 	defer os.Remove(tmpDir)
 
-	runTests := m.Run()
+// 	runTests := m.Run()
 
-	if err := node.Stop(); err != nil {
-		fmt.Println("Undefined behaviour - node was somehow already stopped")
-	}
-	os.RemoveAll(tmpDir)
+// 	if err := node.Stop(); err != nil {
+// 		fmt.Println("Undefined behaviour - node was somehow already stopped")
+// 	}
+// 	os.RemoveAll(tmpDir)
 
-	os.Exit(runTests)
-}
+// 	os.Exit(runTests)
+// }

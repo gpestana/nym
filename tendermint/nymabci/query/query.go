@@ -24,5 +24,14 @@ const (
 	// only spent/unspent
 	ZetaStatus = "/ZetaStatus"
 	// unspent/being verified/spent(+ who was credited)
-	FullZetaStatus = "/FullZetaStatus"
+	FullZetaStatus   = "/FullZetaStatus"
+	AccountExistence = "/accountExists"
+)
+
+// TODO: do similar thing for other responses
+type AccountStatus []byte
+
+var (
+	AccountStatusDoesNotExists AccountStatus = []byte{0}
+	AccountStatusExists        AccountStatus = []byte{1}
 )

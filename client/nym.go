@@ -18,6 +18,7 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"encoding/binary"
@@ -132,6 +133,24 @@ func (c *Client) GetCurrentNymBalance() (uint64, error) {
 	balance := binary.BigEndian.Uint64(res.Response.Value)
 	c.log.Debugf("Queried balance is : %v", balance)
 	return balance, nil
+}
+
+func (c *Client) CheckAccountExistence() (bool, error) {
+	address := ethcrypto.PubkeyToAddress(*c.privateKey.Public().(*ecdsa.PublicKey))
+	res, err := c.nymClient.Query(query.AccountExistence, address[:])
+	if err != nil {
+		return false, c.logAndReturnError("CheckAccountExistence: failed to send getBalance Query: %v", err)
+	}
+	if res.Response.Code != code.OK {
+		return false, c.logAndReturnError("CheckAccountExistence: the query failed with code %v (%v)",
+			res.Response.Code,
+			code.ToString(res.Response.Code),
+		)
+	}
+	if bytes.Equal(res.Response.Value, query.AccountStatusExists) {
+		return true, nil
+	}
+	return false, nil
 }
 
 func (c *Client) SendToPipeAccount(ctx context.Context, amount int64) error {
